@@ -1,32 +1,46 @@
-import { ShoppingCart, Search } from "lucide-react";
+import { ShoppingCart, Search, User, LayoutDashboard } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
+import { Link } from "wouter";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface HeaderProps {
   cartCount?: number;
   onCartClick?: () => void;
+  userRole?: "admin" | "client" | null;
 }
 
-export default function Header({ cartCount = 0, onCartClick }: HeaderProps) {
+export default function Header({ cartCount = 0, onCartClick, userRole = "admin" }: HeaderProps) {
   return (
     <header className="sticky top-0 z-50 backdrop-blur-md bg-background/90 border-b border-border">
       <div className="max-w-7xl mx-auto px-6 py-4">
         <div className="flex items-center justify-between gap-6">
           <div className="flex items-center gap-8">
-            <h1 className="text-2xl font-bold font-display text-primary" data-testid="text-logo">
-              BeatMarket
-            </h1>
+            <Link href="/">
+              <h1 className="text-2xl font-bold font-display text-primary cursor-pointer" data-testid="text-logo">
+                BeatMarket
+              </h1>
+            </Link>
             <nav className="hidden md:flex items-center gap-6">
-              <Button variant="ghost" size="sm" data-testid="button-browse">
-                Browse
-              </Button>
-              <Button variant="ghost" size="sm" data-testid="button-genres">
-                Genres
-              </Button>
-              <Button variant="ghost" size="sm" data-testid="button-upload">
-                Upload
-              </Button>
+              <Link href="/">
+                <Button variant="ghost" size="sm" data-testid="button-browse">
+                  Browse
+                </Button>
+              </Link>
+              {userRole === "admin" && (
+                <Link href="/admin/upload">
+                  <Button variant="ghost" size="sm" data-testid="button-upload">
+                    Upload
+                  </Button>
+                </Link>
+              )}
             </nav>
           </div>
 
@@ -61,6 +75,42 @@ export default function Header({ cartCount = 0, onCartClick }: HeaderProps) {
                 </Badge>
               )}
             </Button>
+
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="ghost" size="icon" data-testid="button-user-menu">
+                  <User className="h-5 w-5" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end" className="w-56">
+                {userRole === "admin" ? (
+                  <>
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin/dashboard" className="cursor-pointer">
+                        <LayoutDashboard className="mr-2 h-4 w-4" />
+                        Admin Dashboard
+                      </Link>
+                    </DropdownMenuItem>
+                    <DropdownMenuItem asChild>
+                      <Link href="/admin/upload" className="cursor-pointer">
+                        Upload Beat
+                      </Link>
+                    </DropdownMenuItem>
+                  </>
+                ) : (
+                  <DropdownMenuItem asChild>
+                    <Link href="/dashboard" className="cursor-pointer">
+                      <LayoutDashboard className="mr-2 h-4 w-4" />
+                      My Dashboard
+                    </Link>
+                  </DropdownMenuItem>
+                )}
+                <DropdownMenuSeparator />
+                <DropdownMenuItem data-testid="button-logout">
+                  Logout
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </div>
         </div>
       </div>
