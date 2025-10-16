@@ -2,6 +2,7 @@ import { useState } from "react";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import BeatCard, { type Beat } from "@/components/BeatCard";
+import BeatCarousel from "@/components/BeatCarousel";
 import AudioPlayer from "@/components/AudioPlayer";
 import Cart, { type CartItem } from "@/components/Cart";
 import FilterSidebar from "@/components/FilterSidebar";
@@ -79,6 +80,16 @@ export default function Home() {
       <Header cartCount={cartItems.length} onCartClick={() => setIsCartOpen(true)} />
       
       <Hero />
+
+      <section className="max-w-7xl mx-auto px-6 py-16">
+        <h2 className="text-3xl font-bold font-display mb-8" data-testid="text-latest-title">
+          Latest Tracks
+        </h2>
+        <BeatCarousel
+          beats={sampleBeats.slice(0, 6)}
+          onPlayBeat={(beat) => handlePlayPause(beat)}
+        />
+      </section>
 
       <section className="max-w-7xl mx-auto px-6 py-16">
         <h2 className="text-3xl font-bold font-display mb-8" data-testid="text-genres-title">
