@@ -109,6 +109,9 @@ export class DatabaseStorage implements IStorage {
 
   private async initializeDatabase() {
     try {
+      // Create tables if they don't exist
+      await this.createTables();
+
       // Check if passwordChangeRequired column exists, if not add it
       try {
         await db.run(sql`SELECT password_change_required FROM users LIMIT 1`);
@@ -145,9 +148,166 @@ export class DatabaseStorage implements IStorage {
         console.log("Default admin user created: admin/admin123");
       }
 
+      // Initialize default genres if none exist
+      await this.initializeDefaultGenres();
+
       console.log("Database initialized");
     } catch (error) {
       console.error("Database initialization error:", error);
+    }
+  }
+
+  private async createTables() {
+    try {
+      // Create users table
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS users (
+          id TEXT PRIMARY KEY,
+          username TEXT NOT NULL UNIQUE,
+          password TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'client',
+          email TEXT,
+          password_change_required INTEGER NOT NULL DEFAULT 1,
+          theme TEXT NOT NULL DEFAULT 'original',
+          created_at DATETIME,
+          updated_at DATETIME
+        )
+      `);
+
+      // Create beats table
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS beats (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          artist TEXT NOT NULL,
+          genre TEXT NOT NULL,
+          price REAL NOT NULL,
+          file_path TEXT NOT NULL,
+          image_path TEXT,
+          description TEXT,
+          duration INTEGER,
+          bpm INTEGER,
+          key TEXT,
+          created_at DATETIME,
+          updated_at DATETIME
+        )
+      `);
+
+      // Create purchases table
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS purchases (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          beat_id TEXT NOT NULL,
+          amount REAL NOT NULL,
+          created_at DATETIME,
+          FOREIGN KEY (user_id) REFERENCES users(id),
+          FOREIGN KEY (beat_id) REFERENCES beats(id)
+        )
+      `);
+
+      // Create analytics table
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS analytics (
+          id TEXT PRIMARY KEY,
+          type TEXT NOT NULL,
+          value INTEGER NOT NULL DEFAULT 0,
+          created_at DATETIME,
+          updated_at DATETIME
+        )
+      `);
+
+      // Create customers table
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS customers (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          name TEXT NOT NULL,
+          email TEXT,
+          phone TEXT,
+          address TEXT,
+          created_at DATETIME,
+          updated_at DATETIME,
+          FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+      `);
+
+      // Create cart table
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS cart (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          beat_id TEXT NOT NULL,
+          created_at DATETIME,
+          FOREIGN KEY (user_id) REFERENCES users(id),
+          FOREIGN KEY (beat_id) REFERENCES beats(id)
+        )
+      `);
+
+      // Create payments table
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS payments (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          amount REAL NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          payment_method TEXT,
+          transaction_id TEXT,
+          approved_by TEXT,
+          created_at DATETIME,
+          updated_at DATETIME,
+          FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+      `);
+
+      // Create genres table
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS genres (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL UNIQUE,
+          description TEXT,
+          is_active INTEGER NOT NULL DEFAULT 1,
+          created_at DATETIME,
+          updated_at DATETIME
+        )
+      `);
+
+      console.log("✓ Database tables created/verified");
+    } catch (error) {
+      console.error("Error creating tables:", error);
+      throw error;
+    }
+  }
+
+  private async initializeDefaultGenres() {
+    try {
+      const existingGenres = await this.getAllGenres();
+      if (existingGenres.length === 0) {
+        const defaultGenres = [
+          { name: "Hip-Hop", description: "Classic hip-hop beats and instrumentals" },
+          { name: "Trap", description: "Modern trap beats with heavy bass" },
+          { name: "R&B", description: "Smooth R&B and soulful instrumentals" },
+          { name: "Pop", description: "Catchy pop beats and commercial tracks" },
+          { name: "Lo-fi", description: "Chill lo-fi hip-hop and ambient beats" },
+          { name: "Drill", description: "Aggressive drill beats and UK drill" },
+          { name: "Jazz", description: "Jazz-influenced beats and instrumentals" },
+          { name: "Electronic", description: "Electronic and EDM-style beats" }
+        ];
+
+        for (const genre of defaultGenres) {
+          await db.insert(genres).values({
+            id: randomUUID(),
+            name: genre.name,
+            description: genre.description,
+            isActive: true,
+            createdAt: new Date(),
+            updatedAt: new Date(),
+          });
+        }
+        console.log("✓ Default genres created");
+      }
+    } catch (error) {
+      console.error("Error initializing default genres:", error);
     }
   }
 
