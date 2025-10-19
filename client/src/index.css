@@ -212,8 +212,1493 @@
   }
 
   body {
-    @apply font-sans antialiased bg-background text-foreground;
+    @apply font-sans antialiased;
+    background: var(--theme-background, linear-gradient(135deg, #667eea 0%, #764ba2 100%));
+    color: var(--theme-text, #ffffff);
   }
+
+  /* Theme-aware text colors */
+  .theme-text {
+    color: var(--theme-text, #ffffff) !important;
+  }
+
+  .theme-text-secondary {
+    color: var(--theme-text-secondary, rgba(255, 255, 255, 0.8)) !important;
+  }
+
+  /* Theme-aware backgrounds */
+  .theme-background {
+    background: var(--theme-background, linear-gradient(135deg, #667eea 0%, #764ba2 100%)) !important;
+  }
+
+  .theme-surface {
+    background: var(--theme-surface, rgba(255, 255, 255, 0.1)) !important;
+  }
+
+  .theme-card {
+    background: var(--theme-surface, rgba(255, 255, 255, 0.1)) !important;
+    backdrop-filter: blur(10px);
+    border: 1px solid var(--theme-border, rgba(255, 255, 255, 0.2)) !important;
+  }
+
+  /* Darker card backgrounds for all themes */
+  .dark .card,
+  .theme-original .card,
+  .theme-default .card,
+  .theme-card-match .card,
+  .theme-black-white .card,
+  .theme-red-black .card,
+  .theme-blue-purple .card,
+  .theme-green-dark .card,
+  .theme-orange-dark .card,
+  .theme-pink-purple .card,
+  .theme-cyan-dark .card {
+    background: var(--theme-surface, rgba(0, 0, 0, 0.3)) !important;
+    border-color: var(--theme-border, rgba(255, 255, 255, 0.15)) !important;
+  }
+
+  .theme-input {
+    background: var(--theme-surface, rgba(255, 255, 255, 0.1)) !important;
+    border: 1px solid var(--theme-border, rgba(255, 255, 255, 0.2)) !important;
+    color: var(--theme-text, #ffffff) !important;
+  }
+
+  .theme-button-primary {
+    background: var(--theme-primary, #8b5cf6) !important;
+    color: #ffffff !important;
+  }
+
+  .theme-button-primary:hover {
+    background: var(--theme-secondary, #7c3aed) !important;
+  }
+
+  .theme-button-secondary {
+    background: var(--theme-surface, rgba(255, 255, 255, 0.1)) !important;
+    color: var(--theme-text, #ffffff) !important;
+    border: 1px solid var(--theme-border, rgba(255, 255, 255, 0.2)) !important;
+  }
+
+  .theme-button-secondary:hover {
+    background: var(--theme-surface, rgba(255, 255, 255, 0.2)) !important;
+  }
+
+  /* Force all text to use theme colors - but allow components to override */
+  .dark,
+  .theme-original,
+  .theme-default,
+  .theme-card-match,
+  .theme-black-white,
+  .theme-red-black,
+  .theme-blue-purple,
+  .theme-green-dark,
+  .theme-orange-dark,
+  .theme-pink-purple,
+  .theme-cyan-dark {
+    color: var(--theme-text, #ffffff);
+  }
+
+  /* Only apply white text to elements that don't have explicit color classes */
+  .dark *:not([class*="text-"]):not([class*="bg-"]),
+  .theme-original *:not([class*="text-"]):not([class*="bg-"]),
+  .theme-default *:not([class*="text-"]):not([class*="bg-"]),
+  .theme-card-match *:not([class*="text-"]):not([class*="bg-"]),
+  .theme-black-white *:not([class*="text-"]):not([class*="bg-"]),
+  .theme-red-black *:not([class*="text-"]):not([class*="bg-"]),
+  .theme-blue-purple *:not([class*="text-"]):not([class*="bg-"]),
+  .theme-green-dark *:not([class*="text-"]):not([class*="bg-"]),
+  .theme-orange-dark *:not([class*="text-"]):not([class*="bg-"]),
+  .theme-pink-purple *:not([class*="text-"]):not([class*="bg-"]),
+  .theme-cyan-dark *:not([class*="text-"]):not([class*="bg-"]) {
+    color: var(--theme-text, #ffffff);
+  }
+
+  .dark h1,
+  .dark h2,
+  .dark h3,
+  .dark h4,
+  .dark h5,
+  .dark h6,
+  .theme-original h1,
+  .theme-original h2,
+  .theme-original h3,
+  .theme-original h4,
+  .theme-original h5,
+  .theme-original h6,
+  .theme-default h1,
+  .theme-default h2,
+  .theme-default h3,
+  .theme-default h4,
+  .theme-default h5,
+  .theme-default h6,
+  .theme-card-match h1,
+  .theme-card-match h2,
+  .theme-card-match h3,
+  .theme-card-match h4,
+  .theme-card-match h5,
+  .theme-card-match h6,
+  .theme-black-white h1,
+  .theme-black-white h2,
+  .theme-black-white h3,
+  .theme-black-white h4,
+  .theme-black-white h5,
+  .theme-black-white h6,
+  .theme-red-black h1,
+  .theme-red-black h2,
+  .theme-red-black h3,
+  .theme-red-black h4,
+  .theme-red-black h5,
+  .theme-red-black h6,
+  .theme-blue-purple h1,
+  .theme-blue-purple h2,
+  .theme-blue-purple h3,
+  .theme-blue-purple h4,
+  .theme-blue-purple h5,
+  .theme-blue-purple h6,
+  .theme-green-dark h1,
+  .theme-green-dark h2,
+  .theme-green-dark h3,
+  .theme-green-dark h4,
+  .theme-green-dark h5,
+  .theme-green-dark h6,
+  .theme-orange-dark h1,
+  .theme-orange-dark h2,
+  .theme-orange-dark h3,
+  .theme-orange-dark h4,
+  .theme-orange-dark h5,
+  .theme-orange-dark h6,
+  .theme-pink-purple h1,
+  .theme-pink-purple h2,
+  .theme-pink-purple h3,
+  .theme-pink-purple h4,
+  .theme-pink-purple h5,
+  .theme-pink-purple h6,
+  .theme-cyan-dark h1,
+  .theme-cyan-dark h2,
+  .theme-cyan-dark h3,
+  .theme-cyan-dark h4,
+  .theme-cyan-dark h5,
+  .theme-cyan-dark h6 {
+    color: var(--theme-text, #ffffff) !important;
+  }
+
+  .dark p,
+  .dark span,
+  .dark div,
+  .dark label,
+  .theme-original p,
+  .theme-original span,
+  .theme-original div,
+  .theme-original label,
+  .theme-default p,
+  .theme-default span,
+  .theme-default div,
+  .theme-default label,
+  .theme-card-match p,
+  .theme-card-match span,
+  .theme-card-match div,
+  .theme-card-match label,
+  .theme-black-white p,
+  .theme-black-white span,
+  .theme-black-white div,
+  .theme-black-white label,
+  .theme-red-black p,
+  .theme-red-black span,
+  .theme-red-black div,
+  .theme-red-black label,
+  .theme-blue-purple p,
+  .theme-blue-purple span,
+  .theme-blue-purple div,
+  .theme-blue-purple label,
+  .theme-green-dark p,
+  .theme-green-dark span,
+  .theme-green-dark div,
+  .theme-green-dark label,
+  .theme-orange-dark p,
+  .theme-orange-dark span,
+  .theme-orange-dark div,
+  .theme-orange-dark label,
+  .theme-pink-purple p,
+  .theme-pink-purple span,
+  .theme-pink-purple div,
+  .theme-pink-purple label,
+  .theme-cyan-dark p,
+  .theme-cyan-dark span,
+  .theme-cyan-dark div,
+  .theme-cyan-dark label {
+    color: var(--theme-text, #ffffff) !important;
+  }
+
+  .dark input,
+  .dark textarea,
+  .dark select,
+  .theme-original input,
+  .theme-original textarea,
+  .theme-original select,
+  .theme-default input,
+  .theme-default textarea,
+  .theme-default select,
+  .theme-card-match input,
+  .theme-card-match textarea,
+  .theme-card-match select,
+  .theme-black-white input,
+  .theme-black-white textarea,
+  .theme-black-white select,
+  .theme-red-black input,
+  .theme-red-black textarea,
+  .theme-red-black select,
+  .theme-blue-purple input,
+  .theme-blue-purple textarea,
+  .theme-blue-purple select,
+  .theme-green-dark input,
+  .theme-green-dark textarea,
+  .theme-green-dark select,
+  .theme-orange-dark input,
+  .theme-orange-dark textarea,
+  .theme-orange-dark select,
+  .theme-pink-purple input,
+  .theme-pink-purple textarea,
+  .theme-pink-purple select,
+  .theme-cyan-dark input,
+  .theme-cyan-dark textarea,
+  .theme-cyan-dark select {
+    color: var(--theme-text, #ffffff) !important;
+  }
+
+  .dark .text-muted-foreground,
+  .theme-original .text-muted-foreground,
+  .theme-default .text-muted-foreground,
+  .theme-card-match .text-muted-foreground,
+  .theme-black-white .text-muted-foreground,
+  .theme-red-black .text-muted-foreground,
+  .theme-blue-purple .text-muted-foreground,
+  .theme-green-dark .text-muted-foreground,
+  .theme-orange-dark .text-muted-foreground,
+  .theme-pink-purple .text-muted-foreground,
+  .theme-cyan-dark .text-muted-foreground {
+    color: var(--theme-text-secondary, rgba(255, 255, 255, 0.7)) !important;
+  }
+
+  .dark .text-foreground,
+  .theme-original .text-foreground,
+  .theme-default .text-foreground,
+  .theme-card-match .text-foreground,
+  .theme-black-white .text-foreground,
+  .theme-red-black .text-foreground,
+  .theme-blue-purple .text-foreground,
+  .theme-green-dark .text-foreground,
+  .theme-orange-dark .text-foreground,
+  .theme-pink-purple .text-foreground,
+  .theme-cyan-dark .text-foreground {
+    color: var(--theme-text, #ffffff) !important;
+  }
+
+  .dark .card-foreground,
+  .theme-original .card-foreground,
+  .theme-default .card-foreground,
+  .theme-card-match .card-foreground,
+  .theme-black-white .card-foreground,
+  .theme-red-black .card-foreground,
+  .theme-blue-purple .card-foreground,
+  .theme-green-dark .card-foreground,
+  .theme-orange-dark .card-foreground,
+  .theme-pink-purple .card-foreground,
+  .theme-cyan-dark .card-foreground {
+    color: var(--theme-text, #ffffff) !important;
+  }
+
+  /* Table text */
+  .dark table,
+  .dark th,
+  .dark td,
+  .theme-original table,
+  .theme-original th,
+  .theme-original td,
+  .theme-default table,
+  .theme-default th,
+  .theme-default td,
+  .theme-card-match table,
+  .theme-card-match th,
+  .theme-card-match td,
+  .theme-black-white table,
+  .theme-black-white th,
+  .theme-black-white td,
+  .theme-red-black table,
+  .theme-red-black th,
+  .theme-red-black td,
+  .theme-blue-purple table,
+  .theme-blue-purple th,
+  .theme-blue-purple td,
+  .theme-green-dark table,
+  .theme-green-dark th,
+  .theme-green-dark td,
+  .theme-orange-dark table,
+  .theme-orange-dark th,
+  .theme-orange-dark td,
+  .theme-pink-purple table,
+  .theme-pink-purple th,
+  .theme-pink-purple td,
+  .theme-cyan-dark table,
+  .theme-cyan-dark th,
+  .theme-cyan-dark td {
+    color: var(--theme-text, #ffffff) !important;
+  }
+
+  /* Button text */
+  .dark button,
+  .theme-original button,
+  .theme-default button,
+  .theme-card-match button,
+  .theme-black-white button,
+  .theme-red-black button,
+  .theme-blue-purple button,
+  .theme-green-dark button,
+  .theme-orange-dark button,
+  .theme-pink-purple button,
+  .theme-cyan-dark button {
+    color: var(--theme-text, #ffffff) !important;
+  }
+
+  /* Select and option text with dark backgrounds */
+  .dark select,
+  .dark option,
+  .theme-original select,
+  .theme-original option,
+  .theme-default select,
+  .theme-default option,
+  .theme-card-match select,
+  .theme-card-match option,
+  .theme-black-white select,
+  .theme-black-white option,
+  .theme-red-black select,
+  .theme-red-black option,
+  .theme-blue-purple select,
+  .theme-blue-purple option,
+  .theme-green-dark select,
+  .theme-green-dark option,
+  .theme-orange-dark select,
+  .theme-orange-dark option,
+  .theme-pink-purple select,
+  .theme-pink-purple option,
+  .theme-cyan-dark select,
+  .theme-cyan-dark option {
+    color: var(--theme-text, #ffffff) !important;
+    background: var(--theme-surface, rgba(255, 255, 255, 0.1)) !important;
+    border: 1px solid var(--theme-border, rgba(255, 255, 255, 0.2)) !important;
+  }
+
+  /* Combobox/Select input dark backgrounds */
+  .dark [data-radix-select-trigger],
+  .theme-original [data-radix-select-trigger],
+  .theme-default [data-radix-select-trigger],
+  .theme-card-match [data-radix-select-trigger],
+  .theme-black-white [data-radix-select-trigger],
+  .theme-red-black [data-radix-select-trigger],
+  .theme-blue-purple [data-radix-select-trigger],
+  .theme-green-dark [data-radix-select-trigger],
+  .theme-orange-dark [data-radix-select-trigger],
+  .theme-pink-purple [data-radix-select-trigger],
+  .theme-cyan-dark [data-radix-select-trigger] {
+    background: var(--theme-surface, rgba(255, 255, 255, 0.1)) !important;
+    border: 1px solid var(--theme-border, rgba(255, 255, 255, 0.2)) !important;
+    color: var(--theme-text, #ffffff) !important;
+  }
+
+  .dark [data-radix-select-trigger]:hover,
+  .theme-original [data-radix-select-trigger]:hover,
+  .theme-default [data-radix-select-trigger]:hover,
+  .theme-card-match [data-radix-select-trigger]:hover,
+  .theme-black-white [data-radix-select-trigger]:hover,
+  .theme-red-black [data-radix-select-trigger]:hover,
+  .theme-blue-purple [data-radix-select-trigger]:hover,
+  .theme-green-dark [data-radix-select-trigger]:hover,
+  .theme-orange-dark [data-radix-select-trigger]:hover,
+  .theme-pink-purple [data-radix-select-trigger]:hover,
+  .theme-cyan-dark [data-radix-select-trigger]:hover {
+    background: var(--theme-surface, rgba(255, 255, 255, 0.15)) !important;
+    border-color: var(--theme-accent, #3b82f6) !important;
+  }
+
+  /* Dark backgrounds and text for select items */
+  .dark [data-radix-select-content] *,
+  .dark [data-radix-dropdown-content] *,
+  .theme-original [data-radix-select-content] *,
+  .theme-original [data-radix-dropdown-content] *,
+  .theme-default [data-radix-select-content] *,
+  .theme-default [data-radix-dropdown-content] *,
+  .theme-card-match [data-radix-select-content] *,
+  .theme-card-match [data-radix-dropdown-content] *,
+  .theme-black-white [data-radix-select-content] *,
+  .theme-black-white [data-radix-dropdown-content] *,
+  .theme-red-black [data-radix-select-content] *,
+  .theme-red-black [data-radix-dropdown-content] *,
+  .theme-blue-purple [data-radix-select-content] *,
+  .theme-blue-purple [data-radix-dropdown-content] *,
+  .theme-green-dark [data-radix-select-content] *,
+  .theme-green-dark [data-radix-dropdown-content] *,
+  .theme-orange-dark [data-radix-select-content] *,
+  .theme-orange-dark [data-radix-dropdown-content] *,
+  .theme-pink-purple [data-radix-select-content] *,
+  .theme-pink-purple [data-radix-dropdown-content] *,
+  .theme-cyan-dark [data-radix-select-content] *,
+  .theme-cyan-dark [data-radix-dropdown-content] * {
+    color: #ffffff !important;
+    background: transparent !important;
+  }
+
+  /* Force dark backgrounds for select items */
+  .dark [data-radix-select-item],
+  .theme-original [data-radix-select-item],
+  .theme-default [data-radix-select-item],
+  .theme-card-match [data-radix-select-item],
+  .theme-black-white [data-radix-select-item],
+  .theme-red-black [data-radix-select-item],
+  .theme-blue-purple [data-radix-select-item],
+  .theme-green-dark [data-radix-select-item],
+  .theme-orange-dark [data-radix-select-item],
+  .theme-pink-purple [data-radix-select-item],
+  .theme-cyan-dark [data-radix-select-item] {
+    background: #1f2937 !important;
+    color: #ffffff !important;
+  }
+
+  .dark [data-radix-select-item]:hover,
+  .theme-original [data-radix-select-item]:hover,
+  .theme-default [data-radix-select-item]:hover,
+  .theme-card-match [data-radix-select-item]:hover,
+  .theme-black-white [data-radix-select-item]:hover,
+  .theme-red-black [data-radix-select-item]:hover,
+  .theme-blue-purple [data-radix-select-item]:hover,
+  .theme-green-dark [data-radix-select-item]:hover,
+  .theme-orange-dark [data-radix-select-item]:hover,
+  .theme-pink-purple [data-radix-select-item]:hover,
+  .theme-cyan-dark [data-radix-select-item]:hover {
+    background: #374151 !important;
+    color: #ffffff !important;
+  }
+
+  .dark [data-radix-select-item][data-highlighted],
+  .theme-original [data-radix-select-item][data-highlighted],
+  .theme-default [data-radix-select-item][data-highlighted],
+  .theme-card-match [data-radix-select-item][data-highlighted],
+  .theme-black-white [data-radix-select-item][data-highlighted],
+  .theme-red-black [data-radix-select-item][data-highlighted],
+  .theme-blue-purple [data-radix-select-item][data-highlighted],
+  .theme-green-dark [data-radix-select-item][data-highlighted],
+  .theme-orange-dark [data-radix-select-item][data-highlighted],
+  .theme-pink-purple [data-radix-select-item][data-highlighted],
+  .theme-cyan-dark [data-radix-select-item][data-highlighted] {
+    background: #374151 !important;
+    color: #ffffff !important;
+  }
+
+  /* Universal select item dark background */
+  [data-radix-select-item] {
+    background: #1f2937 !important;
+    color: #ffffff !important;
+  }
+
+  [data-radix-select-item]:hover {
+    background: #374151 !important;
+    color: #ffffff !important;
+  }
+
+  [data-radix-select-item][data-highlighted] {
+    background: #374151 !important;
+    color: #ffffff !important;
+  }
+
+  /* Dark background colors for dropdown and popover content - FORCE DARK */
+  .dark [data-radix-select-content],
+  .dark [data-radix-dropdown-content],
+  .dark [data-radix-popover-content] {
+    background: #1f2937 !important;
+    border: 1px solid #374151 !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  .theme-original [data-radix-select-content],
+  .theme-original [data-radix-dropdown-content],
+  .theme-original [data-radix-popover-content] {
+    background: #1f2937 !important;
+    border: 1px solid #374151 !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  .theme-default [data-radix-select-content],
+  .theme-default [data-radix-dropdown-content],
+  .theme-default [data-radix-popover-content] {
+    background: #1f2937 !important;
+    border: 1px solid #374151 !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  .theme-card-match [data-radix-select-content],
+  .theme-card-match [data-radix-dropdown-content],
+  .theme-card-match [data-radix-popover-content] {
+    background: #1f2937 !important;
+    border: 1px solid #374151 !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  .theme-black-white [data-radix-select-content],
+  .theme-black-white [data-radix-dropdown-content],
+  .theme-black-white [data-radix-popover-content] {
+    background: #000000 !important;
+    border: 1px solid #ffffff !important;
+    box-shadow: 0 10px 15px -3px rgba(255, 255, 255, 0.1), 0 4px 6px -2px rgba(255, 255, 255, 0.05) !important;
+  }
+
+  .theme-red-black [data-radix-select-content],
+  .theme-red-black [data-radix-dropdown-content],
+  .theme-red-black [data-radix-popover-content] {
+    background: #1f2937 !important;
+    border: 1px solid #dc2626 !important;
+    box-shadow: 0 10px 15px -3px rgba(220, 38, 38, 0.3), 0 4px 6px -2px rgba(220, 38, 38, 0.1) !important;
+  }
+
+  .theme-blue-purple [data-radix-select-content],
+  .theme-blue-purple [data-radix-dropdown-content],
+  .theme-blue-purple [data-radix-popover-content] {
+    background: #1f2937 !important;
+    border: 1px solid #3b82f6 !important;
+    box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3), 0 4px 6px -2px rgba(59, 130, 246, 0.1) !important;
+  }
+
+  .theme-green-dark [data-radix-select-content],
+  .theme-green-dark [data-radix-dropdown-content],
+  .theme-green-dark [data-radix-popover-content] {
+    background: #1f2937 !important;
+    border: 1px solid #10b981 !important;
+    box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3), 0 4px 6px -2px rgba(16, 185, 129, 0.1) !important;
+  }
+
+  .theme-orange-dark [data-radix-select-content],
+  .theme-orange-dark [data-radix-dropdown-content],
+  .theme-orange-dark [data-radix-popover-content] {
+    background: #1f2937 !important;
+    border: 1px solid #f59e0b !important;
+    box-shadow: 0 10px 15px -3px rgba(245, 158, 11, 0.3), 0 4px 6px -2px rgba(245, 158, 11, 0.1) !important;
+  }
+
+  .theme-pink-purple [data-radix-select-content],
+  .theme-pink-purple [data-radix-dropdown-content],
+  .theme-pink-purple [data-radix-popover-content] {
+    background: #1f2937 !important;
+    border: 1px solid #ec4899 !important;
+    box-shadow: 0 10px 15px -3px rgba(236, 72, 153, 0.3), 0 4px 6px -2px rgba(236, 72, 153, 0.1) !important;
+  }
+
+  .theme-cyan-dark [data-radix-select-content],
+  .theme-cyan-dark [data-radix-dropdown-content],
+  .theme-cyan-dark [data-radix-popover-content] {
+    background: #1f2937 !important;
+    border: 1px solid #06b6d4 !important;
+    box-shadow: 0 10px 15px -3px rgba(6, 182, 212, 0.3), 0 4px 6px -2px rgba(6, 182, 212, 0.1) !important;
+  }
+
+  /* Additional force dark for SelectContent */
+  [data-radix-select-content] {
+    background: #1f2937 !important;
+    border: 1px solid #374151 !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  /* Force dark for all SelectContent regardless of theme */
+  .dark [data-radix-select-content],
+  .theme-original [data-radix-select-content],
+  .theme-default [data-radix-select-content],
+  .theme-card-match [data-radix-select-content],
+  .theme-black-white [data-radix-select-content],
+  .theme-red-black [data-radix-select-content],
+  .theme-blue-purple [data-radix-select-content],
+  .theme-green-dark [data-radix-select-content],
+  .theme-orange-dark [data-radix-select-content],
+  .theme-pink-purple [data-radix-select-content],
+  .theme-cyan-dark [data-radix-select-content] {
+    background: #1f2937 !important;
+    border: 1px solid #374151 !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  /* Additional specific rules for Date Joined dropdown */
+  .dark .select-content,
+  .theme-original .select-content,
+  .theme-default .select-content,
+  .theme-card-match .select-content,
+  .theme-black-white .select-content,
+  .theme-red-black .select-content,
+  .theme-blue-purple .select-content,
+  .theme-green-dark .select-content,
+  .theme-orange-dark .select-content,
+  .theme-pink-purple .select-content,
+  .theme-cyan-dark .select-content {
+    background: #1f2937 !important;
+    border: 1px solid #374151 !important;
+  }
+
+  /* Force dark for any remaining white backgrounds */
+  .dark [role="listbox"],
+  .theme-original [role="listbox"],
+  .theme-default [role="listbox"],
+  .theme-card-match [role="listbox"],
+  .theme-black-white [role="listbox"],
+  .theme-red-black [role="listbox"],
+  .theme-blue-purple [role="listbox"],
+  .theme-green-dark [role="listbox"],
+  .theme-orange-dark [role="listbox"],
+  .theme-pink-purple [role="listbox"],
+  .theme-cyan-dark [role="listbox"] {
+    background: #1f2937 !important;
+    color: #ffffff !important;
+  }
+
+  /* Override any white backgrounds in select components */
+  .dark .select-content,
+  .dark [data-radix-select-viewport],
+  .theme-original .select-content,
+  .theme-original [data-radix-select-viewport],
+  .theme-default .select-content,
+  .theme-default [data-radix-select-viewport],
+  .theme-card-match .select-content,
+  .theme-card-match [data-radix-select-viewport],
+  .theme-black-white .select-content,
+  .theme-black-white [data-radix-select-viewport],
+  .theme-red-black .select-content,
+  .theme-red-black [data-radix-select-viewport],
+  .theme-blue-purple .select-content,
+  .theme-blue-purple [data-radix-select-viewport],
+  .theme-green-dark .select-content,
+  .theme-green-dark [data-radix-select-viewport],
+  .theme-orange-dark .select-content,
+  .theme-orange-dark [data-radix-select-viewport],
+  .theme-pink-purple .select-content,
+  .theme-pink-purple [data-radix-select-viewport],
+  .theme-cyan-dark .select-content,
+  .theme-cyan-dark [data-radix-select-viewport] {
+    background: #1f2937 !important;
+    color: #ffffff !important;
+  }
+
+  .dark [data-radix-select-content] *,
+  .dark [data-radix-dropdown-content] *,
+  .dark [data-radix-popover-content] *,
+  .theme-original [data-radix-select-content] *,
+  .theme-original [data-radix-dropdown-content] *,
+  .theme-original [data-radix-popover-content] *,
+  .theme-default [data-radix-select-content] *,
+  .theme-default [data-radix-dropdown-content] *,
+  .theme-default [data-radix-popover-content] *,
+  .theme-card-match [data-radix-select-content] *,
+  .theme-card-match [data-radix-dropdown-content] *,
+  .theme-card-match [data-radix-popover-content] *,
+  .theme-black-white [data-radix-select-content] *,
+  .theme-black-white [data-radix-dropdown-content] *,
+  .theme-black-white [data-radix-popover-content] *,
+  .theme-red-black [data-radix-select-content] *,
+  .theme-red-black [data-radix-dropdown-content] *,
+  .theme-red-black [data-radix-popover-content] *,
+  .theme-blue-purple [data-radix-select-content] *,
+  .theme-blue-purple [data-radix-dropdown-content] *,
+  .theme-blue-purple [data-radix-popover-content] *,
+  .theme-green-dark [data-radix-select-content] *,
+  .theme-green-dark [data-radix-dropdown-content] *,
+  .theme-green-dark [data-radix-popover-content] *,
+  .theme-orange-dark [data-radix-select-content] *,
+  .theme-orange-dark [data-radix-dropdown-content] *,
+  .theme-orange-dark [data-radix-popover-content] *,
+  .theme-pink-purple [data-radix-select-content] *,
+  .theme-pink-purple [data-radix-dropdown-content] *,
+  .theme-pink-purple [data-radix-popover-content] *,
+  .theme-cyan-dark [data-radix-select-content] *,
+  .theme-cyan-dark [data-radix-dropdown-content] *,
+  .theme-cyan-dark [data-radix-popover-content] * {
+    color: #ffffff !important;
+  }
+
+  /* Card content - ensure proper contrast */
+  .dark .card,
+  .theme-original .card,
+  .theme-default .card,
+  .theme-card-match .card,
+  .theme-black-white .card,
+  .theme-red-black .card,
+  .theme-blue-purple .card,
+  .theme-green-dark .card,
+  .theme-orange-dark .card,
+  .theme-pink-purple .card,
+  .theme-cyan-dark .card {
+    color: var(--theme-text, #ffffff);
+  }
+
+  .dark .card *,
+  .theme-original .card *,
+  .theme-default .card *,
+  .theme-card-match .card *,
+  .theme-black-white .card *,
+  .theme-red-black .card *,
+  .theme-blue-purple .card *,
+  .theme-green-dark .card *,
+  .theme-orange-dark .card *,
+  .theme-pink-purple .card *,
+  .theme-cyan-dark .card * {
+    color: var(--theme-text, #ffffff);
+  }
+
+  /* Ensure proper contrast for light backgrounds */
+  .bg-white,
+  .bg-gray-50,
+  .bg-gray-100,
+  .bg-slate-50,
+  .bg-slate-100 {
+    color: #000000 !important;
+  }
+
+  .bg-white *,
+  .bg-gray-50 *,
+  .bg-gray-100 *,
+  .bg-slate-50 *,
+  .bg-slate-100 * {
+    color: #000000 !important;
+  }
+
+  /* Ensure proper contrast for dark backgrounds */
+  .bg-gray-900,
+  .bg-gray-800,
+  .bg-slate-900,
+  .bg-slate-800,
+  .bg-black {
+    color: #ffffff !important;
+  }
+
+  .bg-gray-900 *,
+  .bg-gray-800 *,
+  .bg-slate-900 *,
+  .bg-slate-800 *,
+  .bg-black * {
+    color: #ffffff !important;
+  }
+
+  /* Override Tailwind text colors for better contrast */
+  .text-gray-900,
+  .text-slate-900,
+  .text-black {
+    color: #000000 !important;
+  }
+
+  .text-gray-100,
+  .text-slate-100,
+  .text-white {
+    color: #ffffff !important;
+  }
+
+  .text-gray-600,
+  .text-slate-600 {
+    color: #4b5563 !important;
+  }
+
+  .text-gray-400,
+  .text-slate-400 {
+    color: #9ca3af !important;
+  }
+
+  /* Force dark text on light backgrounds */
+  [style*="background: white"],
+  [style*="background-color: white"],
+  [style*="background: #ffffff"],
+  [style*="background-color: #ffffff"],
+  [style*="background: #f9fafb"],
+  [style*="background-color: #f9fafb"],
+  [style*="background: #f3f4f6"],
+  [style*="background-color: #f3f4f6"] {
+    color: #000000 !important;
+  }
+
+  [style*="background: white"] *,
+  [style*="background-color: white"] *,
+  [style*="background: #ffffff"] *,
+  [style*="background-color: #ffffff"] *,
+  [style*="background: #f9fafb"] *,
+  [style*="background-color: #f9fafb"] *,
+  [style*="background: #f3f4f6"] *,
+  [style*="background-color: #f3f4f6"] * {
+    color: #000000 !important;
+  }
+
+  /* Modal and Dialog styling - use theme backgrounds with dark text */
+  [data-radix-dialog-content],
+  [data-radix-dialog-content].bg-background,
+  .DialogContent,
+  .DialogContent.bg-background {
+    background: var(--theme-surface, rgba(255, 255, 255, 0.95)) !important;
+    border: 1px solid var(--theme-border, rgba(255, 255, 255, 0.2)) !important;
+    color: #000000 !important;
+    backdrop-filter: blur(10px) !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  [data-radix-dialog-content] *,
+  .dialog-content,
+  .dialog-content *,
+  [role="dialog"],
+  [role="dialog"] * {
+    color: #000000 !important;
+  }
+
+  /* Ensure dialog titles and descriptions are dark */
+  [data-radix-dialog-title],
+  [data-radix-dialog-description],
+  .dialog-title,
+  .dialog-description {
+    color: #000000 !important;
+  }
+
+  /* Dialog form elements should have dark text */
+  [data-radix-dialog-content] input,
+  [data-radix-dialog-content] textarea,
+  [data-radix-dialog-content] select,
+  [data-radix-dialog-content] label,
+  [data-radix-dialog-content] button:not([class*="bg-"]):not([class*="text-"]) {
+    color: #000000 !important;
+  }
+
+  /* Theme-specific dialog backgrounds */
+  .dark [data-radix-dialog-content],
+  .dark [data-radix-dialog-content].bg-background,
+  .dark .DialogContent,
+  .dark .DialogContent.bg-background {
+    background: #1f2937 !important;
+    border: 1px solid #374151 !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(10px) !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  .theme-original [data-radix-dialog-content],
+  .theme-original [data-radix-dialog-content].bg-background,
+  .theme-original .DialogContent,
+  .theme-original .DialogContent.bg-background {
+    background: rgba(0, 0, 0, 0.4) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(10px) !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  .theme-default [data-radix-dialog-content] {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+    color: #000000 !important;
+    backdrop-filter: blur(10px) !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  .theme-card-match [data-radix-dialog-content] {
+    background: rgba(0, 0, 0, 0.3) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(10px) !important;
+    box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.3), 0 4px 6px -2px rgba(0, 0, 0, 0.1) !important;
+  }
+
+  .theme-black-white [data-radix-dialog-content] {
+    background: #000000 !important;
+    border: 1px solid #ffffff !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(10px) !important;
+    box-shadow: 0 10px 15px -3px rgba(255, 255, 255, 0.1), 0 4px 6px -2px rgba(255, 255, 255, 0.05) !important;
+  }
+
+  .theme-red-black [data-radix-dialog-content] {
+    background: #1f2937 !important;
+    border: 1px solid #dc2626 !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(10px) !important;
+    box-shadow: 0 10px 15px -3px rgba(220, 38, 38, 0.3), 0 4px 6px -2px rgba(220, 38, 38, 0.1) !important;
+  }
+
+  .theme-blue-purple [data-radix-dialog-content] {
+    background: #1f2937 !important;
+    border: 1px solid #3b82f6 !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(10px) !important;
+    box-shadow: 0 10px 15px -3px rgba(59, 130, 246, 0.3), 0 4px 6px -2px rgba(59, 130, 246, 0.1) !important;
+  }
+
+  .theme-green-dark [data-radix-dialog-content] {
+    background: #1f2937 !important;
+    border: 1px solid #10b981 !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(10px) !important;
+    box-shadow: 0 10px 15px -3px rgba(16, 185, 129, 0.3), 0 4px 6px -2px rgba(16, 185, 129, 0.1) !important;
+  }
+
+  .theme-orange-dark [data-radix-dialog-content] {
+    background: #1f2937 !important;
+    border: 1px solid #f59e0b !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(10px) !important;
+    box-shadow: 0 10px 15px -3px rgba(245, 158, 11, 0.3), 0 4px 6px -2px rgba(245, 158, 11, 0.1) !important;
+  }
+
+  .theme-pink-purple [data-radix-dialog-content] {
+    background: #1f2937 !important;
+    border: 1px solid #ec4899 !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(10px) !important;
+    box-shadow: 0 10px 15px -3px rgba(236, 72, 153, 0.3), 0 4px 6px -2px rgba(236, 72, 153, 0.1) !important;
+  }
+
+  .theme-cyan-dark [data-radix-dialog-content] {
+    background: #1f2937 !important;
+    border: 1px solid #06b6d4 !important;
+    color: #ffffff !important;
+    backdrop-filter: blur(10px) !important;
+    box-shadow: 0 10px 15px -3px rgba(6, 182, 212, 0.3), 0 4px 6px -2px rgba(6, 182, 212, 0.1) !important;
+  }
+
+  /* Child element text colors for each theme */
+  .dark [data-radix-dialog-content] *,
+  .theme-original [data-radix-dialog-content] *,
+  .theme-card-match [data-radix-dialog-content] *,
+  .theme-black-white [data-radix-dialog-content] *,
+  .theme-red-black [data-radix-dialog-content] *,
+  .theme-blue-purple [data-radix-dialog-content] *,
+  .theme-green-dark [data-radix-dialog-content] *,
+  .theme-orange-dark [data-radix-dialog-content] *,
+  .theme-pink-purple [data-radix-dialog-content] *,
+  .theme-cyan-dark [data-radix-dialog-content] * {
+    color: #ffffff !important;
+  }
+
+  .theme-default [data-radix-dialog-content] * {
+    color: #000000 !important;
+  }
+
+  /* Additional modal/dialog selectors for better coverage */
+  .modal,
+  .modal *,
+  .modal-content,
+  .modal-content *,
+  .modal-header,
+  .modal-header *,
+  .modal-body,
+  .modal-body *,
+  .modal-footer,
+  .modal-footer * {
+    color: #000000 !important;
+  }
+
+  /* Ensure all dialog-related elements have dark text */
+  [class*="dialog"],
+  [class*="modal"],
+  [class*="Dialog"],
+  [class*="Modal"] {
+    color: #000000 !important;
+  }
+
+  [class*="dialog"] *,
+  [class*="modal"] *,
+  [class*="Dialog"] *,
+  [class*="Modal"] * {
+    color: #000000 !important;
+  }
+
+  /* Force override for DialogContent backgrounds - highest specificity */
+  [data-radix-dialog-content][class*="bg-"],
+  [data-radix-dialog-content].bg-background,
+  .DialogContent[class*="bg-"],
+  .DialogContent.bg-background,
+  [data-radix-dialog-content],
+  .DialogContent {
+    background: var(--theme-surface, rgba(255, 255, 255, 0.95)) !important;
+  }
+
+  /* Theme-specific overrides with maximum specificity */
+  .dark [data-radix-dialog-content][class*="bg-"],
+  .dark [data-radix-dialog-content].bg-background,
+  .dark .DialogContent[class*="bg-"],
+  .dark .DialogContent.bg-background,
+  .dark [data-radix-dialog-content],
+  .dark .DialogContent {
+    background: #1f2937 !important;
+  }
+
+  .theme-original [data-radix-dialog-content][class*="bg-"],
+  .theme-original [data-radix-dialog-content].bg-background,
+  .theme-original .DialogContent[class*="bg-"],
+  .theme-original .DialogContent.bg-background,
+  .theme-original [data-radix-dialog-content],
+  .theme-original .DialogContent {
+    background: rgba(0, 0, 0, 0.4) !important;
+  }
+
+  .theme-default [data-radix-dialog-content][class*="bg-"],
+  .theme-default [data-radix-dialog-content].bg-background,
+  .theme-default .DialogContent[class*="bg-"],
+  .theme-default .DialogContent.bg-background,
+  .theme-default [data-radix-dialog-content],
+  .theme-default .DialogContent {
+    background: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  .theme-card-match [data-radix-dialog-content][class*="bg-"],
+  .theme-card-match [data-radix-dialog-content].bg-background,
+  .theme-card-match .DialogContent[class*="bg-"],
+  .theme-card-match .DialogContent.bg-background,
+  .theme-card-match [data-radix-dialog-content],
+  .theme-card-match .DialogContent {
+    background: rgba(0, 0, 0, 0.3) !important;
+  }
+
+  .theme-black-white [data-radix-dialog-content][class*="bg-"],
+  .theme-black-white [data-radix-dialog-content].bg-background,
+  .theme-black-white .DialogContent[class*="bg-"],
+  .theme-black-white .DialogContent.bg-background,
+  .theme-black-white [data-radix-dialog-content],
+  .theme-black-white .DialogContent {
+    background: #000000 !important;
+  }
+
+  .theme-red-black [data-radix-dialog-content][class*="bg-"],
+  .theme-red-black [data-radix-dialog-content].bg-background,
+  .theme-red-black .DialogContent[class*="bg-"],
+  .theme-red-black .DialogContent.bg-background,
+  .theme-red-black [data-radix-dialog-content],
+  .theme-red-black .DialogContent {
+    background: #1f2937 !important;
+  }
+
+  .theme-blue-purple [data-radix-dialog-content][class*="bg-"],
+  .theme-blue-purple [data-radix-dialog-content].bg-background,
+  .theme-blue-purple .DialogContent[class*="bg-"],
+  .theme-blue-purple .DialogContent.bg-background,
+  .theme-blue-purple [data-radix-dialog-content],
+  .theme-blue-purple .DialogContent {
+    background: #1f2937 !important;
+  }
+
+  .theme-green-dark [data-radix-dialog-content][class*="bg-"],
+  .theme-green-dark [data-radix-dialog-content].bg-background,
+  .theme-green-dark .DialogContent[class*="bg-"],
+  .theme-green-dark .DialogContent.bg-background,
+  .theme-green-dark [data-radix-dialog-content],
+  .theme-green-dark .DialogContent {
+    background: #1f2937 !important;
+  }
+
+  .theme-orange-dark [data-radix-dialog-content][class*="bg-"],
+  .theme-orange-dark [data-radix-dialog-content].bg-background,
+  .theme-orange-dark .DialogContent[class*="bg-"],
+  .theme-orange-dark .DialogContent.bg-background,
+  .theme-orange-dark [data-radix-dialog-content],
+  .theme-orange-dark .DialogContent {
+    background: #1f2937 !important;
+  }
+
+  .theme-pink-purple [data-radix-dialog-content][class*="bg-"],
+  .theme-pink-purple [data-radix-dialog-content].bg-background,
+  .theme-pink-purple .DialogContent[class*="bg-"],
+  .theme-pink-purple .DialogContent.bg-background,
+  .theme-pink-purple [data-radix-dialog-content],
+  .theme-pink-purple .DialogContent {
+    background: #1f2937 !important;
+  }
+
+  .theme-cyan-dark [data-radix-dialog-content][class*="bg-"],
+  .theme-cyan-dark [data-radix-dialog-content].bg-background,
+  .theme-cyan-dark .DialogContent[class*="bg-"],
+  .theme-cyan-dark .DialogContent.bg-background,
+  .theme-cyan-dark [data-radix-dialog-content],
+  .theme-cyan-dark .DialogContent {
+    background: #1f2937 !important;
+  }
+
+  /* Ultimate override for any bg-background class in dialogs */
+  [data-radix-dialog-content].bg-background,
+  .DialogContent.bg-background,
+  .bg-background[data-radix-dialog-content],
+  .bg-background.DialogContent {
+    background: var(--theme-surface, rgba(255, 255, 255, 0.95)) !important;
+  }
+
+  /* Theme-specific ultimate overrides */
+  .dark [data-radix-dialog-content].bg-background,
+  .dark .DialogContent.bg-background,
+  .dark .bg-background[data-radix-dialog-content],
+  .dark .bg-background.DialogContent {
+    background: #1f2937 !important;
+  }
+
+  .theme-original [data-radix-dialog-content].bg-background,
+  .theme-original .DialogContent.bg-background,
+  .theme-original .bg-background[data-radix-dialog-content],
+  .theme-original .bg-background.DialogContent {
+    background: rgba(0, 0, 0, 0.4) !important;
+  }
+
+  .theme-default [data-radix-dialog-content].bg-background,
+  .theme-default .DialogContent.bg-background,
+  .theme-default .bg-background[data-radix-dialog-content],
+  .theme-default .bg-background.DialogContent {
+    background: rgba(255, 255, 255, 0.1) !important;
+  }
+
+  .theme-card-match [data-radix-dialog-content].bg-background,
+  .theme-card-match .DialogContent.bg-background,
+  .theme-card-match .bg-background[data-radix-dialog-content],
+  .theme-card-match .bg-background.DialogContent {
+    background: rgba(0, 0, 0, 0.3) !important;
+  }
+
+  .theme-black-white [data-radix-dialog-content].bg-background,
+  .theme-black-white .DialogContent.bg-background,
+  .theme-black-white .bg-background[data-radix-dialog-content],
+  .theme-black-white .bg-background.DialogContent {
+    background: #000000 !important;
+  }
+
+  .theme-red-black [data-radix-dialog-content].bg-background,
+  .theme-red-black .DialogContent.bg-background,
+  .theme-red-black .bg-background[data-radix-dialog-content],
+  .theme-red-black .bg-background.DialogContent {
+    background: #1f2937 !important;
+  }
+
+  .theme-blue-purple [data-radix-dialog-content].bg-background,
+  .theme-blue-purple .DialogContent.bg-background,
+  .theme-blue-purple .bg-background[data-radix-dialog-content],
+  .theme-blue-purple .bg-background.DialogContent {
+    background: #1f2937 !important;
+  }
+
+  .theme-green-dark [data-radix-dialog-content].bg-background,
+  .theme-green-dark .DialogContent.bg-background,
+  .theme-green-dark .bg-background[data-radix-dialog-content],
+  .theme-green-dark .bg-background.DialogContent {
+    background: #1f2937 !important;
+  }
+
+  .theme-orange-dark [data-radix-dialog-content].bg-background,
+  .theme-orange-dark .DialogContent.bg-background,
+  .theme-orange-dark .bg-background[data-radix-dialog-content],
+  .theme-orange-dark .bg-background.DialogContent {
+    background: #1f2937 !important;
+  }
+
+  .theme-pink-purple [data-radix-dialog-content].bg-background,
+  .theme-pink-purple .DialogContent.bg-background,
+  .theme-pink-purple .bg-background[data-radix-dialog-content],
+  .theme-pink-purple .bg-background.DialogContent {
+    background: #1f2937 !important;
+  }
+
+  .theme-cyan-dark [data-radix-dialog-content].bg-background,
+  .theme-cyan-dark .DialogContent.bg-background,
+  .theme-cyan-dark .bg-background[data-radix-dialog-content],
+  .theme-cyan-dark .bg-background.DialogContent {
+    background: #1f2937 !important;
+  }
+
+  /* Dialog backgrounds should match theme background colors */
+  [data-radix-dialog-content] {
+    background: var(--theme-background, linear-gradient(135deg, #667eea 0%, #764ba2 100%)) !important;
+    background-color: var(--theme-background, linear-gradient(135deg, #667eea 0%, #764ba2 100%)) !important;
+    backdrop-filter: blur(10px) !important;
+    border: 1px solid var(--theme-border, rgba(255, 255, 255, 0.15)) !important;
+  }
+
+  /* Override any possible white backgrounds */
+  [data-radix-dialog-content][style*="background"],
+  [data-radix-dialog-content][style*="background-color"] {
+    background: #1f2937 !important;
+    background-color: #1f2937 !important;
+  }
+
+  /* Theme-specific dialog backgrounds matching theme background colors */
+  .dark [data-radix-dialog-content] {
+    background: #1f2937 !important;
+    background-color: #1f2937 !important;
+    border: 1px solid #374151 !important;
+  }
+
+  .theme-original [data-radix-dialog-content] {
+    background: #363C48 !important;
+    background-color: #363C48 !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  }
+
+  .theme-default [data-radix-dialog-content] {
+    background: linear-gradient(135deg, #4c63d2 0%, #5a4fcf 100%) !important;
+    background-color: linear-gradient(135deg, #4c63d2 0%, #5a4fcf 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  }
+
+  .theme-card-match [data-radix-dialog-content] {
+    background: #0a0f1a !important;
+    background-color: #0a0f1a !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  }
+
+  .theme-black-white [data-radix-dialog-content] {
+    background: #0d0d0d !important;
+    background-color: #0d0d0d !important;
+    border: 1px solid #ffffff !important;
+  }
+
+  .theme-red-black [data-radix-dialog-content] {
+    background: linear-gradient(135deg, #b91c1c 0%, #000000 100%) !important;
+    background-color: linear-gradient(135deg, #b91c1c 0%, #000000 100%) !important;
+    border: 1px solid #dc2626 !important;
+  }
+
+  .theme-blue-purple [data-radix-dialog-content] {
+    background: linear-gradient(135deg, #1e40af 0%, #7c3aed 100%) !important;
+    background-color: linear-gradient(135deg, #1e40af 0%, #7c3aed 100%) !important;
+    border: 1px solid #3b82f6 !important;
+  }
+
+  .theme-green-dark [data-radix-dialog-content] {
+    background: linear-gradient(135deg, #047857 0%, #064e3b 100%) !important;
+    background-color: linear-gradient(135deg, #047857 0%, #064e3b 100%) !important;
+    border: 1px solid #10b981 !important;
+  }
+
+  .theme-orange-dark [data-radix-dialog-content] {
+    background: linear-gradient(135deg, #ea580c 0%, #9a3412 100%) !important;
+    background-color: linear-gradient(135deg, #ea580c 0%, #9a3412 100%) !important;
+    border: 1px solid #f59e0b !important;
+  }
+
+  .theme-pink-purple [data-radix-dialog-content] {
+    background: linear-gradient(135deg, #be185d 0%, #7c3aed 100%) !important;
+    background-color: linear-gradient(135deg, #be185d 0%, #7c3aed 100%) !important;
+    border: 1px solid #ec4899 !important;
+  }
+
+  .theme-cyan-dark [data-radix-dialog-content] {
+    background: linear-gradient(135deg, #0891b2 0%, #0c4a6e 100%) !important;
+    background-color: linear-gradient(135deg, #0891b2 0%, #0c4a6e 100%) !important;
+    border: 1px solid #06b6d4 !important;
+  }
+
+  /* Additional override rules with theme background colors */
+  div[data-radix-dialog-content] {
+    background: var(--theme-background, linear-gradient(135deg, #667eea 0%, #764ba2 100%)) !important;
+    background-color: var(--theme-background, linear-gradient(135deg, #667eea 0%, #764ba2 100%)) !important;
+  }
+
+  /* Target the specific dialog structure with theme background colors */
+  .dark div[data-radix-dialog-content] {
+    background: #1f2937 !important;
+    background-color: #1f2937 !important;
+    border: 1px solid #374151 !important;
+  }
+
+  .theme-original div[data-radix-dialog-content] {
+    background: #363C48 !important;
+    background-color: #363C48 !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  }
+
+  .theme-default div[data-radix-dialog-content] {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    background-color: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.2) !important;
+  }
+
+  .theme-card-match div[data-radix-dialog-content] {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    background-color: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    border: 1px solid rgba(255, 255, 255, 0.15) !important;
+  }
+
+  .theme-black-white div[data-radix-dialog-content] {
+    background: #000000 !important;
+    background-color: #000000 !important;
+    border: 1px solid #ffffff !important;
+  }
+
+  .theme-red-black div[data-radix-dialog-content] {
+    background: linear-gradient(135deg, #dc2626 0%, #000000 100%) !important;
+    background-color: linear-gradient(135deg, #dc2626 0%, #000000 100%) !important;
+    border: 1px solid #dc2626 !important;
+  }
+
+  .theme-blue-purple div[data-radix-dialog-content] {
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%) !important;
+    background-color: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%) !important;
+    border: 1px solid #3b82f6 !important;
+  }
+
+  .theme-green-dark div[data-radix-dialog-content] {
+    background: linear-gradient(135deg, #10b981 0%, #1f2937 100%) !important;
+    background-color: linear-gradient(135deg, #10b981 0%, #1f2937 100%) !important;
+    border: 1px solid #10b981 !important;
+  }
+
+  .theme-orange-dark div[data-radix-dialog-content] {
+    background: linear-gradient(135deg, #f59e0b 0%, #1f2937 100%) !important;
+    background-color: linear-gradient(135deg, #f59e0b 0%, #1f2937 100%) !important;
+    border: 1px solid #f59e0b !important;
+  }
+
+  .theme-pink-purple div[data-radix-dialog-content] {
+    background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%) !important;
+    background-color: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%) !important;
+    border: 1px solid #ec4899 !important;
+  }
+
+  .theme-cyan-dark div[data-radix-dialog-content] {
+    background: linear-gradient(135deg, #06b6d4 0%, #1f2937 100%) !important;
+    background-color: linear-gradient(135deg, #06b6d4 0%, #1f2937 100%) !important;
+    border: 1px solid #06b6d4 !important;
+  }
+
+  /* FINAL FALLBACK - Use theme background colors */
+  [data-radix-dialog-content] {
+    background: var(--theme-background, linear-gradient(135deg, #667eea 0%, #764ba2 100%)) !important;
+    background-color: var(--theme-background, linear-gradient(135deg, #667eea 0%, #764ba2 100%)) !important;
+  }
+
+  /* Tabs theme styling */
+  [role="tab"][data-state="active"] {
+    background-color: rgba(0, 0, 0, 0.2) !important;
+    color: var(--theme-text) !important;
+    font-weight: 600 !important;
+  }
+  
+  /* Darker active tab for light themes */
+  .theme-default [role="tab"][data-state="active"],
+  .theme-card-match [role="tab"][data-state="active"] {
+    background-color: rgba(0, 0, 0, 0.3) !important;
+  }
+  
+  /* Even darker for very light themes */
+  .theme-black-white [role="tab"][data-state="active"] {
+    background-color: rgba(255, 255, 255, 0.2) !important;
+  }
+  
+  /* Darker for red-black theme */
+  .theme-red-black [role="tab"][data-state="active"] {
+    background-color: rgba(220, 38, 38, 0.3) !important;
+  }
+  
+  /* Darker for blue-purple theme */
+  .theme-blue-purple [role="tab"][data-state="active"] {
+    background-color: rgba(59, 130, 246, 0.3) !important;
+  }
+  
+  /* Darker for green-dark theme */
+  .theme-green-dark [role="tab"][data-state="active"] {
+    background-color: rgba(16, 185, 129, 0.3) !important;
+  }
+  
+  /* Darker for orange-dark theme */
+  .theme-orange-dark [role="tab"][data-state="active"] {
+    background-color: rgba(249, 115, 22, 0.3) !important;
+  }
+  
+  /* Darker for pink-purple theme */
+  .theme-pink-purple [role="tab"][data-state="active"] {
+    background-color: rgba(236, 72, 153, 0.3) !important;
+  }
+  
+  /* Darker for cyan-dark theme */
+  .theme-cyan-dark [role="tab"][data-state="active"] {
+    background-color: rgba(6, 182, 212, 0.3) !important;
+  }
+
+  /* Table theme styling */
+  tbody tr:hover {
+    background-color: var(--theme-surface) !important;
+  }
+
+  /* ULTIMATE OVERRIDE - Force background change with maximum specificity */
+  body [data-radix-dialog-content],
+  html [data-radix-dialog-content],
+  .dark [data-radix-dialog-content],
+  .theme-original [data-radix-dialog-content],
+  .theme-default [data-radix-dialog-content],
+  .theme-card-match [data-radix-dialog-content],
+  .theme-black-white [data-radix-dialog-content],
+  .theme-red-black [data-radix-dialog-content],
+  .theme-blue-purple [data-radix-dialog-content],
+  .theme-green-dark [data-radix-dialog-content],
+  .theme-orange-dark [data-radix-dialog-content],
+  .theme-pink-purple [data-radix-dialog-content],
+  .theme-cyan-dark [data-radix-dialog-content] {
+    background: var(--theme-background, linear-gradient(135deg, #667eea 0%, #764ba2 100%)) !important;
+    background-color: var(--theme-background, linear-gradient(135deg, #667eea 0%, #764ba2 100%)) !important;
+    background-image: var(--theme-background, linear-gradient(135deg, #667eea 0%, #764ba2 100%)) !important;
+  }
+
+  /* Force specific theme colors with maximum specificity */
+  .dark body [data-radix-dialog-content] {
+    background: #1f2937 !important;
+    background-color: #1f2937 !important;
+    background-image: none !important;
+  }
+
+  .theme-original body [data-radix-dialog-content] {
+    background: #363C48 !important;
+    background-color: #363C48 !important;
+    background-image: none !important;
+  }
+
+  .theme-default body [data-radix-dialog-content] {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    background-color: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  }
+
+  .theme-card-match body [data-radix-dialog-content] {
+    background: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    background-color: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+    background-image: linear-gradient(135deg, #667eea 0%, #764ba2 100%) !important;
+  }
+
+  .theme-black-white body [data-radix-dialog-content] {
+    background: #000000 !important;
+    background-color: #000000 !important;
+    background-image: none !important;
+  }
+
+  .theme-red-black body [data-radix-dialog-content] {
+    background: linear-gradient(135deg, #dc2626 0%, #000000 100%) !important;
+    background-color: linear-gradient(135deg, #dc2626 0%, #000000 100%) !important;
+    background-image: linear-gradient(135deg, #dc2626 0%, #000000 100%) !important;
+  }
+
+  .theme-blue-purple body [data-radix-dialog-content] {
+    background: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%) !important;
+    background-color: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%) !important;
+    background-image: linear-gradient(135deg, #3b82f6 0%, #8b5cf6 100%) !important;
+  }
+
+  .theme-green-dark body [data-radix-dialog-content] {
+    background: linear-gradient(135deg, #10b981 0%, #1f2937 100%) !important;
+    background-color: linear-gradient(135deg, #10b981 0%, #1f2937 100%) !important;
+    background-image: linear-gradient(135deg, #10b981 0%, #1f2937 100%) !important;
+  }
+
+  .theme-orange-dark body [data-radix-dialog-content] {
+    background: linear-gradient(135deg, #f59e0b 0%, #1f2937 100%) !important;
+    background-color: linear-gradient(135deg, #f59e0b 0%, #1f2937 100%) !important;
+    background-image: linear-gradient(135deg, #f59e0b 0%, #1f2937 100%) !important;
+  }
+
+  .theme-pink-purple body [data-radix-dialog-content] {
+    background: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%) !important;
+    background-color: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%) !important;
+    background-image: linear-gradient(135deg, #ec4899 0%, #8b5cf6 100%) !important;
+  }
+
+  .theme-cyan-dark body [data-radix-dialog-content] {
+    background: linear-gradient(135deg, #06b6d4 0%, #1f2937 100%) !important;
+    background-color: linear-gradient(135deg, #06b6d4 0%, #1f2937 100%) !important;
+    background-image: linear-gradient(135deg, #06b6d4 0%, #1f2937 100%) !important;
+  }
+
 }
 
 /**
@@ -325,5 +1810,13 @@
   .border.active-elevate-2:not(.no-active-interaction-elevate)::after,
   .border.hover-elevate:not(.no-hover-interaction-elevate)::after {
     inset: -1px;
+  }
+
+  /* Line clamp utility */
+  .line-clamp-2 {
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
 }

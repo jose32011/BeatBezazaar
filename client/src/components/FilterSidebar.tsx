@@ -3,52 +3,95 @@ import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
+import { useTheme } from "@/contexts/ThemeContext";
+import { useQuery } from "@tanstack/react-query";
 
-const genres = ["Hip-Hop", "Trap", "R&B", "Pop", "Lo-fi", "Drill", "Afrobeat"];
+interface FilterSidebarProps {
+  onFiltersChange?: (filters: {
+    selectedGenres: string[];
+    bpmRange: [number, number];
+    priceRange: [number, number];
+  }) => void;
+}
 
-export default function FilterSidebar() {
+export default function FilterSidebar({ onFiltersChange }: FilterSidebarProps) {
   const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [bpmRange, setBpmRange] = useState([60, 200]);
   const [priceRange, setPriceRange] = useState([0, 100]);
+  const { getThemeColors } = useTheme();
+  const themeColors = getThemeColors();
+
+  // Fetch genres from API
+  const { data: genres = [] } = useQuery<any[]>({
+    queryKey: ['/api/genres'],
+  });
 
   const toggleGenre = (genre: string) => {
-    setSelectedGenres(prev =>
-      prev.includes(genre)
-        ? prev.filter(g => g !== genre)
-        : [...prev, genre]
-    );
+    const newSelectedGenres = selectedGenres.includes(genre)
+      ? selectedGenres.filter(g => g !== genre)
+      : [...selectedGenres, genre];
+    
+    setSelectedGenres(newSelectedGenres);
+    
+    // Notify parent component of filter changes
+    onFiltersChange?.({
+      selectedGenres: newSelectedGenres,
+      bpmRange,
+      priceRange,
+    });
   };
 
   return (
-    <div className="w-full max-w-xs space-y-8 p-6 bg-card rounded-lg border border-card-border">
+    <div 
+      className="w-full max-w-xs space-y-8 p-6 rounded-lg border"
+      style={{
+        backgroundColor: themeColors.surface,
+        borderColor: themeColors.border
+      }}
+    >
       <div>
-        <h3 className="font-semibold text-lg mb-4" data-testid="text-filter-title">
+        <h3 
+          className="font-semibold text-lg mb-4" 
+          data-testid="text-filter-title"
+          style={{ color: themeColors.text }}
+        >
           Filters
         </h3>
       </div>
 
       <div className="space-y-3">
-        <Label className="text-base font-semibold">Genre</Label>
+        <Label 
+          className="text-base font-semibold"
+          style={{ color: themeColors.text }}
+        >
+          Genre
+        </Label>
         {genres.map((genre) => (
-          <div key={genre} className="flex items-center space-x-2">
+          <div key={genre.name} className="flex items-center space-x-2">
             <Checkbox
-              id={genre}
-              checked={selectedGenres.includes(genre)}
-              onCheckedChange={() => toggleGenre(genre)}
-              data-testid={`checkbox-genre-${genre.toLowerCase()}`}
+              id={genre.name}
+              checked={selectedGenres.includes(genre.name)}
+              onCheckedChange={() => toggleGenre(genre.name)}
+              data-testid={`checkbox-genre-${genre.name.toLowerCase()}`}
             />
             <label
-              htmlFor={genre}
+              htmlFor={genre.name}
               className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
+              style={{ color: themeColors.text }}
             >
-              {genre}
+              {genre.name}
             </label>
           </div>
         ))}
       </div>
 
       <div className="space-y-3">
-        <Label className="text-base font-semibold">BPM Range</Label>
+        <Label 
+          className="text-base font-semibold"
+          style={{ color: themeColors.text }}
+        >
+          BPM Range
+        </Label>
         <div className="pt-2">
           <Slider
             value={bpmRange}
@@ -59,15 +102,30 @@ export default function FilterSidebar() {
             className="mb-2"
             data-testid="slider-bpm"
           />
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span data-testid="text-bpm-min">{bpmRange[0]} BPM</span>
-            <span data-testid="text-bpm-max">{bpmRange[1]} BPM</span>
+          <div className="flex items-center justify-between text-sm">
+            <span 
+              data-testid="text-bpm-min"
+              style={{ color: themeColors.textSecondary }}
+            >
+              {bpmRange[0]} BPM
+            </span>
+            <span 
+              data-testid="text-bpm-max"
+              style={{ color: themeColors.textSecondary }}
+            >
+              {bpmRange[1]} BPM
+            </span>
           </div>
         </div>
       </div>
 
       <div className="space-y-3">
-        <Label className="text-base font-semibold">Price Range</Label>
+        <Label 
+          className="text-base font-semibold"
+          style={{ color: themeColors.text }}
+        >
+          Price Range
+        </Label>
         <div className="pt-2">
           <Slider
             value={priceRange}
@@ -78,15 +136,30 @@ export default function FilterSidebar() {
             className="mb-2"
             data-testid="slider-price"
           />
-          <div className="flex items-center justify-between text-sm text-muted-foreground">
-            <span data-testid="text-price-min">${priceRange[0]}</span>
-            <span data-testid="text-price-max">${priceRange[1]}</span>
+          <div className="flex items-center justify-between text-sm">
+            <span 
+              data-testid="text-price-min"
+              style={{ color: themeColors.textSecondary }}
+            >
+              ${priceRange[0]}
+            </span>
+            <span 
+              data-testid="text-price-max"
+              style={{ color: themeColors.textSecondary }}
+            >
+              ${priceRange[1]}
+            </span>
           </div>
         </div>
       </div>
 
       <div className="space-y-3">
-        <Label className="text-base font-semibold">Sort By</Label>
+        <Label 
+          className="text-base font-semibold"
+          style={{ color: themeColors.text }}
+        >
+          Sort By
+        </Label>
         <Select defaultValue="popular">
           <SelectTrigger data-testid="select-sort">
             <SelectValue placeholder="Select sort option" />

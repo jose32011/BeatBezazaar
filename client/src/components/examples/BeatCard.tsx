@@ -10,6 +10,8 @@ export default function BeatCardExample() {
     genre: 'Hip-Hop',
     price: 29.99,
     imageUrl: hipHopArtwork,
+    audioUrl: null,
+    createdAt: new Date(),
   };
 
   return (

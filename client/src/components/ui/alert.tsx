@@ -22,14 +22,37 @@ const alertVariants = cva(
 const Alert = React.forwardRef<
   HTMLDivElement,
   React.HTMLAttributes<HTMLDivElement> & VariantProps<typeof alertVariants>
->(({ className, variant, ...props }, ref) => (
-  <div
-    ref={ref}
-    role="alert"
-    className={cn(alertVariants({ variant }), className)}
-    {...props}
-  />
-))
+>(({ className, variant, style, ...props }, ref) => {
+  const getAlertStyles = () => {
+    switch (variant) {
+      case 'destructive':
+        return {
+          backgroundColor: 'rgba(220, 38, 38, 0.1)',
+          borderColor: 'rgba(220, 38, 38, 0.5)',
+          color: '#fca5a5'
+        }
+      default:
+        return {
+          backgroundColor: 'var(--theme-surface)',
+          borderColor: 'var(--theme-border)',
+          color: 'var(--theme-text)'
+        }
+    }
+  }
+
+  return (
+    <div
+      ref={ref}
+      role="alert"
+      className={cn(alertVariants({ variant }), className)}
+      style={{
+        ...getAlertStyles(),
+        ...style
+      }}
+      {...props}
+    />
+  )
+})
 Alert.displayName = "Alert"
 
 const AlertTitle = React.forwardRef<

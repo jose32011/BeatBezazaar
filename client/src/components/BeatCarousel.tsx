@@ -1,26 +1,25 @@
 import { useCallback, useEffect } from "react";
-import { Play } from "lucide-react";
+import { Play, ShoppingCart, Plus, Check } from "lucide-react";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
+import { useTheme } from "@/contexts/ThemeContext";
 
-export interface CarouselBeat {
-  id: string;
-  title: string;
-  producer: string;
-  bpm: number;
-  genre: string;
-  price: number;
-  imageUrl: string;
-}
+import type { Beat } from "@shared/schema";
+
+export type CarouselBeat = Beat;
 
 interface BeatCarouselProps {
   beats: CarouselBeat[];
+  userPlaylist?: CarouselBeat[];
   onPlayBeat?: (beat: CarouselBeat) => void;
+  onAddToCart?: (beat: CarouselBeat) => void;
 }
 
-export default function BeatCarousel({ beats, onPlayBeat }: BeatCarouselProps) {
+export default function BeatCarousel({ beats, userPlaylist = [], onPlayBeat, onAddToCart }: BeatCarouselProps) {
+  const { getThemeColors } = useTheme();
+  const themeColors = getThemeColors();
   const [emblaRef, emblaApi] = useEmblaCarousel(
     { loop: true },
     [Autoplay({ delay: 5000, stopOnInteraction: false })]
@@ -80,8 +79,41 @@ export default function BeatCarousel({ beats, onPlayBeat }: BeatCarouselProps) {
                         <Play className="h-5 w-5" />
                         Preview
                       </Button>
+                      <div className="flex gap-2">
+                        {userPlaylist.some(playlistBeat => playlistBeat.id === beat.id) ? (
+                          <Button
+                            size="lg"
+                            variant="outline"
+                            className="gap-2"
+                            disabled
+                            style={{ 
+                              backgroundColor: themeColors.primary + '20',
+                              color: themeColors.primary,
+                              borderColor: themeColors.primary,
+                              cursor: 'not-allowed'
+                            }}
+                            data-testid={`button-owned-${beat.id}`}
+                          >
+                            <Check className="h-5 w-5" />
+                            Owned
+                          </Button>
+                        ) : (
+                          onAddToCart && (
+                            <Button
+                              size="lg"
+                              variant="outline"
+                              className="gap-2"
+                              onClick={() => onAddToCart?.(beat)}
+                              data-testid={`button-add-cart-${beat.id}`}
+                            >
+                              <ShoppingCart className="h-5 w-5" />
+                              Add to Cart
+                            </Button>
+                          )
+                        )}
+                      </div>
                       <span className="text-2xl font-bold font-display" data-testid={`text-price-${beat.id}`}>
-                        ${beat.price}
+                        {userPlaylist.some(playlistBeat => playlistBeat.id === beat.id) ? 'Owned' : `$${beat.price}`}
                       </span>
                     </div>
                   </div>

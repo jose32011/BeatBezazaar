@@ -46,11 +46,48 @@ export interface ButtonProps
 }
 
 const Button = React.forwardRef<HTMLButtonElement, ButtonProps>(
-  ({ className, variant, size, asChild = false, ...props }, ref) => {
+  ({ className, variant, size, asChild = false, style, ...props }, ref) => {
     const Comp = asChild ? Slot : "button"
+    
+    // Get theme-based styles for different variants
+    const getThemeStyles = () => {
+      switch (variant) {
+        case 'default':
+          return {
+            backgroundColor: 'var(--theme-primary)',
+            color: '#ffffff',
+            borderColor: 'var(--theme-primary)'
+          }
+        case 'secondary':
+          return {
+            backgroundColor: 'var(--theme-secondary)',
+            color: '#ffffff',
+            borderColor: 'var(--theme-secondary)'
+          }
+        case 'outline':
+          return {
+            backgroundColor: 'transparent',
+            color: 'var(--theme-text)',
+            borderColor: 'var(--theme-border)'
+          }
+        case 'ghost':
+          return {
+            backgroundColor: 'transparent',
+            color: 'var(--theme-text)',
+            borderColor: 'transparent'
+          }
+        default:
+          return {}
+      }
+    }
+
     return (
       <Comp
         className={cn(buttonVariants({ variant, size, className }))}
+        style={{
+          ...getThemeStyles(),
+          ...style
+        }}
         ref={ref}
         {...props}
       />
