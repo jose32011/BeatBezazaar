@@ -31,7 +31,9 @@ import {
   Shield,
   User,
   Music,
-  Palette
+  Palette,
+  Mail,
+  Send
 } from "lucide-react";
 import GenreManagement from "@/components/GenreManagement";
 import ThemeSelector from "@/components/ThemeSelector";
@@ -55,6 +57,17 @@ interface PaymentSettings {
     swiftCode: string;
     instructions: string;
   };
+}
+
+interface EmailSettings {
+  enabled: boolean;
+  smtpHost: string;
+  smtpPort: number;
+  smtpSecure: boolean;
+  smtpUser: string;
+  smtpPass: string;
+  fromName: string;
+  fromEmail: string;
 }
 
 interface User {
@@ -100,6 +113,17 @@ function AdminSettingsContent() {
     }
   });
 
+  const [emailSettings, setEmailSettings] = useState<EmailSettings>({
+    enabled: false,
+    smtpHost: 'smtp.gmail.com',
+    smtpPort: 587,
+    smtpSecure: false,
+    smtpUser: '',
+    smtpPass: '',
+    fromName: 'BeatBazaar',
+    fromEmail: ''
+  });
+
   // Load settings on component mount
   useEffect(() => {
     // Load from localStorage or API
@@ -107,6 +131,29 @@ function AdminSettingsContent() {
     if (savedSettings) {
       setSettings(JSON.parse(savedSettings));
     }
+    
+    // Load email settings from API
+    fetch('/api/admin/email-settings', {
+      credentials: 'include',
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data) {
+          setEmailSettings({
+            enabled: data.enabled || false,
+            smtpHost: data.smtpHost || 'smtp.gmail.com',
+            smtpPort: data.smtpPort || 587,
+            smtpSecure: data.smtpSecure || false,
+            smtpUser: data.smtpUser || '',
+            smtpPass: data.smtpPass || '',
+            fromName: data.fromName || 'BeatBazaar',
+            fromEmail: data.fromEmail || ''
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Failed to load email settings:', error);
+      });
   }, []);
 
   const saveSettingsMutation = useMutation({
@@ -125,6 +172,61 @@ function AdminSettingsContent() {
       toast({
         title: "Error",
         description: "Failed to save settings",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const saveEmailSettingsMutation = useMutation({
+    mutationFn: async (newEmailSettings: EmailSettings) => {
+      const response = await fetch('/api/admin/email-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(newEmailSettings),
+      });
+      if (!response.ok) throw new Error('Failed to save email settings');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Email Settings Saved",
+        description: "Email configuration has been updated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save email settings",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const testEmailMutation = useMutation({
+    mutationFn: async (testEmail: string) => {
+      const response = await fetch('/api/admin/test-email', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ 
+          testEmail,
+          emailSettings 
+        }),
+      });
+      if (!response.ok) throw new Error('Failed to send test email');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Test Email Sent",
+        description: "A test email has been sent successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to send test email",
         variant: "destructive",
       });
     },
@@ -278,6 +380,14 @@ function AdminSettingsContent() {
 
   const handleSave = () => {
     saveSettingsMutation.mutate(settings);
+    saveEmailSettingsMutation.mutate(emailSettings);
+  };
+
+  const updateEmailSetting = (key: keyof EmailSettings, value: any) => {
+    setEmailSettings(prev => ({
+      ...prev,
+      [key]: value
+    }));
   };
 
   const updatePaypalSetting = (key: keyof PaymentSettings['paypal'], value: any) => {
@@ -324,7 +434,7 @@ function AdminSettingsContent() {
         </div>
 
         <Tabs defaultValue="paypal" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-6">
+          <TabsList className="grid w-full grid-cols-7">
             <TabsTrigger value="paypal" className="flex items-center gap-2">
               <CreditCard className="h-4 w-4" />
               PayPal Configuration
@@ -332,6 +442,10 @@ function AdminSettingsContent() {
             <TabsTrigger value="bank" className="flex items-center gap-2">
               <Building2 className="h-4 w-4" />
               Bank Account
+            </TabsTrigger>
+            <TabsTrigger value="email" className="flex items-center gap-2">
+              <Mail className="h-4 w-4" />
+              Email Settings
             </TabsTrigger>
             <TabsTrigger value="users" className="flex items-center gap-2">
               <Users className="h-4 w-4" />
@@ -583,6 +697,198 @@ function AdminSettingsContent() {
                             Bank account information is sensitive. Ensure this data is encrypted and stored securely.
                             Consider using a secure payment processor for handling bank details.
                           </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          </TabsContent>
+
+          {/* Email Settings */}
+          <TabsContent value="email">
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Mail className="h-5 w-5" />
+                  Email Configuration
+                </CardTitle>
+                <CardDescription>
+                  Configure SMTP settings for password reset emails and notifications
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Enable Email Service</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Enable email functionality for password reset and notifications
+                    </p>
+                  </div>
+                  <Switch
+                    checked={emailSettings.enabled}
+                    onCheckedChange={(checked) => updateEmailSetting('enabled', checked)}
+                  />
+                </div>
+
+                {emailSettings.enabled && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="smtp-host">SMTP Host *</Label>
+                        <Input
+                          id="smtp-host"
+                          type="text"
+                          value={emailSettings.smtpHost}
+                          onChange={(e) => updateEmailSetting('smtpHost', e.target.value)}
+                          placeholder="smtp.gmail.com"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="smtp-port">SMTP Port *</Label>
+                        <Input
+                          id="smtp-port"
+                          type="number"
+                          value={emailSettings.smtpPort}
+                          onChange={(e) => updateEmailSetting('smtpPort', parseInt(e.target.value))}
+                          placeholder="587"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="smtp-user">SMTP Username *</Label>
+                        <Input
+                          id="smtp-user"
+                          type="text"
+                          value={emailSettings.smtpUser}
+                          onChange={(e) => updateEmailSetting('smtpUser', e.target.value)}
+                          placeholder="your-email@gmail.com"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="smtp-pass">SMTP Password *</Label>
+                        <div className="relative">
+                          <Input
+                            id="smtp-pass"
+                            type={showSecrets ? "text" : "password"}
+                            value={emailSettings.smtpPass}
+                            onChange={(e) => updateEmailSetting('smtpPass', e.target.value)}
+                            placeholder="Enter SMTP password or app password"
+                          />
+                          <Button
+                            type="button"
+                            variant="ghost"
+                            size="sm"
+                            className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                            onClick={() => setShowSecrets(!showSecrets)}
+                          >
+                            {showSecrets ? (
+                              <EyeOff className="h-4 w-4" />
+                            ) : (
+                              <Eye className="h-4 w-4" />
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="from-name">From Name *</Label>
+                        <Input
+                          id="from-name"
+                          type="text"
+                          value={emailSettings.fromName}
+                          onChange={(e) => updateEmailSetting('fromName', e.target.value)}
+                          placeholder="BeatBazaar"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="from-email">From Email *</Label>
+                        <Input
+                          id="from-email"
+                          type="email"
+                          value={emailSettings.fromEmail}
+                          onChange={(e) => updateEmailSetting('fromEmail', e.target.value)}
+                          placeholder="noreply@beatbazaar.com"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="smtp-secure"
+                        checked={emailSettings.smtpSecure}
+                        onCheckedChange={(checked) => updateEmailSetting('smtpSecure', checked)}
+                      />
+                      <Label htmlFor="smtp-secure">Use SSL/TLS (usually for port 465)</Label>
+                    </div>
+
+                    {/* Test Email Section */}
+                    <div className="border-t pt-6">
+                      <div className="space-y-4">
+                        <div>
+                          <h4 className="font-medium mb-2">Test Email Configuration</h4>
+                          <p className="text-sm text-muted-foreground mb-4">
+                            Send a test email to verify your SMTP configuration
+                          </p>
+                        </div>
+                        
+                        <div className="flex gap-2">
+                          <Input
+                            type="email"
+                            placeholder="test@example.com"
+                            id="test-email"
+                            className="flex-1"
+                          />
+                          <Button
+                            onClick={() => {
+                              const testEmail = (document.getElementById('test-email') as HTMLInputElement)?.value;
+                              if (testEmail) {
+                                testEmailMutation.mutate(testEmail);
+                              } else {
+                                toast({
+                                  title: "Error",
+                                  description: "Please enter a test email address",
+                                  variant: "destructive",
+                                });
+                              }
+                            }}
+                            disabled={testEmailMutation.isPending}
+                            className="gap-2"
+                          >
+                            {testEmailMutation.isPending ? (
+                              <>
+                                <Send className="h-4 w-4 animate-spin" />
+                                Sending...
+                              </>
+                            ) : (
+                              <>
+                                <Send className="h-4 w-4" />
+                                Send Test Email
+                              </>
+                            )}
+                          </Button>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                            Email Setup Instructions
+                          </p>
+                          <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                            <li>• <strong>Gmail:</strong> Use smtp.gmail.com:587, enable 2FA, and use an App Password</li>
+                            <li>• <strong>Outlook:</strong> Use smtp-mail.outlook.com:587 with your regular password</li>
+                            <li>• <strong>Yahoo:</strong> Use smtp.mail.yahoo.com:587 with an App Password</li>
+                            <li>• <strong>Custom SMTP:</strong> Contact your email provider for SMTP settings</li>
+                          </ul>
                         </div>
                       </div>
                     </div>

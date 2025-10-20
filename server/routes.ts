@@ -8,6 +8,17 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { randomUUID } from "crypto";
+import bcrypt from "bcryptjs";
+import { sendEmail, generateVerificationCode, createPasswordResetEmail } from "./email";
+
+// Extend session data type
+declare module 'express-session' {
+  interface SessionData {
+    userId?: string;
+    username?: string;
+    role?: string;
+  }
+}
 
 export async function registerRoutes(app: Express): Promise<Server> {
   
@@ -133,7 +144,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // Get beat details
-      const beat = await storage.getBeatById(beatId);
+      const beat = await storage.getBeat(beatId);
       if (!beat || !beat.audioUrl) {
         return res.status(404).json({ error: 'Audio file not found' });
       }
@@ -207,7 +218,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         }))
       });
     } catch (error) {
-      res.status(500).json({ error: error.message });
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
     }
   });
 
@@ -403,6 +414,253 @@ export async function registerRoutes(app: Express): Promise<Server> {
     } catch (error) {
       console.error("Get user error:", error);
       res.status(500).json({ error: "Failed to get user" });
+    }
+  });
+
+  // Password reset routes
+  app.post("/api/auth/forgot-password", async (req, res) => {
+    try {
+      const { username } = req.body;
+      
+      if (!username) {
+        return res.status(400).json({ error: "Username is required" });
+      }
+      
+      // Find user by username
+      const user = await storage.getUserByUsername(username);
+      if (!user) {
+        return res.status(404).json({ error: "User not found" });
+      }
+      
+      if (!user.email) {
+        return res.status(400).json({ error: "No email address associated with this account" });
+      }
+      
+      // Generate verification code
+      const code = generateVerificationCode();
+      const expiresAt = new Date(Date.now() + 15 * 60 * 1000); // 15 minutes from now
+      
+      // Clean up any existing verification codes for this user
+      await storage.cleanupExpiredVerificationCodes();
+      
+      // Create new verification code
+      const verificationCode = await storage.createVerificationCode({
+        userId: user.id,
+        code,
+        type: "password_reset",
+        expiresAt,
+        used: false
+      });
+      
+      // Send email
+      const emailHtml = createPasswordResetEmail(code, user.username);
+      const emailSent = await sendEmail({
+        to: user.email,
+        subject: "Password Reset - BeatBazaar",
+        html: emailHtml
+      });
+      
+      if (!emailSent) {
+        return res.status(500).json({ error: "Failed to send verification email" });
+      }
+      
+      res.json({ 
+        message: "Verification code sent to your email address",
+        userId: user.id // Send userId for verification step
+      });
+      
+    } catch (error) {
+      console.error("Forgot password error:", error);
+      res.status(500).json({ error: "Failed to process password reset request" });
+    }
+  });
+
+  app.post("/api/auth/verify-reset-code", async (req, res) => {
+    try {
+      const { userId, code } = req.body;
+      
+      if (!userId || !code) {
+        return res.status(400).json({ error: "User ID and verification code are required" });
+      }
+      
+      // Verify the code
+      const verificationCode = await storage.getVerificationCode(userId, code, "password_reset");
+      
+      if (!verificationCode) {
+        return res.status(400).json({ error: "Invalid or expired verification code" });
+      }
+      
+      // Mark code as used
+      await storage.markVerificationCodeAsUsed(verificationCode.id);
+      
+      res.json({ 
+        message: "Verification code is valid",
+        verified: true
+      });
+      
+    } catch (error) {
+      console.error("Verify reset code error:", error);
+      res.status(500).json({ error: "Failed to verify code" });
+    }
+  });
+
+  app.post("/api/auth/reset-password", async (req, res) => {
+    try {
+      const { userId, code, newPassword } = req.body;
+      
+      if (!userId || !code || !newPassword) {
+        return res.status(400).json({ error: "User ID, verification code, and new password are required" });
+      }
+      
+      if (newPassword.length < 6) {
+        return res.status(400).json({ error: "Password must be at least 6 characters long" });
+      }
+      
+      // Verify the code one more time
+      const verificationCode = await storage.getVerificationCode(userId, code, "password_reset");
+      
+      if (!verificationCode) {
+        return res.status(400).json({ error: "Invalid or expired verification code" });
+      }
+      
+      // Update password
+      const success = await storage.changeUserPassword(userId, newPassword);
+      
+      if (!success) {
+        return res.status(500).json({ error: "Failed to update password" });
+      }
+      
+      // Mark code as used
+      await storage.markVerificationCodeAsUsed(verificationCode.id);
+      
+      res.json({ 
+        message: "Password updated successfully" 
+      });
+      
+    } catch (error) {
+      console.error("Reset password error:", error);
+      res.status(500).json({ error: "Failed to reset password" });
+    }
+  });
+
+  // Email test endpoint (admin only)
+  app.post("/api/admin/test-email", requireAdmin, async (req, res) => {
+    try {
+      const { testEmail, emailSettings } = req.body;
+      
+      if (!testEmail || !emailSettings) {
+        return res.status(400).json({ error: "Test email and email settings are required" });
+      }
+      
+      // Create a temporary transporter with the provided settings
+      const testTransporter = nodemailer.createTransport({
+        host: emailSettings.smtpHost,
+        port: emailSettings.smtpPort,
+        secure: emailSettings.smtpSecure,
+        auth: {
+          user: emailSettings.smtpUser,
+          pass: emailSettings.smtpPass
+        }
+      });
+      
+      // Verify connection
+      await testTransporter.verify();
+      
+      // Send test email
+      const testEmailHtml = `
+        <!DOCTYPE html>
+        <html>
+        <head>
+          <meta charset="utf-8">
+          <title>BeatBazaar Email Test</title>
+          <style>
+            body { font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px; }
+            .container { background-color: #ffffff; padding: 30px; border-radius: 10px; box-shadow: 0 0 10px rgba(0,0,0,0.1); }
+            .header { text-align: center; margin-bottom: 30px; }
+            .logo { font-size: 28px; font-weight: bold; color: #6366f1; margin-bottom: 10px; }
+            .success { background-color: #d4edda; border: 1px solid #c3e6cb; border-radius: 5px; padding: 15px; margin: 20px 0; color: #155724; }
+          </style>
+        </head>
+        <body>
+          <div class="container">
+            <div class="header">
+              <div class="logo">🎵 BeatBazaar</div>
+              <h1>Email Configuration Test</h1>
+            </div>
+            
+            <div class="success">
+              <strong>✅ Success!</strong> Your email configuration is working correctly.
+            </div>
+            
+            <p>This is a test email sent from BeatBazaar to verify that your SMTP settings are configured properly.</p>
+            
+            <p><strong>Configuration Details:</strong></p>
+            <ul>
+              <li>SMTP Host: ${emailSettings.smtpHost}</li>
+              <li>SMTP Port: ${emailSettings.smtpPort}</li>
+              <li>From Name: ${emailSettings.fromName}</li>
+              <li>From Email: ${emailSettings.fromEmail}</li>
+              <li>SSL/TLS: ${emailSettings.smtpSecure ? 'Enabled' : 'Disabled'}</li>
+            </ul>
+            
+            <p>You can now use the password reset functionality and other email features in BeatBazaar.</p>
+            
+            <div style="margin-top: 30px; padding-top: 20px; border-top: 1px solid #e9ecef; font-size: 14px; color: #6c757d; text-align: center;">
+              <p>This is an automated test message from BeatBazaar.</p>
+            </div>
+          </div>
+        </body>
+        </html>
+      `;
+      
+      const info = await testTransporter.sendMail({
+        from: `"${emailSettings.fromName}" <${emailSettings.fromEmail}>`,
+        to: testEmail,
+        subject: "BeatBazaar Email Configuration Test",
+        html: testEmailHtml
+      });
+      
+      res.json({ 
+        message: "Test email sent successfully",
+        messageId: info.messageId
+      });
+      
+    } catch (error) {
+      console.error("Test email error:", error);
+      res.status(500).json({ 
+        error: "Failed to send test email",
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  // Email settings endpoints (admin only)
+  app.get("/api/admin/email-settings", requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getEmailSettings();
+      res.json(settings || {
+        enabled: false,
+        smtpHost: 'smtp.gmail.com',
+        smtpPort: 587,
+        smtpSecure: false,
+        smtpUser: '',
+        smtpPass: '',
+        fromName: 'BeatBazaar',
+        fromEmail: ''
+      });
+    } catch (error) {
+      console.error("Get email settings error:", error);
+      res.status(500).json({ error: "Failed to get email settings" });
+    }
+  });
+
+  app.put("/api/admin/email-settings", requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.updateEmailSettings(req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error("Update email settings error:", error);
+      res.status(500).json({ error: "Failed to update email settings" });
     }
   });
 

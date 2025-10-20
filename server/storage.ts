@@ -17,6 +17,10 @@ import {
   type InsertPayment,
   type Genre,
   type InsertGenre,
+  type VerificationCode,
+  type InsertVerificationCode,
+  type EmailSettings,
+  type InsertEmailSettings,
   users,
   beats,
   purchases,
@@ -24,7 +28,9 @@ import {
   customers,
   cart,
   payments,
-  genres
+  genres,
+  verificationCodes,
+  emailSettings
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { drizzle as drizzlePg } from "drizzle-orm/postgres-js";
@@ -115,6 +121,16 @@ export interface IStorage {
   createGenre(genre: InsertGenre): Promise<Genre>;
   updateGenre(id: string, genre: Partial<InsertGenre>): Promise<Genre | undefined>;
   deleteGenre(id: string): Promise<boolean>;
+  
+  // Verification code operations
+  createVerificationCode(code: InsertVerificationCode): Promise<VerificationCode>;
+  getVerificationCode(userId: string, code: string, type: string): Promise<VerificationCode | undefined>;
+  markVerificationCodeAsUsed(id: string): Promise<boolean>;
+  cleanupExpiredVerificationCodes(): Promise<void>;
+  
+  // Email settings operations
+  getEmailSettings(): Promise<EmailSettings | undefined>;
+  updateEmailSettings(settings: Partial<InsertEmailSettings>): Promise<EmailSettings>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -382,6 +398,37 @@ export class DatabaseStorage implements IStorage {
         updated_at DATETIME
       )
     `);
+
+    // Create verification codes table
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS verification_codes (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        code TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'password_reset',
+        expires_at DATETIME NOT NULL,
+        used INTEGER NOT NULL DEFAULT 0,
+        created_at DATETIME,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      )
+    `);
+
+    // Create email settings table
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS email_settings (
+        id TEXT PRIMARY KEY,
+        enabled INTEGER NOT NULL DEFAULT 0,
+        smtp_host TEXT NOT NULL DEFAULT 'smtp.gmail.com',
+        smtp_port INTEGER NOT NULL DEFAULT 587,
+        smtp_secure INTEGER NOT NULL DEFAULT 0,
+        smtp_user TEXT NOT NULL DEFAULT '',
+        smtp_pass TEXT NOT NULL DEFAULT '',
+        from_name TEXT NOT NULL DEFAULT 'BeatBazaar',
+        from_email TEXT NOT NULL DEFAULT '',
+        created_at DATETIME,
+        updated_at DATETIME
+      )
+    `);
   }
 
   private async createPostgreSQLTables() {
@@ -522,6 +569,41 @@ export class DatabaseStorage implements IStorage {
         )
       `);
       console.log("✅ Genres table created");
+
+      // Create verification codes table
+      console.log("📋 Creating verification codes table...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS verification_codes (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          code TEXT NOT NULL,
+          type TEXT NOT NULL DEFAULT 'password_reset',
+          expires_at TIMESTAMP NOT NULL,
+          used BOOLEAN NOT NULL DEFAULT false,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+      `);
+      console.log("✅ Verification codes table created");
+
+      // Create email settings table
+      console.log("📋 Creating email settings table...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS email_settings (
+          id TEXT PRIMARY KEY,
+          enabled BOOLEAN NOT NULL DEFAULT false,
+          smtp_host TEXT NOT NULL DEFAULT 'smtp.gmail.com',
+          smtp_port INTEGER NOT NULL DEFAULT 587,
+          smtp_secure BOOLEAN NOT NULL DEFAULT false,
+          smtp_user TEXT NOT NULL DEFAULT '',
+          smtp_pass TEXT NOT NULL DEFAULT '',
+          from_name TEXT NOT NULL DEFAULT 'BeatBazaar',
+          from_email TEXT NOT NULL DEFAULT '',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log("✅ Email settings table created");
     } catch (error) {
       console.error("❌ Error creating PostgreSQL tables:", error);
       throw error;
@@ -1455,6 +1537,121 @@ export class DatabaseStorage implements IStorage {
       } catch (e) {
         console.error("❌ Failed to re-enable foreign keys:", e);
       }
+      throw error;
+    }
+  }
+
+  // Verification code operations
+  async createVerificationCode(code: InsertVerificationCode): Promise<VerificationCode> {
+    try {
+      const result = await db
+        .insert(verificationCodes)
+        .values(code)
+        .returning();
+      
+      return result[0];
+    } catch (error) {
+      console.error("Create verification code error:", error);
+      throw error;
+    }
+  }
+
+  async getVerificationCode(userId: string, code: string, type: string): Promise<VerificationCode | undefined> {
+    try {
+      const result = await db
+        .select()
+        .from(verificationCodes)
+        .where(
+          and(
+            eq(verificationCodes.userId, userId),
+            eq(verificationCodes.code, code),
+            eq(verificationCodes.type, type),
+            eq(verificationCodes.used, false),
+            sql`${verificationCodes.expiresAt} > ${Date.now()}`
+          )
+        )
+        .limit(1);
+      
+      return result[0];
+    } catch (error) {
+      console.error("Get verification code error:", error);
+      return undefined;
+    }
+  }
+
+  async markVerificationCodeAsUsed(id: string): Promise<boolean> {
+    try {
+      const result = await db
+        .update(verificationCodes)
+        .set({ used: true })
+        .where(eq(verificationCodes.id, id));
+      
+      return result.changes > 0;
+    } catch (error) {
+      console.error("Mark verification code as used error:", error);
+      return false;
+    }
+  }
+
+  async cleanupExpiredVerificationCodes(): Promise<void> {
+    try {
+      await db
+        .delete(verificationCodes)
+        .where(sql`${verificationCodes.expiresAt} <= ${Date.now()}`);
+      
+      console.log("✓ Cleaned up expired verification codes");
+    } catch (error) {
+      console.error("Cleanup expired verification codes error:", error);
+    }
+  }
+
+  // Email settings operations
+  async getEmailSettings(): Promise<EmailSettings | undefined> {
+    try {
+      const result = await db
+        .select()
+        .from(emailSettings)
+        .limit(1);
+      
+      return result[0];
+    } catch (error) {
+      console.error("Get email settings error:", error);
+      return undefined;
+    }
+  }
+
+  async updateEmailSettings(settings: Partial<InsertEmailSettings>): Promise<EmailSettings> {
+    try {
+      // Check if email settings exist
+      const existingSettings = await this.getEmailSettings();
+      
+      if (existingSettings) {
+        // Update existing settings
+        const result = await db
+          .update(emailSettings)
+          .set({
+            ...settings,
+            updatedAt: new Date()
+          })
+          .where(eq(emailSettings.id, existingSettings.id))
+          .returning();
+        
+        return result[0];
+      } else {
+        // Create new settings
+        const result = await db
+          .insert(emailSettings)
+          .values({
+            ...settings,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
+          .returning();
+        
+        return result[0];
+      }
+    } catch (error) {
+      console.error("Update email settings error:", error);
       throw error;
     }
   }

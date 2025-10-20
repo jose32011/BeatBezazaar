@@ -93,6 +93,30 @@ export const payments = sqliteTable("payments", {
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
 
+export const verificationCodes = sqliteTable("verification_codes", {
+  id: text("id").primaryKey().$defaultFn(() => randomUUID()),
+  userId: text("user_id").notNull().references(() => users.id),
+  code: text("code").notNull(),
+  type: text("type").notNull().default("password_reset"), // 'password_reset', 'email_verification'
+  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
+  used: integer("used", { mode: "boolean" }).notNull().default(false),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const emailSettings = sqliteTable("email_settings", {
+  id: text("id").primaryKey().$defaultFn(() => randomUUID()),
+  enabled: integer("enabled", { mode: "boolean" }).notNull().default(false),
+  smtpHost: text("smtp_host").notNull().default("smtp.gmail.com"),
+  smtpPort: integer("smtp_port").notNull().default(587),
+  smtpSecure: integer("smtp_secure", { mode: "boolean" }).notNull().default(false),
+  smtpUser: text("smtp_user").notNull().default(""),
+  smtpPass: text("smtp_pass").notNull().default(""),
+  fromName: text("from_name").notNull().default("BeatBazaar"),
+  fromEmail: text("from_email").notNull().default(""),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
 export const insertUserSchema = createInsertSchema(users).omit({
   id: true,
 });
@@ -143,6 +167,17 @@ export const insertGenreSchema = createInsertSchema(genres).omit({
   updatedAt: true,
 });
 
+export const insertVerificationCodeSchema = createInsertSchema(verificationCodes).omit({
+  id: true,
+  createdAt: true,
+});
+
+export const insertEmailSettingsSchema = createInsertSchema(emailSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
 export type InsertUser = z.infer<typeof insertUserSchema>;
 export type User = typeof users.$inferSelect;
 
@@ -166,3 +201,9 @@ export type Payment = typeof payments.$inferSelect;
 
 export type InsertGenre = z.infer<typeof insertGenreSchema>;
 export type Genre = typeof genres.$inferSelect;
+
+export type InsertVerificationCode = z.infer<typeof insertVerificationCodeSchema>;
+export type VerificationCode = typeof verificationCodes.$inferSelect;
+
+export type InsertEmailSettings = z.infer<typeof insertEmailSettingsSchema>;
+export type EmailSettings = typeof emailSettings.$inferSelect;

@@ -9,6 +9,9 @@ import { AudioProvider } from "@/contexts/AudioContext";
 import PasswordChangeModal from "@/components/PasswordChangeModal";
 import Home from "@/pages/Home";
 import Login from "@/pages/Login";
+import ForgotPassword from "@/pages/ForgotPassword";
+import VerifyResetCode from "@/pages/VerifyResetCode";
+import ResetPassword from "@/pages/ResetPassword";
 import AdminDashboard from "@/pages/AdminDashboard";
 import ClientDashboard from "@/pages/ClientDashboard";
 import AdminUpload from "@/pages/AdminUpload";
@@ -19,6 +22,9 @@ function Router() {
     <Switch>
       <Route path="/" component={Home} />
       <Route path="/login" component={Login} />
+      <Route path="/forgot-password" component={ForgotPassword} />
+      <Route path="/verify-reset-code" component={VerifyResetCode} />
+      <Route path="/reset-password" component={ResetPassword} />
       <Route path="/admin/dashboard" component={AdminDashboard} />
       <Route path="/admin/upload" component={AdminUpload} />
       <Route path="/dashboard" component={ClientDashboard} />
