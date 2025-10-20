@@ -177,9 +177,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     resave: false,
     saveUninitialized: false,
     cookie: {
-      secure: process.env.NODE_ENV === 'production',
+      secure: false, // Set to false for Render deployment
       httpOnly: true,
-      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      sameSite: 'lax', // Use 'lax' for better compatibility
       maxAge: 24 * 60 * 60 * 1000 // 24 hours
     },
     name: 'beatbazaar.sid' // Custom session name
