@@ -213,18 +213,31 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Debug endpoint to check current session
   app.get("/api/debug/session", async (req, res) => {
+    console.log("🔍 Session debug request:");
+    console.log("Session ID:", req.sessionID);
+    console.log("Session:", req.session);
+    console.log("Headers:", req.headers);
+    console.log("Cookies:", req.headers.cookie);
+    
     res.json({
+      sessionId: req.sessionID,
       session: req.session,
       userId: req.session?.userId,
       username: req.session?.username,
       role: req.session?.role,
-      isAuthenticated: !!req.session?.userId
+      isAuthenticated: !!req.session?.userId,
+      cookies: req.headers.cookie,
+      userAgent: req.headers['user-agent']
     });
   });
 
   // Authentication routes
   app.post("/api/auth/login", async (req, res) => {
     const { username, password } = req.body;
+    
+    console.log("🔐 Login attempt:", { username, hasPassword: !!password });
+    console.log("Session before login:", req.session);
+    console.log("Session ID before login:", req.sessionID);
     
     if (!username || !password) {
       return res.status(400).json({ error: "Username and password required" });
@@ -233,12 +246,18 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const user = await storage.verifyPassword(username, password);
     
     if (!user) {
+      console.log("❌ Login failed for user:", username);
       return res.status(401).json({ error: "Invalid credentials" });
     }
+    
+    console.log("✅ Login successful for user:", username, "Role:", user.role);
     
     req.session.userId = user.id;
     req.session.username = user.username;
     req.session.role = user.role;
+    
+    console.log("Session after login:", req.session);
+    console.log("Session ID after login:", req.sessionID);
     
     res.json({ 
       user: { 
@@ -351,15 +370,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
 
   app.get("/api/auth/me", async (req, res) => {
+    console.log("🔍 /api/auth/me request:");
+    console.log("Session ID:", req.sessionID);
+    console.log("Session:", req.session);
+    console.log("Session userId:", req.session?.userId);
+    console.log("Cookies:", req.headers.cookie);
+    
     if (!req.session.userId) {
+      console.log("❌ No userId in session");
       return res.status(401).json({ error: "Not authenticated" });
     }
     
     try {
       const user = await storage.getUser(req.session.userId);
       if (!user) {
+        console.log("❌ User not found in database:", req.session.userId);
         return res.status(401).json({ error: "User not found" });
       }
+      
+      console.log("✅ User found:", user.username, "Role:", user.role);
       
       res.json({ 
         user: { 
