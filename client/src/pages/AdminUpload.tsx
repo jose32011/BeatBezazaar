@@ -87,11 +87,6 @@ function AdminUploadContent() {
     queryKey: ['/api/genres'],
   });
 
-  // Debug: Log genres data
-  console.log('AdminUpload - Genres data:', genres);
-  console.log('AdminUpload - Genres loading:', genresLoading);
-  console.log('AdminUpload - Genres error:', genresError);
-
   const uploadMutation = useMutation({
     mutationFn: async (data: { formData: any; audioFile: File | null; imageFile: File | null; manualImageFile: File | null }) => {
       const formDataToSend = new FormData();
@@ -1161,6 +1156,8 @@ function AdminUploadContent() {
                         <SelectItem value="" disabled>Loading genres...</SelectItem>
                       ) : genresError ? (
                         <SelectItem value="" disabled>Error loading genres</SelectItem>
+                      ) : genres.length === 0 ? (
+                        <SelectItem value="" disabled>No genres available</SelectItem>
                       ) : (
                         genres.map((genre: any) => (
                           <SelectItem key={genre.id} value={genre.name}>
