@@ -125,8 +125,35 @@ export default function CustomerManagement() {
   const totalPages = Math.ceil(filteredCustomers.length / pageSize);
 
   const { data: customerPurchases = [], isLoading: purchasesLoading } = useQuery<Purchase[]>({
-    queryKey: ['/api/customers', selectedCustomer?.id, 'purchases'],
+    // Use userId so server returns purchases by user correctly
+    queryKey: ['/api/customers', selectedCustomer?.userId, 'purchases'],
     enabled: !!selectedCustomer && showPurchases,
+    queryFn: async () => {
+      const res = await fetch(`/api/customers/${selectedCustomer!.userId}/purchases`, {
+        credentials: 'include'
+      });
+      if (!res.ok) throw new Error('Failed to fetch purchases');
+      return res.json();
+    }
+  });
+
+  // Remove customer (delete underlying user)
+  const removeCustomerMutation = useMutation({
+    mutationFn: async ({ userId }: { userId: string }) => {
+      const res = await fetch(`/api/admin/users/${userId}`, {
+        method: 'DELETE',
+        credentials: 'include'
+      });
+      if (!res.ok) throw new Error('Failed to remove customer');
+      return res.json();
+    },
+    onSuccess: () => {
+      queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+      toast({ title: 'Customer removed', description: 'The customer has been deleted.' });
+    },
+    onError: (error: any) => {
+      toast({ title: 'Error', description: error.message || 'Failed to remove customer', variant: 'destructive' });
+    }
   });
 
   // Password change mutation
@@ -372,6 +399,18 @@ export default function CustomerManagement() {
                         >
                           <Key className="h-4 w-4 mr-2" />
                           Change Password
+                        </Button>
+                        <Button
+                          variant="destructive"
+                          size="sm"
+                          onClick={() => {
+                            if (confirm('Are you sure you want to remove this customer? This will delete their user account.')) {
+                              removeCustomerMutation.mutate({ userId: customer.userId });
+                            }
+                          }}
+                          disabled={removeCustomerMutation.isPending}
+                        >
+                          Remove
                         </Button>
                       </div>
                     </TableCell>
