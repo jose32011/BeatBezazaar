@@ -151,16 +151,24 @@ export class DatabaseStorage implements IStorage {
       const adminUser = await this.getUserByUsername("admin");
       if (!adminUser) {
         const hashedPassword = await bcrypt.hash("admin123", 10);
-        await db.insert(users).values({
-          username: "admin",
-          password: hashedPassword,
-          role: "admin",
-          email: "admin@beatbazaar.com",
-          passwordChangeRequired: true,
-          createdAt: new Date(),
-          updatedAt: new Date(),
-        });
-        console.log("Default admin user created: admin/admin123");
+        const adminId = randomUUID();
+        
+        if (isProduction) {
+          // PostgreSQL admin user creation
+          await db.run(sql`
+            INSERT INTO users (id, username, password, role, email, password_change_required, theme, created_at, updated_at)
+            VALUES (${adminId}, 'admin', ${hashedPassword}, 'admin', 'admin@beatbazaar.com', true, 'original', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          `);
+        } else {
+          // SQLite admin user creation
+          await db.run(sql`
+            INSERT INTO users (id, username, password, role, email, password_change_required, theme, created_at, updated_at)
+            VALUES (${adminId}, 'admin', ${hashedPassword}, 'admin', 'admin@beatbazaar.com', 1, 'original', datetime('now'), datetime('now'))
+          `);
+        }
+        console.log("✓ Default admin user created: admin/admin123");
+      } else {
+        console.log("✓ Admin user already exists");
       }
 
       // Initialize default genres if none exist
@@ -439,27 +447,37 @@ export class DatabaseStorage implements IStorage {
       const existingGenres = await this.getAllGenres();
       if (existingGenres.length === 0) {
         const defaultGenres = [
-          { name: "Hip-Hop", description: "Classic hip-hop beats and instrumentals" },
-          { name: "Trap", description: "Modern trap beats with heavy bass" },
-          { name: "R&B", description: "Smooth R&B and soulful instrumentals" },
-          { name: "Pop", description: "Catchy pop beats and commercial tracks" },
-          { name: "Lo-fi", description: "Chill lo-fi hip-hop and ambient beats" },
-          { name: "Drill", description: "Aggressive drill beats and UK drill" },
-          { name: "Jazz", description: "Jazz-influenced beats and instrumentals" },
-          { name: "Electronic", description: "Electronic and EDM-style beats" }
+          { name: "Hip-Hop", description: "Classic hip-hop beats and instrumentals", color: "#ff6b6b" },
+          { name: "Trap", description: "Modern trap beats with heavy bass", color: "#4ecdc4" },
+          { name: "R&B", description: "Smooth R&B and soulful instrumentals", color: "#45b7d1" },
+          { name: "Pop", description: "Catchy pop beats and commercial tracks", color: "#f9ca24" },
+          { name: "Lo-fi", description: "Chill lo-fi hip-hop and ambient beats", color: "#6c5ce7" },
+          { name: "Drill", description: "Aggressive drill beats and UK drill", color: "#a29bfe" },
+          { name: "Jazz", description: "Jazz-influenced beats and instrumentals", color: "#fd79a8" },
+          { name: "Electronic", description: "Electronic and EDM-style beats", color: "#00b894" }
         ];
 
         for (const genre of defaultGenres) {
-          await db.insert(genres).values({
-            id: randomUUID(),
-            name: genre.name,
-            description: genre.description,
-            isActive: true,
-            createdAt: new Date(),
-            updatedAt: new Date(),
-          });
+          const genreId = randomUUID();
+          const imageUrl = `/attached_assets/generated_images/${genre.name.replace(/[^a-zA-Z0-9]/g, '_')}_beat_artwork.png`;
+          
+          if (isProduction) {
+            // PostgreSQL genre creation
+            await db.run(sql`
+              INSERT INTO genres (id, name, description, image_url, color, is_active, created_at, updated_at)
+              VALUES (${genreId}, ${genre.name}, ${genre.description}, ${imageUrl}, ${genre.color}, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            `);
+          } else {
+            // SQLite genre creation
+            await db.run(sql`
+              INSERT INTO genres (id, name, description, image_url, color, is_active, created_at, updated_at)
+              VALUES (${genreId}, ${genre.name}, ${genre.description}, ${imageUrl}, ${genre.color}, 1, datetime('now'), datetime('now'))
+            `);
+          }
         }
         console.log("✓ Default genres created");
+      } else {
+        console.log("✓ Genres already exist");
       }
     } catch (error) {
       console.error("Error initializing default genres:", error);
@@ -473,8 +491,14 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getUserByUsername(username: string): Promise<User | undefined> {
-    const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
-    return result[0];
+    try {
+      const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
+      console.log(`Looking for user '${username}':`, result.length > 0 ? 'Found' : 'Not found');
+      return result[0];
+    } catch (error) {
+      console.error(`Error getting user by username '${username}':`, error);
+      return undefined;
+    }
   }
 
   async getAllUsers(): Promise<User[]> {
@@ -555,11 +579,22 @@ export class DatabaseStorage implements IStorage {
   }
 
   async verifyPassword(username: string, password: string): Promise<User | undefined> {
-    const user = await this.getUserByUsername(username);
-    if (!user) return undefined;
-    
-    const isValid = await bcrypt.compare(password, user.password);
-    return isValid ? user : undefined;
+    try {
+      console.log(`Verifying password for user: ${username}`);
+      const user = await this.getUserByUsername(username);
+      if (!user) {
+        console.log(`User '${username}' not found`);
+        return undefined;
+      }
+      
+      console.log(`User '${username}' found, checking password...`);
+      const isValid = await bcrypt.compare(password, user.password);
+      console.log(`Password for '${username}':`, isValid ? 'Valid' : 'Invalid');
+      return isValid ? user : undefined;
+    } catch (error) {
+      console.error(`Error verifying password for '${username}':`, error);
+      return undefined;
+    }
   }
 
   async changeUserPassword(userId: string, newPassword: string): Promise<boolean> {
