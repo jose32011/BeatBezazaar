@@ -653,6 +653,9 @@ export class DatabaseStorage implements IStorage {
       
       // Delete user's cart items
       await db.delete(cart).where(eq(cart.userId, userId));
+
+      // Delete customer profile linked to this user
+      await db.delete(customers).where(eq(customers.userId, userId));
       
       // Note: Payments are linked to purchases, so they'll be cleaned up automatically
       // when purchases are deleted due to foreign key constraints
