@@ -168,7 +168,31 @@ export class DatabaseStorage implements IStorage {
         }
         console.log("✓ Default admin user created: admin/admin123");
       } else {
-        console.log("✓ Admin user already exists");
+        // Admin user exists, but let's verify/update the password to ensure it's correct
+        const testPassword = "admin123";
+        const isValidPassword = await bcrypt.compare(testPassword, adminUser.password);
+        
+        if (!isValidPassword) {
+          console.log("⚠️ Admin password is incorrect, updating...");
+          const newHashedPassword = await bcrypt.hash(testPassword, 10);
+          
+          if (isProduction) {
+            await db.run(sql`
+              UPDATE users 
+              SET password = ${newHashedPassword}, updated_at = CURRENT_TIMESTAMP 
+              WHERE username = 'admin'
+            `);
+          } else {
+            await db.run(sql`
+              UPDATE users 
+              SET password = ${newHashedPassword}, updated_at = datetime('now') 
+              WHERE username = 'admin'
+            `);
+          }
+          console.log("✓ Admin password updated: admin/admin123");
+        } else {
+          console.log("✓ Admin user exists with correct password");
+        }
       }
 
       // Initialize default genres if none exist
