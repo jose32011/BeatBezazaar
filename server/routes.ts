@@ -231,6 +231,23 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
+  // Debug endpoint to check genres
+  app.get("/api/debug/genres", async (req, res) => {
+    try {
+      const allGenres = await storage.getAllGenres();
+      const activeGenres = await storage.getActiveGenres();
+      
+      res.json({
+        allGenres: allGenres.length,
+        activeGenres: activeGenres.length,
+        allGenresData: allGenres,
+        activeGenresData: activeGenres
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
   // Authentication routes
   app.post("/api/auth/login", async (req, res) => {
     const { username, password } = req.body;

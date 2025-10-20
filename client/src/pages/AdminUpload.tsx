@@ -83,9 +83,14 @@ function AdminUploadContent() {
   const [useManualUpload, setUseManualUpload] = useState(false);
 
   // Fetch genres for dropdown
-  const { data: genres = [] } = useQuery({
+  const { data: genres = [], isLoading: genresLoading, error: genresError } = useQuery({
     queryKey: ['/api/genres'],
   });
+
+  // Debug: Log genres data
+  console.log('AdminUpload - Genres data:', genres);
+  console.log('AdminUpload - Genres loading:', genresLoading);
+  console.log('AdminUpload - Genres error:', genresError);
 
   const uploadMutation = useMutation({
     mutationFn: async (data: { formData: any; audioFile: File | null; imageFile: File | null; manualImageFile: File | null }) => {
@@ -244,15 +249,26 @@ function AdminUploadContent() {
 
   const addGenreComplexPatterns = (ctx: CanvasRenderingContext2D, settings: any, width: number, height: number) => {
     ctx.save();
-    switch (settings.genre) {
-      case "Hip-Hop": addUrbanPatterns(ctx, width, height); break;
-      case "Electronic": addElectronicPatterns(ctx, width, height); break;
-      case "Lo-fi": addLofiPatterns(ctx, width, height); break;
-      case "Trap": addTrapPatterns(ctx, width, height); break;
-      case "R&B": addRnBPatterns(ctx, width, height); break;
-      case "Pop": addPopPatterns(ctx, width, height); break;
-      default: addGenericPatterns(ctx, width, height);
-    }
+    const genreName = settings.genre?.toLowerCase();
+    
+    // Map genre names to pattern functions (case-insensitive)
+    const genrePatternMap: { [key: string]: () => void } = {
+      "hip-hop": () => addUrbanPatterns(ctx, width, height),
+      "electronic": () => addElectronicPatterns(ctx, width, height),
+      "lo-fi": () => addLofiPatterns(ctx, width, height),
+      "lofi": () => addLofiPatterns(ctx, width, height),
+      "trap": () => addTrapPatterns(ctx, width, height),
+      "r&b": () => addRnBPatterns(ctx, width, height),
+      "rnb": () => addRnBPatterns(ctx, width, height),
+      "pop": () => addPopPatterns(ctx, width, height),
+      "jazz": () => addJazzPatterns(ctx, width, height),
+      "drill": () => addDrillPatterns(ctx, width, height),
+    };
+    
+    // Try to find matching pattern, fallback to generic
+    const patternFunction = genrePatternMap[genreName] || addGenericPatterns;
+    patternFunction();
+    
     ctx.restore();
   };
 
@@ -329,6 +345,35 @@ function AdminUploadContent() {
       ctx.beginPath();
       ctx.arc(x, y, 2, 0, Math.PI * 2);
       ctx.fill();
+    }
+  };
+
+  const addJazzPatterns = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
+    // Smooth flowing curves
+    ctx.strokeStyle = "rgba(255, 215, 0, 0.4)";
+    ctx.lineWidth = 2;
+    for (let i = 0; i < 8; i++) {
+      ctx.beginPath();
+      ctx.moveTo(Math.random() * width, Math.random() * height);
+      ctx.bezierCurveTo(
+        Math.random() * width, Math.random() * height,
+        Math.random() * width, Math.random() * height,
+        Math.random() * width, Math.random() * height
+      );
+      ctx.stroke();
+    }
+  };
+
+  const addDrillPatterns = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
+    // Sharp angular patterns
+    ctx.strokeStyle = "rgba(255, 0, 100, 0.5)";
+    ctx.lineWidth = 4;
+    for (let i = 0; i < 15; i++) {
+      ctx.beginPath();
+      ctx.moveTo(Math.random() * width, Math.random() * height);
+      ctx.lineTo(Math.random() * width, Math.random() * height);
+      ctx.lineTo(Math.random() * width, Math.random() * height);
+      ctx.stroke();
     }
   };
 
@@ -654,15 +699,26 @@ function AdminUploadContent() {
 
   const addBannerGenrePatterns = (ctx: CanvasRenderingContext2D, settings: any, width: number, height: number) => {
     ctx.save();
-    switch (settings.genre) {
-      case "Hip-Hop": addBannerUrbanPatterns(ctx, width, height); break;
-      case "Electronic": addBannerElectronicPatterns(ctx, width, height); break;
-      case "Lo-fi": addBannerLofiPatterns(ctx, width, height); break;
-      case "Trap": addBannerTrapPatterns(ctx, width, height); break;
-      case "R&B": addBannerRnBPatterns(ctx, width, height); break;
-      case "Pop": addBannerPopPatterns(ctx, width, height); break;
-      default: addBannerGenericPatterns(ctx, width, height);
-    }
+    const genreName = settings.genre?.toLowerCase();
+    
+    // Map genre names to banner pattern functions (case-insensitive)
+    const bannerGenrePatternMap: { [key: string]: () => void } = {
+      "hip-hop": () => addBannerUrbanPatterns(ctx, width, height),
+      "electronic": () => addBannerElectronicPatterns(ctx, width, height),
+      "lo-fi": () => addBannerLofiPatterns(ctx, width, height),
+      "lofi": () => addBannerLofiPatterns(ctx, width, height),
+      "trap": () => addBannerTrapPatterns(ctx, width, height),
+      "r&b": () => addBannerRnBPatterns(ctx, width, height),
+      "rnb": () => addBannerRnBPatterns(ctx, width, height),
+      "pop": () => addBannerPopPatterns(ctx, width, height),
+      "jazz": () => addBannerJazzPatterns(ctx, width, height),
+      "drill": () => addBannerDrillPatterns(ctx, width, height),
+    };
+    
+    // Try to find matching pattern, fallback to generic
+    const patternFunction = bannerGenrePatternMap[genreName] || addBannerGenericPatterns;
+    patternFunction();
+    
     ctx.restore();
   };
 
@@ -733,6 +789,35 @@ function AdminUploadContent() {
       ctx.beginPath();
       ctx.arc(x, y, 3, 0, Math.PI * 2);
       ctx.fill();
+    }
+  };
+
+  const addBannerJazzPatterns = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
+    // Smooth flowing curves for banner
+    ctx.strokeStyle = "rgba(255, 215, 0, 0.3)";
+    ctx.lineWidth = 3;
+    for (let i = 0; i < 6; i++) {
+      ctx.beginPath();
+      ctx.moveTo(Math.random() * width, Math.random() * height);
+      ctx.bezierCurveTo(
+        Math.random() * width, Math.random() * height,
+        Math.random() * width, Math.random() * height,
+        Math.random() * width, Math.random() * height
+      );
+      ctx.stroke();
+    }
+  };
+
+  const addBannerDrillPatterns = (ctx: CanvasRenderingContext2D, width: number, height: number) => {
+    // Sharp angular patterns for banner
+    ctx.strokeStyle = "rgba(255, 0, 100, 0.4)";
+    ctx.lineWidth = 5;
+    for (let i = 0; i < 10; i++) {
+      ctx.beginPath();
+      ctx.moveTo(Math.random() * width, Math.random() * height);
+      ctx.lineTo(Math.random() * width, Math.random() * height);
+      ctx.lineTo(Math.random() * width, Math.random() * height);
+      ctx.stroke();
     }
   };
 
@@ -1066,14 +1151,28 @@ function AdminUploadContent() {
                   <Select
                     value={formData.genre}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, genre: value }))}
+                    disabled={genresLoading}
                   >
                     <SelectTrigger>
-                      <SelectValue placeholder="Select genre" />
+                      <SelectValue placeholder={genresLoading ? "Loading genres..." : "Select genre"} />
                     </SelectTrigger>
                     <SelectContent>
-                      
+                      {genresLoading ? (
+                        <SelectItem value="" disabled>Loading genres...</SelectItem>
+                      ) : genresError ? (
+                        <SelectItem value="" disabled>Error loading genres</SelectItem>
+                      ) : (
+                        genres.map((genre: any) => (
+                          <SelectItem key={genre.id} value={genre.name}>
+                            {genre.name}
+                          </SelectItem>
+                        ))
+                      )}
                     </SelectContent>
                   </Select>
+                  {genresError && (
+                    <p className="text-sm text-red-500">Failed to load genres. Please refresh the page.</p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label htmlFor="price">Price ($) *</Label>
