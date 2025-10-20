@@ -63,6 +63,11 @@ export default function CustomerManagement() {
 
   const { data: customers = [], isLoading } = useQuery<Customer[]>({
     queryKey: ['/api/customers'],
+    queryFn: async () => {
+      const res = await fetch('/api/customers', { credentials: 'include' });
+      if (!res.ok) throw new Error('Failed to fetch customers');
+      return res.json();
+    }
   });
 
   // Filter and sort customers
