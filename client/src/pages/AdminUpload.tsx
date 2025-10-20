@@ -1071,12 +1071,7 @@ function AdminUploadContent() {
                       <SelectValue placeholder="Select genre" />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="Hip-Hop">Hip-Hop</SelectItem>
-                      <SelectItem value="Electronic">Electronic</SelectItem>
-                      <SelectItem value="Lo-fi">Lo-fi</SelectItem>
-                      <SelectItem value="Trap">Trap</SelectItem>
-                      <SelectItem value="R&B">R&B</SelectItem>
-                      <SelectItem value="Pop">Pop</SelectItem>
+                      
                     </SelectContent>
                   </Select>
                 </div>

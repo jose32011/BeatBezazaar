@@ -1,12 +1,8 @@
 import { sql } from "drizzle-orm";
 import { sqliteTable, text, integer, real } from "drizzle-orm/sqlite-core";
-import { pgTable, text as pgText, integer as pgInteger, real as pgReal, boolean as pgBoolean, timestamp } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod";
 import { randomUUID } from "crypto";
-
-// Check if we're in production with PostgreSQL
-const isProduction = process.env.NODE_ENV === 'production' && process.env.DATABASE_URL;
 
 export const users = sqliteTable("users", {
   id: text("id").primaryKey().$defaultFn(() => randomUUID()),
