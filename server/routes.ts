@@ -176,6 +176,43 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   }));
 
+  // Debug endpoint to check admin user (remove in production)
+  app.get("/api/debug/admin", async (req, res) => {
+    try {
+      const adminUser = await storage.getUserByUsername("admin");
+      const allUsers = await storage.getAllUsers();
+      
+      res.json({
+        adminUserExists: !!adminUser,
+        adminUser: adminUser ? {
+          id: adminUser.id,
+          username: adminUser.username,
+          role: adminUser.role,
+          email: adminUser.email
+        } : null,
+        totalUsers: allUsers.length,
+        allUsers: allUsers.map(user => ({
+          id: user.id,
+          username: user.username,
+          role: user.role
+        }))
+      });
+    } catch (error) {
+      res.status(500).json({ error: error.message });
+    }
+  });
+
+  // Debug endpoint to check current session
+  app.get("/api/debug/session", async (req, res) => {
+    res.json({
+      session: req.session,
+      userId: req.session?.userId,
+      username: req.session?.username,
+      role: req.session?.role,
+      isAuthenticated: !!req.session?.userId
+    });
+  });
+
   // Authentication routes
   app.post("/api/auth/login", async (req, res) => {
     const { username, password } = req.body;
