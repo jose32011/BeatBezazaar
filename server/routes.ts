@@ -3,6 +3,7 @@ import { createServer, type Server } from "http";
 import { storage } from "./storage";
 import { insertBeatSchema, insertPurchaseSchema, insertUserSchema } from "@shared/schema";
 import session from "express-session";
+import MemoryStore from "memorystore";
 import multer from "multer";
 import path from "path";
 import fs from "fs";
@@ -166,14 +167,22 @@ export async function registerRoutes(app: Express): Promise<Server> {
   });
   
   // Session middleware
+  const sessionStore = new (MemoryStore(session))({
+    checkPeriod: 86400000, // prune expired entries every 24h
+  });
+
   app.use(session({
+    store: sessionStore,
     secret: process.env.SESSION_SECRET || 'beatbazaar-secret-key',
     resave: false,
     saveUninitialized: false,
     cookie: {
       secure: process.env.NODE_ENV === 'production',
+      httpOnly: true,
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 24 * 60 * 60 * 1000 // 24 hours
-    }
+    },
+    name: 'beatbazaar.sid' // Custom session name
   }));
 
   // Debug endpoint to check admin user (remove in production)
