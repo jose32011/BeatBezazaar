@@ -1153,11 +1153,11 @@ function AdminUploadContent() {
                     </SelectTrigger>
                     <SelectContent>
                       {genresLoading ? (
-                        <SelectItem value="" disabled>Loading genres...</SelectItem>
+                        <SelectItem value="loading" disabled>Loading genres...</SelectItem>
                       ) : genresError ? (
-                        <SelectItem value="" disabled>Error loading genres</SelectItem>
+                        <SelectItem value="error" disabled>Error loading genres</SelectItem>
                       ) : genres.length === 0 ? (
-                        <SelectItem value="" disabled>No genres available</SelectItem>
+                        <SelectItem value="no-genres" disabled>No genres available</SelectItem>
                       ) : (
                         genres.map((genre: any) => (
                           <SelectItem key={genre.id} value={genre.name}>
