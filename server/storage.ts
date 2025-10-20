@@ -124,6 +124,8 @@ export class DatabaseStorage implements IStorage {
 
   private async initializeDatabase() {
     try {
+      console.log("🚀 Starting database initialization...");
+      
       // Create tables if they don't exist
       await this.createTables();
 
@@ -133,8 +135,16 @@ export class DatabaseStorage implements IStorage {
         console.log("✓ passwordChangeRequired column exists");
       } catch (error) {
         console.log("⚠️ passwordChangeRequired column missing, adding it...");
-        await db.run(sql`ALTER TABLE users ADD COLUMN password_change_required INTEGER DEFAULT 1`);
-        console.log("✓ Added passwordChangeRequired column");
+        try {
+          if (isProduction) {
+            await db.run(sql`ALTER TABLE users ADD COLUMN password_change_required BOOLEAN DEFAULT true`);
+          } else {
+            await db.run(sql`ALTER TABLE users ADD COLUMN password_change_required INTEGER DEFAULT 1`);
+          }
+          console.log("✓ Added passwordChangeRequired column");
+        } catch (alterError) {
+          console.error("❌ Failed to add passwordChangeRequired column:", alterError);
+        }
       }
 
       // Check if theme column exists, if not add it
@@ -143,55 +153,83 @@ export class DatabaseStorage implements IStorage {
         console.log("✓ theme column exists");
       } catch (error) {
         console.log("⚠️ theme column missing, adding it...");
-        await db.run(sql`ALTER TABLE users ADD COLUMN theme TEXT DEFAULT 'original'`);
-        console.log("✓ Added theme column");
+        try {
+          await db.run(sql`ALTER TABLE users ADD COLUMN theme TEXT DEFAULT 'original'`);
+          console.log("✓ Added theme column");
+        } catch (alterError) {
+          console.error("❌ Failed to add theme column:", alterError);
+        }
       }
 
       // Check if admin user exists, if not create one
+      console.log("🔍 Checking for admin user...");
       const adminUser = await this.getUserByUsername("admin");
+      
       if (!adminUser) {
-        const hashedPassword = await bcrypt.hash("admin123", 10);
-        const adminId = randomUUID();
-        
-        if (isProduction) {
-          // PostgreSQL admin user creation
-          await db.run(sql`
-            INSERT INTO users (id, username, password, role, email, password_change_required, theme, created_at, updated_at)
-            VALUES (${adminId}, 'admin', ${hashedPassword}, 'admin', 'admin@beatbazaar.com', true, 'original', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-          `);
-        } else {
-          // SQLite admin user creation
-          await db.run(sql`
-            INSERT INTO users (id, username, password, role, email, password_change_required, theme, created_at, updated_at)
-            VALUES (${adminId}, 'admin', ${hashedPassword}, 'admin', 'admin@beatbazaar.com', 1, 'original', datetime('now'), datetime('now'))
-          `);
+        console.log("👤 Admin user not found, creating...");
+        try {
+          const hashedPassword = await bcrypt.hash("admin123", 10);
+          const adminId = randomUUID();
+          
+          console.log(`📝 Creating admin user with ID: ${adminId}`);
+          
+          if (isProduction) {
+            // PostgreSQL admin user creation
+            console.log("🐘 Using PostgreSQL for admin user creation");
+            await db.run(sql`
+              INSERT INTO users (id, username, password, role, email, password_change_required, theme, created_at, updated_at)
+              VALUES (${adminId}, 'admin', ${hashedPassword}, 'admin', 'admin@beatbazaar.com', true, 'original', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+            `);
+          } else {
+            // SQLite admin user creation
+            console.log("🗃️ Using SQLite for admin user creation");
+            await db.run(sql`
+              INSERT INTO users (id, username, password, role, email, password_change_required, theme, created_at, updated_at)
+              VALUES (${adminId}, 'admin', ${hashedPassword}, 'admin', 'admin@beatbazaar.com', 1, 'original', datetime('now'), datetime('now'))
+            `);
+          }
+          console.log("✅ Default admin user created: admin/admin123");
+          
+          // Verify the user was created
+          const verifyUser = await this.getUserByUsername("admin");
+          if (verifyUser) {
+            console.log("✅ Admin user verification successful");
+          } else {
+            console.error("❌ Admin user creation failed - user not found after creation");
+          }
+        } catch (createError) {
+          console.error("❌ Failed to create admin user:", createError);
         }
-        console.log("✓ Default admin user created: admin/admin123");
       } else {
+        console.log("👤 Admin user found, verifying password...");
         // Admin user exists, but let's verify/update the password to ensure it's correct
         const testPassword = "admin123";
         const isValidPassword = await bcrypt.compare(testPassword, adminUser.password);
         
         if (!isValidPassword) {
           console.log("⚠️ Admin password is incorrect, updating...");
-          const newHashedPassword = await bcrypt.hash(testPassword, 10);
-          
-          if (isProduction) {
-            await db.run(sql`
-              UPDATE users 
-              SET password = ${newHashedPassword}, updated_at = CURRENT_TIMESTAMP 
-              WHERE username = 'admin'
-            `);
-          } else {
-            await db.run(sql`
-              UPDATE users 
-              SET password = ${newHashedPassword}, updated_at = datetime('now') 
-              WHERE username = 'admin'
-            `);
+          try {
+            const newHashedPassword = await bcrypt.hash(testPassword, 10);
+            
+            if (isProduction) {
+              await db.run(sql`
+                UPDATE users 
+                SET password = ${newHashedPassword}, updated_at = CURRENT_TIMESTAMP 
+                WHERE username = 'admin'
+              `);
+            } else {
+              await db.run(sql`
+                UPDATE users 
+                SET password = ${newHashedPassword}, updated_at = datetime('now') 
+                WHERE username = 'admin'
+              `);
+            }
+            console.log("✅ Admin password updated: admin/admin123");
+          } catch (updateError) {
+            console.error("❌ Failed to update admin password:", updateError);
           }
-          console.log("✓ Admin password updated: admin/admin123");
         } else {
-          console.log("✓ Admin user exists with correct password");
+          console.log("✅ Admin user exists with correct password");
         }
       }
 
@@ -206,16 +244,19 @@ export class DatabaseStorage implements IStorage {
 
   private async createTables() {
     try {
+      console.log("🏗️ Creating database tables...");
       if (isProduction) {
         // PostgreSQL table creation
+        console.log("🐘 Creating PostgreSQL tables");
         await this.createPostgreSQLTables();
       } else {
         // SQLite table creation
+        console.log("🗃️ Creating SQLite tables");
         await this.createSQLiteTables();
       }
-      console.log("✓ Database tables created/verified");
+      console.log("✅ Database tables created/verified");
     } catch (error) {
-      console.error("Error creating tables:", error);
+      console.error("❌ Error creating tables:", error);
       throw error;
     }
   }
@@ -344,126 +385,147 @@ export class DatabaseStorage implements IStorage {
   }
 
   private async createPostgreSQLTables() {
-    // Create users table
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        username TEXT NOT NULL UNIQUE,
-        password TEXT NOT NULL,
-        role TEXT NOT NULL DEFAULT 'client',
-        email TEXT,
-        password_change_required BOOLEAN NOT NULL DEFAULT true,
-        theme TEXT NOT NULL DEFAULT 'original',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+    try {
+      console.log("📋 Creating users table...");
+      // Create users table
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS users (
+          id TEXT PRIMARY KEY,
+          username TEXT NOT NULL UNIQUE,
+          password TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'client',
+          email TEXT,
+          password_change_required BOOLEAN NOT NULL DEFAULT true,
+          theme TEXT NOT NULL DEFAULT 'original',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log("✅ Users table created");
 
-    // Create beats table
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS beats (
-        id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        producer TEXT NOT NULL,
-        bpm INTEGER NOT NULL,
-        genre TEXT NOT NULL,
-        price DECIMAL NOT NULL,
-        image_url TEXT NOT NULL,
-        audio_url TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+      // Create beats table
+      console.log("📋 Creating beats table...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS beats (
+          id TEXT PRIMARY KEY,
+          title TEXT NOT NULL,
+          producer TEXT NOT NULL,
+          bpm INTEGER NOT NULL,
+          genre TEXT NOT NULL,
+          price DECIMAL NOT NULL,
+          image_url TEXT NOT NULL,
+          audio_url TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log("✅ Beats table created");
 
-    // Create purchases table
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS purchases (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        beat_id TEXT NOT NULL,
-        price DECIMAL NOT NULL,
-        purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id),
-        FOREIGN KEY (beat_id) REFERENCES beats(id)
-      )
-    `);
+      // Create purchases table
+      console.log("📋 Creating purchases table...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS purchases (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          beat_id TEXT NOT NULL,
+          price DECIMAL NOT NULL,
+          purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id),
+          FOREIGN KEY (beat_id) REFERENCES beats(id)
+        )
+      `);
+      console.log("✅ Purchases table created");
 
-    // Create analytics table
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS analytics (
-        id TEXT PRIMARY KEY,
-        site_visits INTEGER NOT NULL DEFAULT 0,
-        total_downloads INTEGER NOT NULL DEFAULT 0,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+      // Create analytics table
+      console.log("📋 Creating analytics table...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS analytics (
+          id TEXT PRIMARY KEY,
+          site_visits INTEGER NOT NULL DEFAULT 0,
+          total_downloads INTEGER NOT NULL DEFAULT 0,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log("✅ Analytics table created");
 
-    // Create customers table
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS customers (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        first_name TEXT NOT NULL,
-        last_name TEXT NOT NULL,
-        email TEXT NOT NULL,
-        phone TEXT,
-        address TEXT,
-        city TEXT,
-        state TEXT,
-        zip_code TEXT,
-        country TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id)
-      )
-    `);
+      // Create customers table
+      console.log("📋 Creating customers table...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS customers (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          first_name TEXT NOT NULL,
+          last_name TEXT NOT NULL,
+          email TEXT NOT NULL,
+          phone TEXT,
+          address TEXT,
+          city TEXT,
+          state TEXT,
+          zip_code TEXT,
+          country TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id)
+        )
+      `);
+      console.log("✅ Customers table created");
 
-    // Create cart table
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS cart (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        beat_id TEXT NOT NULL,
-        added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id),
-        FOREIGN KEY (beat_id) REFERENCES beats(id)
-      )
-    `);
+      // Create cart table
+      console.log("📋 Creating cart table...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS cart (
+          id TEXT PRIMARY KEY,
+          user_id TEXT NOT NULL,
+          beat_id TEXT NOT NULL,
+          added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id),
+          FOREIGN KEY (beat_id) REFERENCES beats(id)
+        )
+      `);
+      console.log("✅ Cart table created");
 
-    // Create payments table
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS payments (
-        id TEXT PRIMARY KEY,
-        purchase_id TEXT NOT NULL,
-        customer_id TEXT NOT NULL,
-        amount DECIMAL NOT NULL,
-        payment_method TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'pending',
-        transaction_id TEXT,
-        bank_reference TEXT,
-        notes TEXT,
-        approved_by TEXT,
-        approved_at TIMESTAMP,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (purchase_id) REFERENCES purchases(id),
-        FOREIGN KEY (customer_id) REFERENCES customers(id),
-        FOREIGN KEY (approved_by) REFERENCES users(id)
-      )
-    `);
+      // Create payments table
+      console.log("📋 Creating payments table...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS payments (
+          id TEXT PRIMARY KEY,
+          purchase_id TEXT NOT NULL,
+          customer_id TEXT NOT NULL,
+          amount DECIMAL NOT NULL,
+          payment_method TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          transaction_id TEXT,
+          bank_reference TEXT,
+          notes TEXT,
+          approved_by TEXT,
+          approved_at TIMESTAMP,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (purchase_id) REFERENCES purchases(id),
+          FOREIGN KEY (customer_id) REFERENCES customers(id),
+          FOREIGN KEY (approved_by) REFERENCES users(id)
+        )
+      `);
+      console.log("✅ Payments table created");
 
-    // Create genres table
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS genres (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL UNIQUE,
-        description TEXT,
-        image_url TEXT NOT NULL,
-        color TEXT NOT NULL DEFAULT '#3b82f6',
-        is_active BOOLEAN NOT NULL DEFAULT true,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      )
-    `);
+      // Create genres table
+      console.log("📋 Creating genres table...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS genres (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL UNIQUE,
+          description TEXT,
+          image_url TEXT NOT NULL,
+          color TEXT NOT NULL DEFAULT '#3b82f6',
+          is_active BOOLEAN NOT NULL DEFAULT true,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log("✅ Genres table created");
+    } catch (error) {
+      console.error("❌ Error creating PostgreSQL tables:", error);
+      throw error;
+    }
   }
 
   private async initializeDefaultGenres() {
