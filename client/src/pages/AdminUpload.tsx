@@ -87,6 +87,10 @@ function AdminUploadContent() {
     queryKey: ['/api/genres'],
   });
 
+  // Debug: Log form data and genres
+  console.log('Form data genre:', formData.genre);
+  console.log('Genres loaded:', genres.length);
+
   const uploadMutation = useMutation({
     mutationFn: async (data: { formData: any; audioFile: File | null; imageFile: File | null; manualImageFile: File | null }) => {
       const formDataToSend = new FormData();
@@ -1144,7 +1148,7 @@ function AdminUploadContent() {
                 <div className="space-y-2">
                   <Label htmlFor="genre">Genre *</Label>
                   <Select
-                    value={formData.genre}
+                    value={formData.genre || undefined}
                     onValueChange={(value) => setFormData(prev => ({ ...prev, genre: value }))}
                     disabled={genresLoading}
                   >
