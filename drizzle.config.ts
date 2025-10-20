@@ -1,10 +1,14 @@
 import { defineConfig } from "drizzle-kit";
 
+const isProduction = process.env.NODE_ENV === 'production';
+
 export default defineConfig({
   out: "./migrations",
   schema: "./shared/schema.ts",
-  dialect: "sqlite",
-  dbCredentials: {
+  dialect: isProduction ? "postgresql" : "sqlite",
+  dbCredentials: isProduction ? {
+    url: process.env.DATABASE_URL!,
+  } : {
     url: "beatbazaar.db",
   },
 });

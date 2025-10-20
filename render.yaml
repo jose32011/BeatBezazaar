@@ -11,6 +11,12 @@ services:
       - key: PORT
         value: 3000
       - key: DATABASE_URL
-        sync: false
+        fromDatabase:
+          name: beatbazaar-db
+          property: connectionString
       - key: SESSION_SECRET
         generateValue: true
+
+databases:
+  - name: beatbazaar-db
+    plan: free

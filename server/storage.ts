@@ -27,13 +27,28 @@ import {
   genres
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/better-sqlite3";
+import { drizzle as drizzlePg } from "drizzle-orm/postgres-js";
 import Database from "better-sqlite3";
+import postgres from "postgres";
 import { eq, desc, sql, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
 
-const sqlite = new Database("beatbazaar.db");
-const db = drizzle(sqlite);
+// Database configuration based on environment
+const isProduction = process.env.NODE_ENV === 'production';
+let db: any;
+
+if (isProduction && process.env.DATABASE_URL) {
+  // Use PostgreSQL in production
+  const client = postgres(process.env.DATABASE_URL);
+  db = drizzlePg(client);
+  console.log("✓ Using PostgreSQL database");
+} else {
+  // Use SQLite in development
+  const sqlite = new Database("beatbazaar.db");
+  db = drizzle(sqlite);
+  console.log("✓ Using SQLite database");
+}
 
 export interface IStorage {
   // User operations
@@ -159,124 +174,264 @@ export class DatabaseStorage implements IStorage {
 
   private async createTables() {
     try {
-      // Create users table
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS users (
-          id TEXT PRIMARY KEY,
-          username TEXT NOT NULL UNIQUE,
-          password TEXT NOT NULL,
-          role TEXT NOT NULL DEFAULT 'client',
-          email TEXT,
-          password_change_required INTEGER NOT NULL DEFAULT 1,
-          theme TEXT NOT NULL DEFAULT 'original',
-          created_at DATETIME,
-          updated_at DATETIME
-        )
-      `);
-
-      // Create beats table
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS beats (
-          id TEXT PRIMARY KEY,
-          title TEXT NOT NULL,
-          artist TEXT NOT NULL,
-          genre TEXT NOT NULL,
-          price REAL NOT NULL,
-          file_path TEXT NOT NULL,
-          image_path TEXT,
-          description TEXT,
-          duration INTEGER,
-          bpm INTEGER,
-          key TEXT,
-          created_at DATETIME,
-          updated_at DATETIME
-        )
-      `);
-
-      // Create purchases table
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS purchases (
-          id TEXT PRIMARY KEY,
-          user_id TEXT NOT NULL,
-          beat_id TEXT NOT NULL,
-          amount REAL NOT NULL,
-          created_at DATETIME,
-          FOREIGN KEY (user_id) REFERENCES users(id),
-          FOREIGN KEY (beat_id) REFERENCES beats(id)
-        )
-      `);
-
-      // Create analytics table
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS analytics (
-          id TEXT PRIMARY KEY,
-          type TEXT NOT NULL,
-          value INTEGER NOT NULL DEFAULT 0,
-          created_at DATETIME,
-          updated_at DATETIME
-        )
-      `);
-
-      // Create customers table
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS customers (
-          id TEXT PRIMARY KEY,
-          user_id TEXT NOT NULL,
-          name TEXT NOT NULL,
-          email TEXT,
-          phone TEXT,
-          address TEXT,
-          created_at DATETIME,
-          updated_at DATETIME,
-          FOREIGN KEY (user_id) REFERENCES users(id)
-        )
-      `);
-
-      // Create cart table
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS cart (
-          id TEXT PRIMARY KEY,
-          user_id TEXT NOT NULL,
-          beat_id TEXT NOT NULL,
-          created_at DATETIME,
-          FOREIGN KEY (user_id) REFERENCES users(id),
-          FOREIGN KEY (beat_id) REFERENCES beats(id)
-        )
-      `);
-
-      // Create payments table
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS payments (
-          id TEXT PRIMARY KEY,
-          user_id TEXT NOT NULL,
-          amount REAL NOT NULL,
-          status TEXT NOT NULL DEFAULT 'pending',
-          payment_method TEXT,
-          transaction_id TEXT,
-          approved_by TEXT,
-          created_at DATETIME,
-          updated_at DATETIME,
-          FOREIGN KEY (user_id) REFERENCES users(id)
-        )
-      `);
-
-      // Create genres table
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS genres (
-          id TEXT PRIMARY KEY,
-          name TEXT NOT NULL UNIQUE,
-          description TEXT,
-          is_active INTEGER NOT NULL DEFAULT 1,
-          created_at DATETIME,
-          updated_at DATETIME
-        )
-      `);
-
+      if (isProduction) {
+        // PostgreSQL table creation
+        await this.createPostgreSQLTables();
+      } else {
+        // SQLite table creation
+        await this.createSQLiteTables();
+      }
       console.log("✓ Database tables created/verified");
     } catch (error) {
       console.error("Error creating tables:", error);
       throw error;
     }
+  }
+
+  private async createSQLiteTables() {
+    // Create users table
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        username TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'client',
+        email TEXT,
+        password_change_required INTEGER NOT NULL DEFAULT 1,
+        theme TEXT NOT NULL DEFAULT 'original',
+        created_at DATETIME,
+        updated_at DATETIME
+      )
+    `);
+
+    // Create beats table
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS beats (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        producer TEXT NOT NULL,
+        bpm INTEGER NOT NULL,
+        genre TEXT NOT NULL,
+        price REAL NOT NULL,
+        image_url TEXT NOT NULL,
+        audio_url TEXT,
+        created_at DATETIME
+      )
+    `);
+
+    // Create purchases table
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS purchases (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        beat_id TEXT NOT NULL,
+        price REAL NOT NULL,
+        purchased_at DATETIME,
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        FOREIGN KEY (beat_id) REFERENCES beats(id)
+      )
+    `);
+
+    // Create analytics table
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS analytics (
+        id TEXT PRIMARY KEY,
+        site_visits INTEGER NOT NULL DEFAULT 0,
+        total_downloads INTEGER NOT NULL DEFAULT 0,
+        updated_at DATETIME
+      )
+    `);
+
+    // Create customers table
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS customers (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        first_name TEXT NOT NULL,
+        last_name TEXT NOT NULL,
+        email TEXT NOT NULL,
+        phone TEXT,
+        address TEXT,
+        city TEXT,
+        state TEXT,
+        zip_code TEXT,
+        country TEXT,
+        created_at DATETIME,
+        updated_at DATETIME,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      )
+    `);
+
+    // Create cart table
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS cart (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        beat_id TEXT NOT NULL,
+        added_at DATETIME,
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        FOREIGN KEY (beat_id) REFERENCES beats(id)
+      )
+    `);
+
+    // Create payments table
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS payments (
+        id TEXT PRIMARY KEY,
+        purchase_id TEXT NOT NULL,
+        customer_id TEXT NOT NULL,
+        amount REAL NOT NULL,
+        payment_method TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        transaction_id TEXT,
+        bank_reference TEXT,
+        notes TEXT,
+        approved_by TEXT,
+        approved_at DATETIME,
+        created_at DATETIME,
+        updated_at DATETIME,
+        FOREIGN KEY (purchase_id) REFERENCES purchases(id),
+        FOREIGN KEY (customer_id) REFERENCES customers(id),
+        FOREIGN KEY (approved_by) REFERENCES users(id)
+      )
+    `);
+
+    // Create genres table
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS genres (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        description TEXT,
+        image_url TEXT NOT NULL,
+        color TEXT NOT NULL DEFAULT '#3b82f6',
+        is_active INTEGER NOT NULL DEFAULT 1,
+        created_at DATETIME,
+        updated_at DATETIME
+      )
+    `);
+  }
+
+  private async createPostgreSQLTables() {
+    // Create users table
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS users (
+        id TEXT PRIMARY KEY,
+        username TEXT NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'client',
+        email TEXT,
+        password_change_required BOOLEAN NOT NULL DEFAULT true,
+        theme TEXT NOT NULL DEFAULT 'original',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create beats table
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS beats (
+        id TEXT PRIMARY KEY,
+        title TEXT NOT NULL,
+        producer TEXT NOT NULL,
+        bpm INTEGER NOT NULL,
+        genre TEXT NOT NULL,
+        price DECIMAL NOT NULL,
+        image_url TEXT NOT NULL,
+        audio_url TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create purchases table
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS purchases (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        beat_id TEXT NOT NULL,
+        price DECIMAL NOT NULL,
+        purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        FOREIGN KEY (beat_id) REFERENCES beats(id)
+      )
+    `);
+
+    // Create analytics table
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS analytics (
+        id TEXT PRIMARY KEY,
+        site_visits INTEGER NOT NULL DEFAULT 0,
+        total_downloads INTEGER NOT NULL DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
+
+    // Create customers table
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS customers (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        first_name TEXT NOT NULL,
+        last_name TEXT NOT NULL,
+        email TEXT NOT NULL,
+        phone TEXT,
+        address TEXT,
+        city TEXT,
+        state TEXT,
+        zip_code TEXT,
+        country TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      )
+    `);
+
+    // Create cart table
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS cart (
+        id TEXT PRIMARY KEY,
+        user_id TEXT NOT NULL,
+        beat_id TEXT NOT NULL,
+        added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        FOREIGN KEY (beat_id) REFERENCES beats(id)
+      )
+    `);
+
+    // Create payments table
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS payments (
+        id TEXT PRIMARY KEY,
+        purchase_id TEXT NOT NULL,
+        customer_id TEXT NOT NULL,
+        amount DECIMAL NOT NULL,
+        payment_method TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        transaction_id TEXT,
+        bank_reference TEXT,
+        notes TEXT,
+        approved_by TEXT,
+        approved_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (purchase_id) REFERENCES purchases(id),
+        FOREIGN KEY (customer_id) REFERENCES customers(id),
+        FOREIGN KEY (approved_by) REFERENCES users(id)
+      )
+    `);
+
+    // Create genres table
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS genres (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL UNIQUE,
+        description TEXT,
+        image_url TEXT NOT NULL,
+        color TEXT NOT NULL DEFAULT '#3b82f6',
+        is_active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      )
+    `);
   }
 
   private async initializeDefaultGenres() {
