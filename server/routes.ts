@@ -664,6 +664,100 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Social media settings endpoints
+  app.get("/api/social-media-settings", async (req, res) => {
+    try {
+      const settings = await storage.getSocialMediaSettings();
+      res.json(settings || {
+        facebookUrl: '',
+        instagramUrl: '',
+        twitterUrl: '',
+        youtubeUrl: '',
+        tiktokUrl: ''
+      });
+    } catch (error) {
+      console.error("Get social media settings error:", error);
+      res.status(500).json({ error: "Failed to get social media settings" });
+    }
+  });
+
+  app.put("/api/admin/social-media-settings", requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.updateSocialMediaSettings(req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error("Update social media settings error:", error);
+      res.status(500).json({ error: "Failed to update social media settings" });
+    }
+  });
+
+// Contact settings routes
+app.get("/api/contact-settings", async (req, res) => {
+  try {
+    const settings = await storage.getContactSettings();
+    res.json(settings || {
+      bandImageUrl: '',
+      bandName: 'BeatBazaar',
+      contactEmail: 'contact@beatbazaar.com',
+      contactPhone: '+1 (555) 123-4567',
+      contactAddress: '123 Music Street',
+      contactCity: 'Los Angeles',
+      contactState: 'CA',
+      contactZipCode: '90210',
+      contactCountry: 'USA',
+      messageEnabled: true,
+      messageSubject: 'New Contact Form Submission',
+      messageTemplate: 'You have received a new message from your contact form.'
+    });
+  } catch (error) {
+    console.error("Get contact settings error:", error);
+    res.status(500).json({ error: "Failed to get contact settings" });
+  }
+});
+
+app.put("/api/admin/contact-settings", requireAdmin, async (req, res) => {
+  try {
+    const settings = await storage.updateContactSettings(req.body);
+    res.json(settings);
+  } catch (error) {
+    console.error("Update contact settings error:", error);
+    res.status(500).json({ error: "Failed to update contact settings" });
+  }
+});
+
+app.post("/api/contact", async (req, res) => {
+  try {
+    const { name, email, subject, message } = req.body;
+    
+    if (!name || !email || !subject || !message) {
+      return res.status(400).json({ error: "All fields are required" });
+    }
+
+    // Get contact settings to check if messaging is enabled
+    const contactSettings = await storage.getContactSettings();
+    
+    if (!contactSettings?.messageEnabled) {
+      return res.status(400).json({ error: "Contact form is currently disabled" });
+    }
+
+    // Here you would typically send an email or save to database
+    // For now, we'll just log the contact form submission
+    console.log("Contact form submission:", {
+      name,
+      email,
+      subject,
+      message,
+      timestamp: new Date().toISOString(),
+      settings: contactSettings
+    });
+
+    res.json({ message: "Contact form submitted successfully" });
+  } catch (error) {
+    console.error("Contact form error:", error);
+    res.status(500).json({ error: "Failed to submit contact form" });
+  }
+});
+
   // Theme endpoints
   app.put("/api/auth/theme", requireAuth, async (req, res) => {
     try {

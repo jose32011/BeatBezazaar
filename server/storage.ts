@@ -21,6 +21,10 @@ import {
   type InsertVerificationCode,
   type EmailSettings,
   type InsertEmailSettings,
+  type SocialMediaSettings,
+  type InsertSocialMediaSettings,
+  type ContactSettings,
+  type InsertContactSettings,
   users,
   beats,
   purchases,
@@ -30,7 +34,9 @@ import {
   payments,
   genres,
   verificationCodes,
-  emailSettings
+  emailSettings,
+  socialMediaSettings,
+  contactSettings
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { drizzle as drizzlePg } from "drizzle-orm/postgres-js";
@@ -131,6 +137,14 @@ export interface IStorage {
   // Email settings operations
   getEmailSettings(): Promise<EmailSettings | undefined>;
   updateEmailSettings(settings: Partial<InsertEmailSettings>): Promise<EmailSettings>;
+  
+  // Social media settings operations
+  getSocialMediaSettings(): Promise<SocialMediaSettings | undefined>;
+  updateSocialMediaSettings(settings: Partial<InsertSocialMediaSettings>): Promise<SocialMediaSettings>;
+
+  // Contact settings operations
+  getContactSettings(): Promise<ContactSettings | undefined>;
+  updateContactSettings(settings: Partial<InsertContactSettings>): Promise<ContactSettings>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -429,6 +443,41 @@ export class DatabaseStorage implements IStorage {
         updated_at DATETIME
       )
     `);
+
+    // Create social media settings table
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS social_media_settings (
+        id TEXT PRIMARY KEY,
+        facebook_url TEXT NOT NULL DEFAULT '',
+        instagram_url TEXT NOT NULL DEFAULT '',
+        twitter_url TEXT NOT NULL DEFAULT '',
+        youtube_url TEXT NOT NULL DEFAULT '',
+        tiktok_url TEXT NOT NULL DEFAULT '',
+        created_at DATETIME,
+        updated_at DATETIME
+      )
+    `);
+
+    // Create contact settings table
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS contact_settings (
+        id TEXT PRIMARY KEY,
+        band_image_url TEXT NOT NULL DEFAULT '',
+        band_name TEXT NOT NULL DEFAULT 'BeatBazaar',
+        contact_email TEXT NOT NULL DEFAULT 'contact@beatbazaar.com',
+        contact_phone TEXT NOT NULL DEFAULT '+1 (555) 123-4567',
+        contact_address TEXT NOT NULL DEFAULT '123 Music Street',
+        contact_city TEXT NOT NULL DEFAULT 'Los Angeles',
+        contact_state TEXT NOT NULL DEFAULT 'CA',
+        contact_zip_code TEXT NOT NULL DEFAULT '90210',
+        contact_country TEXT NOT NULL DEFAULT 'USA',
+        message_enabled BOOLEAN NOT NULL DEFAULT true,
+        message_subject TEXT NOT NULL DEFAULT 'New Contact Form Submission',
+        message_template TEXT NOT NULL DEFAULT 'You have received a new message from your contact form.',
+        created_at DATETIME,
+        updated_at DATETIME
+      )
+    `);
   }
 
   private async createPostgreSQLTables() {
@@ -604,6 +653,45 @@ export class DatabaseStorage implements IStorage {
         )
       `);
       console.log("✅ Email settings table created");
+
+      // Create social media settings table
+      console.log("📋 Creating social media settings table...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS social_media_settings (
+          id TEXT PRIMARY KEY,
+          facebook_url TEXT NOT NULL DEFAULT '',
+          instagram_url TEXT NOT NULL DEFAULT '',
+          twitter_url TEXT NOT NULL DEFAULT '',
+          youtube_url TEXT NOT NULL DEFAULT '',
+          tiktok_url TEXT NOT NULL DEFAULT '',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log("✅ Social media settings table created");
+
+      // Create contact settings table
+      console.log("📋 Creating contact settings table...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS contact_settings (
+          id TEXT PRIMARY KEY,
+          band_image_url TEXT NOT NULL DEFAULT '',
+          band_name TEXT NOT NULL DEFAULT 'BeatBazaar',
+          contact_email TEXT NOT NULL DEFAULT 'contact@beatbazaar.com',
+          contact_phone TEXT NOT NULL DEFAULT '+1 (555) 123-4567',
+          contact_address TEXT NOT NULL DEFAULT '123 Music Street',
+          contact_city TEXT NOT NULL DEFAULT 'Los Angeles',
+          contact_state TEXT NOT NULL DEFAULT 'CA',
+          contact_zip_code TEXT NOT NULL DEFAULT '90210',
+          contact_country TEXT NOT NULL DEFAULT 'USA',
+          message_enabled BOOLEAN NOT NULL DEFAULT true,
+          message_subject TEXT NOT NULL DEFAULT 'New Contact Form Submission',
+          message_template TEXT NOT NULL DEFAULT 'You have received a new message from your contact form.',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log("✅ Contact settings table created");
     } catch (error) {
       console.error("❌ Error creating PostgreSQL tables:", error);
       throw error;
@@ -1652,6 +1740,108 @@ export class DatabaseStorage implements IStorage {
       }
     } catch (error) {
       console.error("Update email settings error:", error);
+      throw error;
+    }
+  }
+
+  // Social media settings operations
+  async getSocialMediaSettings(): Promise<SocialMediaSettings | undefined> {
+    try {
+      const result = await db
+        .select()
+        .from(socialMediaSettings)
+        .limit(1);
+      
+      return result[0];
+    } catch (error) {
+      console.error("Get social media settings error:", error);
+      return undefined;
+    }
+  }
+
+  async updateSocialMediaSettings(settings: Partial<InsertSocialMediaSettings>): Promise<SocialMediaSettings> {
+    try {
+      // Check if social media settings exist
+      const existingSettings = await this.getSocialMediaSettings();
+      
+      if (existingSettings) {
+        // Update existing settings
+        const result = await db
+          .update(socialMediaSettings)
+          .set({
+            ...settings,
+            updatedAt: new Date()
+          })
+          .where(eq(socialMediaSettings.id, existingSettings.id))
+          .returning();
+        
+        return result[0];
+      } else {
+        // Create new settings
+        const result = await db
+          .insert(socialMediaSettings)
+          .values({
+            ...settings,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
+          .returning();
+        
+        return result[0];
+      }
+    } catch (error) {
+      console.error("Update social media settings error:", error);
+      throw error;
+    }
+  }
+
+  // Contact settings operations
+  async getContactSettings(): Promise<ContactSettings | undefined> {
+    try {
+      const result = await db
+        .select()
+        .from(contactSettings)
+        .limit(1);
+      
+      return result[0];
+    } catch (error) {
+      console.error("Get contact settings error:", error);
+      return undefined;
+    }
+  }
+
+  async updateContactSettings(settings: Partial<InsertContactSettings>): Promise<ContactSettings> {
+    try {
+      // Check if contact settings exist
+      const existingSettings = await this.getContactSettings();
+      
+      if (existingSettings) {
+        // Update existing settings
+        const result = await db
+          .update(contactSettings)
+          .set({
+            ...settings,
+            updatedAt: new Date()
+          })
+          .where(eq(contactSettings.id, existingSettings.id))
+          .returning();
+        
+        return result[0];
+      } else {
+        // Create new settings
+        const result = await db
+          .insert(contactSettings)
+          .values({
+            ...settings,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
+          .returning();
+        
+        return result[0];
+      }
+    } catch (error) {
+      console.error("Update contact settings error:", error);
       throw error;
     }
   }

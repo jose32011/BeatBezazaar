@@ -207,3 +207,51 @@ export type VerificationCode = typeof verificationCodes.$inferSelect;
 
 export type InsertEmailSettings = z.infer<typeof insertEmailSettingsSchema>;
 export type EmailSettings = typeof emailSettings.$inferSelect;
+
+// Social Media Settings
+export const socialMediaSettings = sqliteTable("social_media_settings", {
+  id: text("id").primaryKey().$defaultFn(() => randomUUID()),
+  facebookUrl: text("facebook_url").notNull().default(""),
+  instagramUrl: text("instagram_url").notNull().default(""),
+  twitterUrl: text("twitter_url").notNull().default(""),
+  youtubeUrl: text("youtube_url").notNull().default(""),
+  tiktokUrl: text("tiktok_url").notNull().default(""),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const insertSocialMediaSettingsSchema = createInsertSchema(socialMediaSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertSocialMediaSettings = z.infer<typeof insertSocialMediaSettingsSchema>;
+export type SocialMediaSettings = typeof socialMediaSettings.$inferSelect;
+
+export const contactSettings = sqliteTable("contact_settings", {
+  id: text("id").primaryKey().$defaultFn(() => randomUUID()),
+  bandImageUrl: text("band_image_url").notNull().default(""),
+  bandName: text("band_name").notNull().default("BeatBazaar"),
+  contactEmail: text("contact_email").notNull().default("contact@beatbazaar.com"),
+  contactPhone: text("contact_phone").notNull().default("+1 (555) 123-4567"),
+  contactAddress: text("contact_address").notNull().default("123 Music Street"),
+  contactCity: text("contact_city").notNull().default("Los Angeles"),
+  contactState: text("contact_state").notNull().default("CA"),
+  contactZipCode: text("contact_zip_code").notNull().default("90210"),
+  contactCountry: text("contact_country").notNull().default("USA"),
+  messageEnabled: integer("message_enabled", { mode: "boolean" }).notNull().default(true),
+  messageSubject: text("message_subject").notNull().default("New Contact Form Submission"),
+  messageTemplate: text("message_template").notNull().default("You have received a new message from your contact form."),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const insertContactSettingsSchema = createInsertSchema(contactSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertContactSettings = z.infer<typeof insertContactSettingsSchema>;
+export type ContactSettings = typeof contactSettings.$inferSelect;

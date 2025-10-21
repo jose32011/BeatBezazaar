@@ -49,6 +49,11 @@ export default function Header({ cartCount = 0, onCartClick }: HeaderProps) {
                   Browse
                 </Button>
               </Link>
+              <Link href="/contact">
+                <Button variant="ghost" size="sm">
+                  Contact
+                </Button>
+              </Link>
               {user?.role === "admin" && (
                 <Link href="/admin/upload">
                   <Button variant="ghost" size="sm" data-testid="button-upload">

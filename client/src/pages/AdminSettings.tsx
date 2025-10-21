@@ -35,7 +35,16 @@ import {
   Send,
   Menu,
   X,
-  ChevronDown
+  ChevronDown,
+  Share2,
+  Facebook,
+  Instagram,
+  Twitter,
+  Youtube,
+  MessageSquare,
+  Image,
+  Phone,
+  MapPin
 } from "lucide-react";
 import GenreManagement from "@/components/GenreManagement";
 import ThemeSelector from "@/components/ThemeSelector";
@@ -128,11 +137,36 @@ function AdminSettingsContent() {
     fromEmail: ''
   });
 
+  const [socialMediaSettings, setSocialMediaSettings] = useState({
+    facebookUrl: '',
+    instagramUrl: '',
+    twitterUrl: '',
+    youtubeUrl: '',
+    tiktokUrl: ''
+  });
+
+  const [contactSettings, setContactSettings] = useState({
+    bandImageUrl: '',
+    bandName: 'BeatBazaar',
+    contactEmail: 'contact@beatbazaar.com',
+    contactPhone: '+1 (555) 123-4567',
+    contactAddress: '123 Music Street',
+    contactCity: 'Los Angeles',
+    contactState: 'CA',
+    contactZipCode: '90210',
+    contactCountry: 'USA',
+    messageEnabled: true,
+    messageSubject: 'New Contact Form Submission',
+    messageTemplate: 'You have received a new message from your contact form.'
+  });
+
   // Navigation menu items
   const menuItems = [
     { id: "paypal", label: "PayPal", icon: CreditCard, shortLabel: "PayPal" },
     { id: "bank", label: "Bank Account", icon: Building2, shortLabel: "Bank" },
     { id: "email", label: "Email Settings", icon: Mail, shortLabel: "Email" },
+    { id: "social", label: "Social Media", icon: Share2, shortLabel: "Social" },
+    { id: "contact", label: "Contact Page", icon: MessageSquare, shortLabel: "Contact" },
     { id: "users", label: "Admin Users", icon: Users, shortLabel: "Users" },
     { id: "genres", label: "Genre Management", icon: Music, shortLabel: "Genres" },
     { id: "themes", label: "Themes", icon: Palette, shortLabel: "Themes" },
@@ -168,6 +202,53 @@ function AdminSettingsContent() {
       })
       .catch(error => {
         console.error('Failed to load email settings:', error);
+      });
+
+    // Load social media settings from API
+    fetch('/api/social-media-settings', {
+      credentials: 'include',
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data) {
+          setSocialMediaSettings({
+            facebookUrl: data.facebookUrl || '',
+            instagramUrl: data.instagramUrl || '',
+            twitterUrl: data.twitterUrl || '',
+            youtubeUrl: data.youtubeUrl || '',
+            tiktokUrl: data.tiktokUrl || ''
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Failed to load social media settings:', error);
+      });
+
+    // Load contact settings from API
+    fetch('/api/contact-settings', {
+      credentials: 'include',
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data) {
+          setContactSettings({
+            bandImageUrl: data.bandImageUrl || '',
+            bandName: data.bandName || 'BeatBazaar',
+            contactEmail: data.contactEmail || 'contact@beatbazaar.com',
+            contactPhone: data.contactPhone || '+1 (555) 123-4567',
+            contactAddress: data.contactAddress || '123 Music Street',
+            contactCity: data.contactCity || 'Los Angeles',
+            contactState: data.contactState || 'CA',
+            contactZipCode: data.contactZipCode || '90210',
+            contactCountry: data.contactCountry || 'USA',
+            messageEnabled: data.messageEnabled !== undefined ? data.messageEnabled : true,
+            messageSubject: data.messageSubject || 'New Contact Form Submission',
+            messageTemplate: data.messageTemplate || 'You have received a new message from your contact form.'
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Failed to load contact settings:', error);
       });
   }, []);
 
@@ -242,6 +323,58 @@ function AdminSettingsContent() {
       toast({
         title: "Error",
         description: "Failed to send test email",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const saveSocialMediaMutation = useMutation({
+    mutationFn: async (socialSettings: typeof socialMediaSettings) => {
+      const response = await fetch('/api/admin/social-media-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(socialSettings),
+      });
+      if (!response.ok) throw new Error('Failed to save social media settings');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Social Media Settings Saved",
+        description: "Your social media settings have been updated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save social media settings",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const saveContactSettingsMutation = useMutation({
+    mutationFn: async (contactSettingsData: typeof contactSettings) => {
+      const response = await fetch('/api/admin/contact-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(contactSettingsData),
+      });
+      if (!response.ok) throw new Error('Failed to save contact settings');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Contact Settings Saved",
+        description: "Your contact page settings have been updated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save contact settings",
         variant: "destructive",
       });
     },
@@ -396,6 +529,8 @@ function AdminSettingsContent() {
   const handleSave = () => {
     saveSettingsMutation.mutate(settings);
     saveEmailSettingsMutation.mutate(emailSettings);
+    saveSocialMediaMutation.mutate(socialMediaSettings);
+    saveContactSettingsMutation.mutate(contactSettings);
   };
 
   const updateEmailSetting = (key: keyof EmailSettings, value: any) => {
@@ -976,6 +1111,312 @@ function AdminSettingsContent() {
             </Card>
           )}
 
+          {/* Social Media Settings */}
+          {activeTab === "social" && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <Share2 className="h-5 w-5" />
+                  Social Media Links
+                </CardTitle>
+                <CardDescription>
+                  Configure social media links that appear on the contact page
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="facebook-url">Facebook URL</Label>
+                    <Input
+                      id="facebook-url"
+                      type="url"
+                      value={socialMediaSettings.facebookUrl}
+                      onChange={(e) => setSocialMediaSettings(prev => ({ ...prev, facebookUrl: e.target.value }))}
+                      placeholder="https://facebook.com/yourpage"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="instagram-url">Instagram URL</Label>
+                    <Input
+                      id="instagram-url"
+                      type="url"
+                      value={socialMediaSettings.instagramUrl}
+                      onChange={(e) => setSocialMediaSettings(prev => ({ ...prev, instagramUrl: e.target.value }))}
+                      placeholder="https://instagram.com/yourpage"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="twitter-url">Twitter URL</Label>
+                    <Input
+                      id="twitter-url"
+                      type="url"
+                      value={socialMediaSettings.twitterUrl}
+                      onChange={(e) => setSocialMediaSettings(prev => ({ ...prev, twitterUrl: e.target.value }))}
+                      placeholder="https://twitter.com/yourpage"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="youtube-url">YouTube URL</Label>
+                    <Input
+                      id="youtube-url"
+                      type="url"
+                      value={socialMediaSettings.youtubeUrl}
+                      onChange={(e) => setSocialMediaSettings(prev => ({ ...prev, youtubeUrl: e.target.value }))}
+                      placeholder="https://youtube.com/yourchannel"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="tiktok-url">TikTok URL</Label>
+                    <Input
+                      id="tiktok-url"
+                      type="url"
+                      value={socialMediaSettings.tiktokUrl}
+                      onChange={(e) => setSocialMediaSettings(prev => ({ ...prev, tiktokUrl: e.target.value }))}
+                      placeholder="https://tiktok.com/@yourpage"
+                    />
+                  </div>
+                </div>
+                
+                <div className="bg-muted/50 p-4 rounded-lg">
+                  <h4 className="font-medium mb-2">Preview</h4>
+                  <p className="text-sm text-muted-foreground mb-3">
+                    These links will appear as buttons on the contact page:
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    {socialMediaSettings.facebookUrl && (
+                      <Button size="sm" variant="outline" className="bg-blue-600 text-white hover:bg-blue-700">
+                        <Facebook className="h-4 w-4 mr-2" />
+                        Facebook
+                      </Button>
+                    )}
+                    {socialMediaSettings.instagramUrl && (
+                      <Button size="sm" variant="outline" className="bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600">
+                        <Instagram className="h-4 w-4 mr-2" />
+                        Instagram
+                      </Button>
+                    )}
+                    {socialMediaSettings.twitterUrl && (
+                      <Button size="sm" variant="outline" className="bg-blue-400 text-white hover:bg-blue-500">
+                        <Twitter className="h-4 w-4 mr-2" />
+                        Twitter
+                      </Button>
+                    )}
+                    {socialMediaSettings.youtubeUrl && (
+                      <Button size="sm" variant="outline" className="bg-red-600 text-white hover:bg-red-700">
+                        <Youtube className="h-4 w-4 mr-2" />
+                        YouTube
+                      </Button>
+                    )}
+                    {socialMediaSettings.tiktokUrl && (
+                      <Button size="sm" variant="outline" className="bg-black text-white hover:bg-gray-800">
+                        <Music className="h-4 w-4 mr-2" />
+                        TikTok
+                      </Button>
+                    )}
+                    {!socialMediaSettings.facebookUrl && !socialMediaSettings.instagramUrl && !socialMediaSettings.twitterUrl && !socialMediaSettings.youtubeUrl && !socialMediaSettings.tiktokUrl && (
+                      <p className="text-sm text-muted-foreground">No social media links configured</p>
+                    )}
+                  </div>
+                </div>
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Contact Settings */}
+          {activeTab === "contact" && (
+            <div className="space-y-6">
+              {/* Band Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Image className="h-5 w-5" />
+                    Band Information
+                  </CardTitle>
+                  <CardDescription>
+                    Configure the band image and name displayed on the contact page
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="band-image-url">Band Image URL</Label>
+                    <Input
+                      id="band-image-url"
+                      type="url"
+                      value={contactSettings.bandImageUrl}
+                      onChange={(e) => setContactSettings(prev => ({ ...prev, bandImageUrl: e.target.value }))}
+                      placeholder="https://example.com/band-image.jpg"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="band-name">Band Name</Label>
+                    <Input
+                      id="band-name"
+                      type="text"
+                      value={contactSettings.bandName}
+                      onChange={(e) => setContactSettings(prev => ({ ...prev, bandName: e.target.value }))}
+                      placeholder="BeatBazaar"
+                    />
+                  </div>
+                  {contactSettings.bandImageUrl && (
+                    <div className="mt-4">
+                      <Label>Preview</Label>
+                      <div className="mt-2 w-32 h-32 rounded-lg overflow-hidden border">
+                        <img
+                          src={contactSettings.bandImageUrl}
+                          alt="Band Preview"
+                          className="w-full h-full object-cover"
+                          onError={(e) => {
+                            e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 128 128'%3E%3Crect width='128' height='128' fill='%236366f1'/%3E%3Ctext x='64' y='70' text-anchor='middle' fill='white' font-size='24' font-family='Arial'%3E🎵%3C/text%3E%3C/svg%3E";
+                          }}
+                        />
+                      </div>
+                    </div>
+                  )}
+                </CardContent>
+              </Card>
+
+              {/* Contact Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Phone className="h-5 w-5" />
+                    Contact Information
+                  </CardTitle>
+                  <CardDescription>
+                    Configure contact details displayed on the contact page
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="contact-email">Contact Email</Label>
+                      <Input
+                        id="contact-email"
+                        type="email"
+                        value={contactSettings.contactEmail}
+                        onChange={(e) => setContactSettings(prev => ({ ...prev, contactEmail: e.target.value }))}
+                        placeholder="contact@beatbazaar.com"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="contact-phone">Contact Phone</Label>
+                      <Input
+                        id="contact-phone"
+                        type="tel"
+                        value={contactSettings.contactPhone}
+                        onChange={(e) => setContactSettings(prev => ({ ...prev, contactPhone: e.target.value }))}
+                        placeholder="+1 (555) 123-4567"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="contact-address">Address</Label>
+                    <Input
+                      id="contact-address"
+                      type="text"
+                      value={contactSettings.contactAddress}
+                      onChange={(e) => setContactSettings(prev => ({ ...prev, contactAddress: e.target.value }))}
+                      placeholder="123 Music Street"
+                    />
+                  </div>
+                  <div className="grid grid-cols-1 sm:grid-cols-3 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="contact-city">City</Label>
+                      <Input
+                        id="contact-city"
+                        type="text"
+                        value={contactSettings.contactCity}
+                        onChange={(e) => setContactSettings(prev => ({ ...prev, contactCity: e.target.value }))}
+                        placeholder="Los Angeles"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="contact-state">State</Label>
+                      <Input
+                        id="contact-state"
+                        type="text"
+                        value={contactSettings.contactState}
+                        onChange={(e) => setContactSettings(prev => ({ ...prev, contactState: e.target.value }))}
+                        placeholder="CA"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="contact-zip">Zip Code</Label>
+                      <Input
+                        id="contact-zip"
+                        type="text"
+                        value={contactSettings.contactZipCode}
+                        onChange={(e) => setContactSettings(prev => ({ ...prev, contactZipCode: e.target.value }))}
+                        placeholder="90210"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="contact-country">Country</Label>
+                    <Input
+                      id="contact-country"
+                      type="text"
+                      value={contactSettings.contactCountry}
+                      onChange={(e) => setContactSettings(prev => ({ ...prev, contactCountry: e.target.value }))}
+                      placeholder="USA"
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Message Settings */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <MessageSquare className="h-5 w-5" />
+                    Message Settings
+                  </CardTitle>
+                  <CardDescription>
+                    Configure contact form behavior and email notifications
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <div className="space-y-0.5">
+                      <Label htmlFor="message-enabled">Enable Contact Form</Label>
+                      <p className="text-sm text-muted-foreground">
+                        Allow visitors to submit messages through the contact form
+                      </p>
+                    </div>
+                    <Switch
+                      id="message-enabled"
+                      checked={contactSettings.messageEnabled}
+                      onCheckedChange={(checked) => setContactSettings(prev => ({ ...prev, messageEnabled: checked }))}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="message-subject">Email Subject Template</Label>
+                    <Input
+                      id="message-subject"
+                      type="text"
+                      value={contactSettings.messageSubject}
+                      onChange={(e) => setContactSettings(prev => ({ ...prev, messageSubject: e.target.value }))}
+                      placeholder="New Contact Form Submission"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="message-template">Email Template</Label>
+                    <Textarea
+                      id="message-template"
+                      rows={4}
+                      value={contactSettings.messageTemplate}
+                      onChange={(e) => setContactSettings(prev => ({ ...prev, messageTemplate: e.target.value }))}
+                      placeholder="You have received a new message from your contact form."
+                    />
+                    <p className="text-sm text-muted-foreground">
+                      Use placeholders: {"{name}"}, {"{email}"}, {"{subject}"}, {"{message}"}
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
           {/* User Management */}
           {activeTab === "users" && (
             <Card>
@@ -1206,8 +1647,8 @@ function AdminSettingsContent() {
           {/* Theme Selection */}
           {activeTab === "themes" && (
             <div className="space-y-6">
-              <ThemeSelector />
-              <ThemePreview />
+            <ThemeSelector />
+            <ThemePreview />
             </div>
           )}
         </div>
