@@ -7,7 +7,6 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Users, Download, Eye, Music, LogOut, Wand2, Image, Edit, Trash2, CreditCard, UserCheck, Play, Pause, Settings, Search, ChevronLeft, ChevronRight, TrendingUp, Menu, X, BarChart3, UserCheck as CustomerIcon, CreditCard as PaymentIcon, Music as BeatIcon } from "lucide-react";
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import { Link } from "wouter";
@@ -881,11 +880,6 @@ function AdminDashboardContent() {
             </CardContent>
           </Card>
         </div>
-
-            {/* Approved Banners Display */}
-            
-
-            </div>
           )}
 
           {/* Beat Management */}
@@ -980,6 +974,71 @@ function AdminDashboardContent() {
           {/* Payments */}
           {activeTab === "payments" && (
             <PaymentManagement />
+          )}
+
+          {/* Beat Management */}
+          {activeTab === "beats" && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader className="flex flex-row items-center justify-between">
+                  <div>
+                    <CardTitle>Beat Management</CardTitle>
+                    <CardDescription>Manage your beat catalog</CardDescription>
+                  </div>
+                  <div className="flex gap-2">
+                    <Button asChild>
+                      <Link to="/admin/upload">
+                        <Music className="h-4 w-4 mr-2" />
+                        Upload Beat
+                      </Link>
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  <div className="space-y-4">
+                    {beats && beats.length > 0 ? (
+                      <div className="grid gap-4">
+                        {beats.map((beat) => (
+                          <div key={beat.id} className="flex items-center justify-between p-4 border rounded-lg">
+                            <div className="flex items-center space-x-4">
+                              <div className="w-12 h-12 bg-muted rounded-lg flex items-center justify-center">
+                                <Music className="h-6 w-6" />
+                              </div>
+                              <div>
+                                <h3 className="font-medium">{beat.title}</h3>
+                                <p className="text-sm text-muted-foreground">{beat.producer}</p>
+                                <p className="text-sm text-muted-foreground">{beat.genre} • {beat.bpm} BPM</p>
+                              </div>
+                            </div>
+                            <div className="flex items-center space-x-2">
+                              <span className="font-medium">${beat.price}</span>
+                              <Button variant="outline" size="sm">
+                                <Edit className="h-4 w-4" />
+                              </Button>
+                              <Button variant="outline" size="sm">
+                                <Trash2 className="h-4 w-4" />
+                              </Button>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    ) : (
+                      <div className="text-center py-8">
+                        <Music className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                        <h3 className="text-lg font-medium mb-2">No beats uploaded yet</h3>
+                        <p className="text-muted-foreground mb-4">Start building your beat catalog by uploading your first beat.</p>
+                        <Button asChild>
+                          <Link to="/admin/upload">
+                            <Music className="h-4 w-4 mr-2" />
+                            Upload Your First Beat
+                          </Link>
+                        </Button>
+                      </div>
+                    )}
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
           )}
 
           {/* Settings */}

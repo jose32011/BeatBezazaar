@@ -4,7 +4,6 @@ import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/com
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
@@ -33,7 +32,10 @@ import {
   Music,
   Palette,
   Mail,
-  Send
+  Send,
+  Menu,
+  X,
+  ChevronDown
 } from "lucide-react";
 import GenreManagement from "@/components/GenreManagement";
 import ThemeSelector from "@/components/ThemeSelector";
@@ -93,6 +95,8 @@ function AdminSettingsContent() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [showSecrets, setShowSecrets] = useState(false);
+  const [activeTab, setActiveTab] = useState("paypal");
+  const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [settings, setSettings] = useState<PaymentSettings>({
     paypal: {
       enabled: false,
@@ -123,6 +127,17 @@ function AdminSettingsContent() {
     fromName: 'BeatBazaar',
     fromEmail: ''
   });
+
+  // Navigation menu items
+  const menuItems = [
+    { id: "paypal", label: "PayPal", icon: CreditCard, shortLabel: "PayPal" },
+    { id: "bank", label: "Bank Account", icon: Building2, shortLabel: "Bank" },
+    { id: "email", label: "Email Settings", icon: Mail, shortLabel: "Email" },
+    { id: "users", label: "Admin Users", icon: Users, shortLabel: "Users" },
+    { id: "genres", label: "Genre Management", icon: Music, shortLabel: "Genres" },
+    { id: "themes", label: "Themes", icon: Palette, shortLabel: "Themes" },
+    { id: "database", label: "Database", icon: Database, shortLabel: "DB" }
+  ];
 
   // Load settings on component mount
   useEffect(() => {
@@ -425,48 +440,109 @@ function AdminSettingsContent() {
       className="min-h-screen"
       style={{ background: themeColors.background }}
     >
-      <div className="w-full px-6 py-8">
-        <div className="mb-8">
-          <h1 className="text-3xl font-bold">Settings</h1>
-          <p className="text-muted-foreground mt-2">
+      <div className="w-full px-3 sm:px-6 py-4 sm:py-8">
+        <div className="mb-6 sm:mb-8">
+          <h1 className="text-2xl sm:text-3xl font-bold">Settings</h1>
+          <p className="text-muted-foreground mt-2 text-sm sm:text-base">
             Configure settings 
           </p>
         </div>
 
-        <Tabs defaultValue="paypal" className="space-y-6">
-          <TabsList className="grid w-full grid-cols-7">
-            <TabsTrigger value="paypal" className="flex items-center gap-2">
-              <CreditCard className="h-4 w-4" />
-              PayPal Configuration
-            </TabsTrigger>
-            <TabsTrigger value="bank" className="flex items-center gap-2">
-              <Building2 className="h-4 w-4" />
-              Bank Account
-            </TabsTrigger>
-            <TabsTrigger value="email" className="flex items-center gap-2">
-              <Mail className="h-4 w-4" />
-              Email Settings
-            </TabsTrigger>
-            <TabsTrigger value="users" className="flex items-center gap-2">
-              <Users className="h-4 w-4" />
-              Admin Users
-            </TabsTrigger>
-            <TabsTrigger value="genres" className="flex items-center gap-2">
-              <Music className="h-4 w-4" />
-              Genre Management
-            </TabsTrigger>
-            <TabsTrigger value="themes" className="flex items-center gap-2">
-              <Palette className="h-4 w-4" />
-              Themes
-            </TabsTrigger>
-            <TabsTrigger value="database" className="flex items-center gap-2">
-              <Database className="h-4 w-4" />
-              Database
-            </TabsTrigger>
-          </TabsList>
+        {/* Responsive Navigation */}
+        <div className="mb-6">
+          {/* Desktop Navigation */}
+          <div className="hidden lg:block">
+            <nav className="flex space-x-1 bg-muted/30 p-1 rounded-lg">
+              {menuItems.map((item) => {
+                const Icon = item.icon;
+                return (
+                  <button
+                    key={item.id}
+                    onClick={() => setActiveTab(item.id)}
+                    className={`flex items-center gap-2 px-4 py-2 rounded-md text-sm font-medium transition-colors ${
+                      activeTab === item.id
+                        ? 'bg-background text-foreground shadow-sm'
+                        : 'text-muted-foreground hover:text-foreground hover:bg-background/50'
+                    }`}
+                  >
+                    <Icon className="h-4 w-4" />
+                    {item.label}
+                  </button>
+                );
+              })}
+            </nav>
+          </div>
+
+          {/* Mobile/Tablet Navigation */}
+          <div className="lg:hidden">
+            <div className="flex items-center justify-between bg-muted/30 p-2 rounded-lg">
+              <div className="flex items-center gap-2">
+                {(() => {
+                  const activeItem = menuItems.find(item => item.id === activeTab);
+                  const Icon = activeItem?.icon || Settings;
+                  return (
+                    <>
+                      <Icon className="h-5 w-5" />
+                      <span className="font-medium">{activeItem?.label || 'Settings'}</span>
+                    </>
+                  );
+                })()}
+              </div>
+              <Button
+                variant="ghost"
+                size="sm"
+                onClick={() => setIsMobileMenuOpen(!isMobileMenuOpen)}
+                className="gap-2"
+              >
+                {isMobileMenuOpen ? (
+                  <>
+                    <X className="h-4 w-4" />
+                    <span className="hidden sm:inline">Close</span>
+                  </>
+                ) : (
+                  <>
+                    <Menu className="h-4 w-4" />
+                    <span className="hidden sm:inline">Menu</span>
+                  </>
+                )}
+              </Button>
+            </div>
+
+            {/* Mobile Menu Dropdown */}
+            {isMobileMenuOpen && (
+              <div className="mt-2 bg-background border rounded-lg shadow-lg">
+                <div className="p-2 space-y-1">
+                  {menuItems.map((item) => {
+                    const Icon = item.icon;
+                    return (
+                      <button
+                        key={item.id}
+                        onClick={() => {
+                          setActiveTab(item.id);
+                          setIsMobileMenuOpen(false);
+                        }}
+                        className={`w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors ${
+                          activeTab === item.id
+                            ? 'bg-primary text-primary-foreground'
+                            : 'text-muted-foreground hover:text-foreground hover:bg-muted'
+                        }`}
+                      >
+                        <Icon className="h-4 w-4" />
+                        {item.label}
+                      </button>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+        </div>
+
+        {/* Content Area */}
+        <div className="space-y-6">
 
           {/* PayPal Settings */}
-          <TabsContent value="paypal">
+          {activeTab === "paypal" && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -493,7 +569,7 @@ function AdminSettingsContent() {
 
                 {settings.paypal.enabled && (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="paypal-client-id">Client ID *</Label>
                         <Input
@@ -575,10 +651,10 @@ function AdminSettingsContent() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
+          )}
 
           {/* Bank Account Settings */}
-          <TabsContent value="bank">
+          {activeTab === "bank" && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -605,7 +681,7 @@ function AdminSettingsContent() {
 
                 {settings.bank.enabled && (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="bank-name">Bank Name *</Label>
                         <Input
@@ -628,7 +704,7 @@ function AdminSettingsContent() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="account-number">Account Number *</Label>
                         <Input
@@ -662,7 +738,7 @@ function AdminSettingsContent() {
                       />
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="swift-code">SWIFT Code</Label>
                         <Input
@@ -704,10 +780,10 @@ function AdminSettingsContent() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
+          )}
 
           {/* Email Settings */}
-          <TabsContent value="email">
+          {activeTab === "email" && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -734,7 +810,7 @@ function AdminSettingsContent() {
 
                 {emailSettings.enabled && (
                   <div className="space-y-4">
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="smtp-host">SMTP Host *</Label>
                         <Input
@@ -757,7 +833,7 @@ function AdminSettingsContent() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="smtp-user">SMTP Username *</Label>
                         <Input
@@ -795,7 +871,7 @@ function AdminSettingsContent() {
                       </div>
                     </div>
 
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                       <div className="space-y-2">
                         <Label htmlFor="from-name">From Name *</Label>
                         <Input
@@ -837,7 +913,7 @@ function AdminSettingsContent() {
                           </p>
                         </div>
                         
-                        <div className="flex gap-2">
+                        <div className="flex flex-col sm:flex-row gap-2">
                           <Input
                             type="email"
                             placeholder="test@example.com"
@@ -858,17 +934,19 @@ function AdminSettingsContent() {
                               }
                             }}
                             disabled={testEmailMutation.isPending}
-                            className="gap-2"
+                            className="gap-2 w-full sm:w-auto"
                           >
                             {testEmailMutation.isPending ? (
                               <>
                                 <Send className="h-4 w-4 animate-spin" />
-                                Sending...
+                                <span className="hidden sm:inline">Sending...</span>
+                                <span className="sm:hidden">Sending...</span>
                               </>
                             ) : (
                               <>
                                 <Send className="h-4 w-4" />
-                                Send Test Email
+                                <span className="hidden sm:inline">Send Test Email</span>
+                                <span className="sm:hidden">Send Test</span>
                               </>
                             )}
                           </Button>
@@ -896,10 +974,10 @@ function AdminSettingsContent() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
+          )}
 
           {/* User Management */}
-          <TabsContent value="users">
+          {activeTab === "users" && (
             <Card>
         <CardHeader>
           <CardTitle className="flex items-center gap-2">
@@ -911,14 +989,14 @@ function AdminSettingsContent() {
           </CardDescription>
         </CardHeader>
               <CardContent className="space-y-6">
-                <div className="flex justify-between items-center">
+                <div className="flex flex-col sm:flex-row sm:justify-between sm:items-center gap-4">
                   <div>
                     <h3 className="text-lg font-semibold">Admin Users</h3>
                     <p className="text-sm text-muted-foreground">
                       Manage admin user accounts and permissions
                     </p>
                   </div>
-                  <Button onClick={() => setShowUserDialog(true)} className="gap-2">
+                  <Button onClick={() => setShowUserDialog(true)} className="gap-2 w-full sm:w-auto">
                     <Plus className="h-4 w-4" />
                     Add User
                   </Button>
@@ -933,43 +1011,43 @@ function AdminSettingsContent() {
                         No users found
                       </div>
                     ) : (
-                      <div className="border rounded-lg">
-                        <div className="overflow-x-auto">
+                      <div className="border rounded-lg overflow-x-auto">
+                        <div className="min-w-full">
                           <table className="w-full">
                             <thead className="border-b">
                               <tr>
-                                <th className="text-left p-4 font-medium">User</th>
-                                <th className="text-left p-4 font-medium">Email</th>
-                                <th className="text-left p-4 font-medium">Role</th>
-                                <th className="text-left p-4 font-medium">Created</th>
-                                <th className="text-left p-4 font-medium">Actions</th>
+                                <th className="text-left p-3 sm:p-4 font-medium">User</th>
+                                <th className="text-left p-3 sm:p-4 font-medium">Email</th>
+                                <th className="text-left p-3 sm:p-4 font-medium">Role</th>
+                                <th className="text-left p-3 sm:p-4 font-medium">Created</th>
+                                <th className="text-left p-3 sm:p-4 font-medium">Actions</th>
                               </tr>
                             </thead>
                             <tbody>
                               {users.map((user: any) => (
                                 <tr key={user.id} className="border-b hover:bg-muted/50">
-                                  <td className="p-4">
+                                  <td className="p-3 sm:p-4">
                                     <div className="flex items-center gap-3">
                                       <div className="w-8 h-8 rounded-full bg-primary/10 flex items-center justify-center">
                                         <User className="h-4 w-4" />
                                       </div>
                                       <div>
                                         <div className="flex items-center gap-2">
-                                          <span className="font-medium">{user.username}</span>
+                                          <span className="font-medium text-sm sm:text-base">{user.username}</span>
                                           {user.id === currentUser?.id && (
                                             <span className="px-2 py-1 text-xs bg-blue-100 text-blue-800 rounded-full font-medium">
                                               You
                                             </span>
                                           )}
                                         </div>
-                                        <div className="text-sm text-muted-foreground">ID: {user.id.slice(0, 8)}...</div>
+                                        <div className="text-xs sm:text-sm text-muted-foreground">ID: {user.id.slice(0, 8)}...</div>
                                       </div>
                                     </div>
                                   </td>
-                                  <td className="p-4">
-                                    <div className="text-sm">{user.email || 'No email'}</div>
+                                  <td className="p-3 sm:p-4">
+                                    <div className="text-xs sm:text-sm">{user.email || 'No email'}</div>
                                   </td>
-                                  <td className="p-4">
+                                  <td className="p-3 sm:p-4">
                                     <div className="flex items-center gap-2">
                                       {user.role === 'admin' ? (
                                         <Shield className="h-4 w-4 text-red-500" />
@@ -985,12 +1063,12 @@ function AdminSettingsContent() {
                                       </span>
                                     </div>
                                   </td>
-                                  <td className="p-4">
-                                    <div className="text-sm text-muted-foreground">
+                                  <td className="p-3 sm:p-4">
+                                    <div className="text-xs sm:text-sm text-muted-foreground">
                                       {user.createdAt ? new Date(user.createdAt).toLocaleDateString() : 'Unknown'}
                                     </div>
                                   </td>
-                                  <td className="p-4">
+                                  <td className="p-3 sm:p-4">
                                     <div className="flex items-center gap-2">
                                       <Button
                                         size="sm"
@@ -1035,10 +1113,10 @@ function AdminSettingsContent() {
                 )}
               </CardContent>
             </Card>
-          </TabsContent>
+          )}
 
           {/* Database Management */}
-          <TabsContent value="database">
+          {activeTab === "database" && (
             <Card>
               <CardHeader>
                 <CardTitle className="flex items-center gap-2">
@@ -1080,7 +1158,7 @@ function AdminSettingsContent() {
                 disabled={migrateCustomersMutation.isPending}
                 variant="outline"
                 size="lg"
-                className="gap-2"
+                className="gap-2 w-full sm:w-auto"
               >
                 {migrateCustomersMutation.isPending ? (
                   <>
@@ -1100,7 +1178,7 @@ function AdminSettingsContent() {
                 disabled={resetDatabaseMutation.isPending}
                 variant="destructive"
                 size="lg"
-                className="gap-2"
+                className="gap-2 w-full sm:w-auto"
               >
                 {resetDatabaseMutation.isPending ? (
                   <>
@@ -1118,29 +1196,31 @@ function AdminSettingsContent() {
                 </div>
               </CardContent>
             </Card>
-          </TabsContent>
+          )}
 
           {/* Genre Management */}
-          <TabsContent value="genres">
+          {activeTab === "genres" && (
             <GenreManagement />
-          </TabsContent>
+          )}
 
           {/* Theme Selection */}
-          <TabsContent value="themes" className="space-y-6">
-            <ThemeSelector />
-            <ThemePreview />
-          </TabsContent>
-        </Tabs>
+          {activeTab === "themes" && (
+            <div className="space-y-6">
+              <ThemeSelector />
+              <ThemePreview />
+            </div>
+          )}
+        </div>
 
         {/* Save Button */}
         <div className="flex justify-end mt-6">
           <Button
             onClick={handleSave}
-            disabled={saveSettingsMutation.isPending}
+            disabled={saveSettingsMutation.isPending || saveEmailSettingsMutation.isPending}
             size="lg"
-            className="px-8"
+            className="px-6 sm:px-8 w-full sm:w-auto"
           >
-            {saveSettingsMutation.isPending ? (
+            {saveSettingsMutation.isPending || saveEmailSettingsMutation.isPending ? (
               <>
                 <Settings className="h-5 w-5 mr-2 animate-spin" />
                 Saving...
@@ -1225,13 +1305,14 @@ function AdminSettingsContent() {
             </Select>
             <p className="text-xs text-muted-foreground">Only admin users can be managed here</p>
           </div>
-              <div className="flex justify-end gap-2 pt-4">
-                <Button type="button" variant="outline" onClick={() => setShowUserDialog(false)}>
+              <div className="flex flex-col sm:flex-row justify-end gap-2 pt-4">
+                <Button type="button" variant="outline" onClick={() => setShowUserDialog(false)} className="w-full sm:w-auto">
                   Cancel
                 </Button>
                 <Button 
                   type="submit" 
                   disabled={createUserMutation.isPending || updateUserMutation.isPending}
+                  className="w-full sm:w-auto"
                 >
                   {createUserMutation.isPending || updateUserMutation.isPending 
                     ? 'Saving...' 
