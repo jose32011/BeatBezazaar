@@ -10,7 +10,7 @@ import { Music, User, Lock, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useQuery } from "@tanstack/react-query";
+import { useAppBranding } from "@/hooks/useAppBranding";
 
 interface User {
   id: string;
@@ -29,15 +29,8 @@ export default function Login() {
   
   const themeColors = getThemeColors();
 
-  // Fetch app branding settings
-  const { data: brandingSettings } = useQuery({
-    queryKey: ['/api/app-branding-settings'],
-    select: (data: any) => data || { 
-      loginTitle: 'Welcome Back',
-      loginSubtitle: 'Sign in to your account to continue',
-      loginImage: ''
-    }
-  });
+  // Get app branding settings
+  const { appName, loginTitle, loginSubtitle, loginImage } = useAppBranding();
   const [loginData, setLoginData] = useState({
     username: "",
     password: "",
@@ -150,7 +143,7 @@ export default function Login() {
       
       toast({
         title: "Registration successful",
-        description: `Welcome to BeatBazaar, ${user.username}!`,
+        description: `Welcome to ${appName}, ${user.username}!`,
       });
 
       // Small delay to ensure state is updated before redirect
@@ -180,7 +173,7 @@ export default function Login() {
               className="text-3xl font-bold ml-2"
               style={{ color: themeColors.text }}
             >
-              BeatBazaar
+              {appName}
             </h1>
           </div>
           <p style={{ color: themeColors.textSecondary }}>
@@ -200,13 +193,13 @@ export default function Login() {
               className="text-center"
               style={{ color: themeColors.text }}
             >
-              {brandingSettings?.loginTitle || 'Welcome Back'}
+              {loginTitle}
             </CardTitle>
             <CardDescription 
               className="text-center"
               style={{ color: themeColors.textSecondary }}
             >
-              {brandingSettings?.loginSubtitle || 'Sign in to your account to continue'}
+              {loginSubtitle}
             </CardDescription>
           </CardHeader>
           <CardContent>
@@ -274,7 +267,7 @@ export default function Login() {
 
                   <Button
                     type="submit"
-                    className="w-full"
+                    className="w-full h-10 sm:h-11 text-sm sm:text-base"
                     disabled={isLoading}
                   >
                     {isLoading ? "Signing in..." : "Sign In"}
@@ -465,7 +458,7 @@ export default function Login() {
 
                   <Button
                     type="submit"
-                    className="w-full bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                    className="w-full h-10 sm:h-11 text-sm sm:text-base bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
                     disabled={isLoading}
                   >
                     {isLoading ? "Creating account..." : "Create Account"}

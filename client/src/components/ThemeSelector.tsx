@@ -7,7 +7,7 @@ const themeOptions: { value: Theme; name: string; description: string; preview: 
   {
     value: 'original',
     name: 'Original Theme',
-    description: 'The original BeatBazaar theme with custom background',
+    description: 'The original theme with custom background',
     preview: 'bg-[#363C48]'
   },
   {

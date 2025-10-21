@@ -8,11 +8,13 @@ import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Music, User, ArrowLeft } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useAppBranding } from "@/hooks/useAppBranding";
 
 export default function ForgotPassword() {
   const [, setLocation] = useLocation();
   const { toast } = useToast();
   const { getThemeColors } = useTheme();
+  const { appName } = useAppBranding();
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState("");
   const [success, setSuccess] = useState(false);
@@ -77,7 +79,7 @@ export default function ForgotPassword() {
               className="text-3xl font-bold ml-2"
               style={{ color: themeColors.text }}
             >
-              BeatBazaar
+              {appName}
             </h1>
           </div>
           <p style={{ color: themeColors.textSecondary }}>
@@ -144,7 +146,7 @@ export default function ForgotPassword() {
 
                 <Button
                   type="submit"
-                  className="w-full"
+                  className="w-full h-10 sm:h-11 text-sm sm:text-base"
                   disabled={isLoading}
                 >
                   {isLoading ? "Sending..." : "Send Verification Code"}

@@ -439,8 +439,8 @@ function AdminDashboardContent() {
         </div>
             <div className="flex items-center gap-4">
               <span className="text-sm text-muted-foreground">Welcome, {user?.username}</span>
-              <Button variant="outline" onClick={logout} className="gap-2">
-                <LogOut className="h-4 w-4" />
+              <Button variant="outline" onClick={logout} className="gap-1 sm:gap-2 text-xs sm:text-sm px-2 sm:px-3 h-8 sm:h-10">
+                <LogOut className="h-3 w-3 sm:h-4 sm:w-4" />
                 Logout
               </Button>
             </div>

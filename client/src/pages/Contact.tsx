@@ -6,8 +6,9 @@ import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { useToast } from "@/hooks/use-toast";
 import { Facebook, Instagram, Mail, Phone, MapPin, Send } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useAppBranding } from "@/hooks/useAppBranding";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useQuery } from "@tanstack/react-query";
 import Header from "@/components/Header";
 
 interface SocialMediaSettings {
@@ -41,6 +42,7 @@ function Contact() {
   const { toast } = useToast();
   const { getThemeColors } = useTheme();
   const themeColors = getThemeColors();
+  const { appName } = useAppBranding();
   const [formData, setFormData] = useState<ContactFormData>({
     name: "",
     email: "",
@@ -139,7 +141,7 @@ function Contact() {
                  style={{ borderColor: themeColors.border }}>
               <img
                 src={contactSettings?.bandImageUrl || "/api/placeholder/192/192"}
-                alt={`${contactSettings?.bandName || "BeatBazaar"} Band`}
+                alt={`${contactSettings?.bandName || appName} Band`}
                 className="w-full h-full object-cover"
                 onError={(e) => {
                   e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='192' height='192' viewBox='0 0 192 192'%3E%3Crect width='192' height='192' fill='%236366f1'/%3E%3Ctext x='96' y='105' text-anchor='middle' fill='white' font-size='36' font-family='Arial'%3E🎵%3C/text%3E%3C/svg%3E";
@@ -389,7 +391,7 @@ function Contact() {
                 <Button
                   type="submit"
                   disabled={isSubmitting}
-                  className="w-full"
+                  className="w-full h-10 sm:h-11 text-sm sm:text-base"
                   style={{
                     backgroundColor: themeColors.primary,
                     color: themeColors.primaryForeground

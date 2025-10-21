@@ -2,8 +2,9 @@ import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { useToast } from "@/hooks/use-toast";
 import { Instagram, Twitter, Youtube, Music, ExternalLink } from "lucide-react";
-import { useQuery } from "@tanstack/react-query";
+import { useAppBranding } from "@/hooks/useAppBranding";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useQuery } from "@tanstack/react-query";
 import Header from "@/components/Header";
 
 interface ArtistBio {
@@ -28,6 +29,7 @@ function Bio() {
   const { toast } = useToast();
   const { getThemeColors } = useTheme();
   const themeColors = getThemeColors();
+  const { appName } = useAppBranding();
 
   // Fetch artist bios
   const { data: artistBios, isLoading, error } = useQuery<ArtistBio[]>({
@@ -130,7 +132,7 @@ function Bio() {
             className="text-xl max-w-2xl mx-auto"
             style={{ color: themeColors.mutedForeground }}
           >
-            Discover the talented artists behind BeatBazaar
+            Discover the talented artists behind {appName}
           </p>
         </div>
 

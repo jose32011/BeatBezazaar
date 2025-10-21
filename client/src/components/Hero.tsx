@@ -1,6 +1,6 @@
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useQuery } from "@tanstack/react-query";
+import { useAppBranding } from "@/hooks/useAppBranding";
 import { Link } from "wouter";
 import heroBackground from '@assets/generated_images/Hero_background_waveform_visualization_112bcc17.png';
 
@@ -8,25 +8,16 @@ export default function Hero() {
   const { getThemeColors } = useTheme();
   const themeColors = getThemeColors();
 
-  // Fetch app branding settings
-  const { data: brandingSettings } = useQuery({
-    queryKey: ['/api/app-branding-settings'],
-    select: (data: any) => data || { 
-      heroTitle: 'Discover Your Sound',
-      heroSubtitle: 'Premium beats for every artist. Find your perfect sound and bring your music to life.',
-      heroImage: '',
-      heroButtonText: 'Start Creating',
-      heroButtonLink: '/beats'
-    }
-  });
+  // Get app branding settings
+  const { heroTitle, heroSubtitle, heroImage, heroButtonText, heroButtonLink } = useAppBranding();
 
   return (
     <section className="relative h-[600px] flex items-center justify-center overflow-hidden">
       <div 
         className="absolute inset-0 bg-cover bg-center"
-        style={{ 
-          backgroundImage: `url(${brandingSettings?.heroImage || heroBackground})` 
-        }}
+            style={{ 
+              backgroundImage: `url(${heroImage || heroBackground})` 
+            }}
       />
       <div 
         className="absolute inset-0"
@@ -44,7 +35,7 @@ export default function Hero() {
             textShadow: '3px 3px 6px rgba(0,0,0,0.8), 1px 1px 2px rgba(0,0,0,0.9)'
           }}
         >
-          {brandingSettings?.heroTitle || 'Discover Your Sound'}
+          {heroTitle}
         </h1>
         <p 
           className="text-xl mb-8 drop-shadow-xl" 
@@ -54,16 +45,16 @@ export default function Hero() {
             textShadow: '2px 2px 4px rgba(0,0,0,0.8), 1px 1px 2px rgba(0,0,0,0.9)'
           }}
         >
-          {brandingSettings?.heroSubtitle || 'Premium beats for every artist. Find your perfect sound and bring your music to life.'}
+          {heroSubtitle}
         </p>
-        <div className="flex flex-wrap items-center justify-center gap-4">
-          <Link href={brandingSettings?.heroButtonLink || '/beats'}>
+        <div className="flex flex-wrap items-center justify-center gap-2 sm:gap-4">
+          <Link href={heroButtonLink}>
             <Button 
-              size="lg" 
+              size="sm" 
+              className="sm:size-lg text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3 drop-shadow-lg shadow-xl"
               data-testid="button-browse-beats"
-              className="drop-shadow-lg shadow-xl"
             >
-              {brandingSettings?.heroButtonText || 'Start Creating'}
+              {heroButtonText}
             </Button>
           </Link>
         </div>
