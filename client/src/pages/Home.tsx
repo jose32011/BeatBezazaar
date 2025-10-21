@@ -47,7 +47,6 @@ export default function Home() {
   const [isPlaylistMode, setIsPlaylistMode] = useState(false);
   const [playerCurrentTime, setPlayerCurrentTime] = useState<number>(0);
   const [playerDuration, setPlayerDuration] = useState<number>(0);
-  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
   const [location, setLocation] = useLocation();
   const { user, isAuthenticated } = useAuth();
@@ -211,13 +210,8 @@ export default function Home() {
     return name.toLowerCase().replace(/[-\s]/g, '');
   };
 
-  // Filter beats based on selected genres
-  const filteredBeats = beats.filter(beat => {
-    if (selectedGenres.length === 0) return true;
-    return selectedGenres.some(selectedGenre => 
-      normalizeGenreName(beat.genre) === normalizeGenreName(selectedGenre)
-    );
-  });
+  // All beats are shown (no genre filtering from sidebar)
+  const filteredBeats = beats;
 
   // Filter beats for a specific genre (when genre card is clicked)
   const genreFilteredBeats = selectedGenre 
@@ -777,7 +771,7 @@ export default function Home() {
             </div>
           )}
         </div>
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
           {genresWithCounts.map((genre) => (
             <GenreCard
               key={genre.name}
@@ -801,7 +795,7 @@ export default function Home() {
         </h2>
         <div className="flex gap-8">
           <div className="hidden lg:block flex-shrink-0">
-            <FilterSidebar onFiltersChange={(filters) => setSelectedGenres(filters.selectedGenres)} />
+            <FilterSidebar />
           </div>
           
           <div className="flex-1">

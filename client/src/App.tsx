@@ -16,6 +16,8 @@ import AdminDashboard from "@/pages/AdminDashboard";
 import ClientDashboard from "@/pages/ClientDashboard";
 import AdminUpload from "@/pages/AdminUpload";
 import Contact from "@/pages/Contact";
+import Bio from "@/pages/Bio";
+import Plans from "@/pages/Plans";
 import NotFound from "@/pages/not-found";
 
 function Router() {
@@ -30,6 +32,8 @@ function Router() {
       <Route path="/admin/upload" component={AdminUpload} />
       <Route path="/dashboard" component={ClientDashboard} />
       <Route path="/contact" component={Contact} />
+      <Route path="/bio" component={Bio} />
+      <Route path="/plans" component={Plans} />
       <Route component={NotFound} />
     </Switch>
   );

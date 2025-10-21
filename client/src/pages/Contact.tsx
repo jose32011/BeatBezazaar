@@ -408,7 +408,7 @@ function Contact() {
                   )}
                 </Button>
               </form>
-              ) : (
+            ) : (
                 <div className="text-center py-8">
                   <p style={{ color: themeColors.mutedForeground }}>
                     Contact form is currently disabled. Please use the contact information above to reach us.

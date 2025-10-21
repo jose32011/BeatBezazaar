@@ -243,6 +243,12 @@ export const contactSettings = sqliteTable("contact_settings", {
   messageEnabled: integer("message_enabled", { mode: "boolean" }).notNull().default(true),
   messageSubject: text("message_subject").notNull().default("New Contact Form Submission"),
   messageTemplate: text("message_template").notNull().default("You have received a new message from your contact form."),
+  // Social Media Settings
+  facebookUrl: text("facebook_url").notNull().default(""),
+  instagramUrl: text("instagram_url").notNull().default(""),
+  twitterUrl: text("twitter_url").notNull().default(""),
+  youtubeUrl: text("youtube_url").notNull().default(""),
+  tiktokUrl: text("tiktok_url").notNull().default(""),
   createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
   updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
 });
@@ -255,3 +261,212 @@ export const insertContactSettingsSchema = createInsertSchema(contactSettings).o
 
 export type InsertContactSettings = z.infer<typeof insertContactSettingsSchema>;
 export type ContactSettings = typeof contactSettings.$inferSelect;
+
+export const artistBios = sqliteTable("artist_bios", {
+  id: text("id").primaryKey().$defaultFn(() => randomUUID()),
+  name: text("name").notNull(),
+  imageUrl: text("image_url").notNull().default(""),
+  bio: text("bio").notNull(),
+  role: text("role").notNull().default("Artist"), // e.g., "Producer", "Singer", "Rapper", etc.
+  socialLinks: text("social_links", { mode: "json" }).$type<{
+    instagram?: string;
+    twitter?: string;
+    youtube?: string;
+    spotify?: string;
+  }>().notNull().default({}),
+  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
+  sortOrder: integer("sort_order").notNull().default(0),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const insertArtistBioSchema = createInsertSchema(artistBios).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertArtistBio = z.infer<typeof insertArtistBioSchema>;
+export type ArtistBio = typeof artistBios.$inferSelect;
+
+export const plansSettings = sqliteTable("plans_settings", {
+  id: text("id").primaryKey().$defaultFn(() => randomUUID()),
+  pageTitle: text("page_title").notNull().default("Beat Licensing Plans"),
+  pageSubtitle: text("page_subtitle").notNull().default("Choose the perfect licensing plan for your music project. From basic commercial use to exclusive ownership."),
+  basicPlan: text("basic_plan", { mode: "json" }).$type<{
+    name: string;
+    price: number;
+    description: string;
+    features: string[];
+    isActive: boolean;
+  }>().notNull().default({
+    name: "Basic License",
+    price: 29,
+    description: "Perfect for independent artists and small projects",
+    features: [
+      "Commercial use rights",
+      "Up to 5,000 copies",
+      "Streaming on all platforms",
+      "Radio play up to 1M listeners",
+      "Music video rights",
+      "Social media promotion",
+      "1 year license term",
+      "Email support"
+    ],
+    isActive: true
+  }),
+  premiumPlan: text("premium_plan", { mode: "json" }).$type<{
+    name: string;
+    price: number;
+    description: string;
+    features: string[];
+    isActive: boolean;
+    isPopular: boolean;
+  }>().notNull().default({
+    name: "Premium License",
+    price: 99,
+    description: "Ideal for established artists and larger projects",
+    features: [
+      "Everything in Basic License",
+      "Up to 50,000 copies",
+      "Radio play unlimited",
+      "TV and film synchronization",
+      "Live performance rights",
+      "Remix and adaptation rights",
+      "Priority support",
+      "3 year license term",
+      "Custom contract available"
+    ],
+    isActive: true,
+    isPopular: true
+  }),
+  exclusivePlan: text("exclusive_plan", { mode: "json" }).$type<{
+    name: string;
+    price: number;
+    description: string;
+    features: string[];
+    isActive: boolean;
+  }>().notNull().default({
+    name: "Exclusive Rights",
+    price: 999,
+    description: "Complete ownership and exclusive rights to the beat",
+    features: [
+      "Complete ownership of the beat",
+      "Unlimited commercial use",
+      "Unlimited copies and streams",
+      "Full publishing rights",
+      "Master recording ownership",
+      "Exclusive to you forever",
+      "No attribution required",
+      "Priority support",
+      "Custom contract",
+      "Beat removed from store",
+      "Stems and project files included"
+    ],
+    isActive: true
+  }),
+  additionalFeaturesTitle: text("additional_features_title").notNull().default("Why Choose BeatBazaar?"),
+  additionalFeatures: text("additional_features", { mode: "json" }).$type<{
+    title: string;
+    description: string;
+    icon: string;
+  }[]>().notNull().default([
+    {
+      title: "Legal Protection",
+      description: "All licenses come with legal documentation and protection",
+      icon: "Shield"
+    },
+    {
+      title: "Artist Support",
+      description: "Dedicated support team to help with your music career",
+      icon: "Users"
+    },
+    {
+      title: "Instant Download",
+      description: "Get your beats immediately after purchase",
+      icon: "Download"
+    },
+    {
+      title: "High Quality",
+      description: "Professional studio quality beats and stems",
+      icon: "Headphones"
+    }
+  ]),
+  faqSection: text("faq_section", { mode: "json" }).$type<{
+    title: string;
+    questions: {
+      question: string;
+      answer: string;
+    }[];
+  }>().notNull().default({
+    title: "Frequently Asked Questions",
+    questions: [
+      {
+        question: "What's the difference between Basic and Premium licenses?",
+        answer: "Basic licenses are perfect for independent artists with limited distribution. Premium licenses offer higher copy limits, TV/film rights, and longer terms for established artists."
+      },
+      {
+        question: "What does \"Exclusive Rights\" mean?",
+        answer: "With exclusive rights, you own the beat completely. It's removed from our store, you get all stems and project files, and no one else can use it. You have full creative and commercial control."
+      },
+      {
+        question: "Do I need to credit the producer?",
+        answer: "For Basic and Premium licenses, crediting is appreciated but not required. With Exclusive Rights, no attribution is needed as you own the beat completely."
+      }
+    ]
+  }),
+  trustBadges: text("trust_badges", { mode: "json" }).$type<{
+    text: string;
+    icon: string;
+  }[]>().notNull().default([
+    {
+      text: "Legal Protection Included",
+      icon: "Shield"
+    },
+    {
+      text: "Instant Download",
+      icon: "Zap"
+    },
+    {
+      text: "24/7 Support",
+      icon: "Users"
+    }
+  ]),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const insertPlansSettingsSchema = createInsertSchema(plansSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertPlansSettings = z.infer<typeof insertPlansSettingsSchema>;
+export type PlansSettings = typeof plansSettings.$inferSelect;
+
+// App Branding Settings
+export const appBrandingSettings = sqliteTable("app_branding_settings", {
+  id: text("id").primaryKey().$defaultFn(() => `app-branding-${Date.now()}`),
+  appName: text("app_name").notNull().default("BeatBazaar"),
+  appLogo: text("app_logo").notNull().default(""),
+  heroTitle: text("hero_title").notNull().default("Discover Your Sound"),
+  heroSubtitle: text("hero_subtitle").notNull().default("Premium beats for every artist. Find your perfect sound and bring your music to life."),
+  heroImage: text("hero_image").notNull().default(""),
+  heroButtonText: text("hero_button_text").notNull().default("Start Creating"),
+  heroButtonLink: text("hero_button_link").notNull().default("/beats"),
+  loginTitle: text("login_title").notNull().default("Welcome Back"),
+  loginSubtitle: text("login_subtitle").notNull().default("Sign in to your account to continue"),
+  loginImage: text("login_image").notNull().default(""),
+  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+});
+
+export const insertAppBrandingSettingsSchema = createInsertSchema(appBrandingSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertAppBrandingSettings = z.infer<typeof insertAppBrandingSettingsSchema>;
+export type AppBrandingSettings = typeof appBrandingSettings.$inferSelect;

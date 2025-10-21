@@ -10,6 +10,7 @@ import { Music, User, Lock, Mail } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useQuery } from "@tanstack/react-query";
 
 interface User {
   id: string;
@@ -27,6 +28,16 @@ export default function Login() {
   const [error, setError] = useState("");
   
   const themeColors = getThemeColors();
+
+  // Fetch app branding settings
+  const { data: brandingSettings } = useQuery({
+    queryKey: ['/api/app-branding-settings'],
+    select: (data: any) => data || { 
+      loginTitle: 'Welcome Back',
+      loginSubtitle: 'Sign in to your account to continue',
+      loginImage: ''
+    }
+  });
   const [loginData, setLoginData] = useState({
     username: "",
     password: "",
@@ -189,13 +200,13 @@ export default function Login() {
               className="text-center"
               style={{ color: themeColors.text }}
             >
-              Welcome
+              {brandingSettings?.loginTitle || 'Welcome Back'}
             </CardTitle>
             <CardDescription 
               className="text-center"
               style={{ color: themeColors.textSecondary }}
             >
-              Sign in to your account or create a new one
+              {brandingSettings?.loginSubtitle || 'Sign in to your account to continue'}
             </CardDescription>
           </CardHeader>
           <CardContent>

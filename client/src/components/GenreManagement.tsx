@@ -444,7 +444,7 @@ export default function GenreManagement() {
                 paginatedGenres.map((genre) => (
                   <TableRow key={genre.id}>
                     <TableCell>
-                      <div className="w-12 h-12 rounded-lg overflow-hidden">
+                      <div className="w-8 h-8 rounded-lg overflow-hidden">
                         <img
                           src={genre.imageUrl}
                           alt={genre.name}

@@ -25,6 +25,12 @@ import {
   type InsertSocialMediaSettings,
   type ContactSettings,
   type InsertContactSettings,
+  type ArtistBio,
+  type InsertArtistBio,
+  type PlansSettings,
+  type InsertPlansSettings,
+  type AppBrandingSettings,
+  type InsertAppBrandingSettings,
   users,
   beats,
   purchases,
@@ -36,7 +42,10 @@ import {
   verificationCodes,
   emailSettings,
   socialMediaSettings,
-  contactSettings
+  contactSettings,
+  artistBios,
+  plansSettings,
+  appBrandingSettings
 } from "@shared/schema";
 import { drizzle } from "drizzle-orm/better-sqlite3";
 import { drizzle as drizzlePg } from "drizzle-orm/postgres-js";
@@ -145,6 +154,21 @@ export interface IStorage {
   // Contact settings operations
   getContactSettings(): Promise<ContactSettings | undefined>;
   updateContactSettings(settings: Partial<InsertContactSettings>): Promise<ContactSettings>;
+  
+  // Plans settings operations
+  getPlansSettings(): Promise<PlansSettings | undefined>;
+  updatePlansSettings(settings: Partial<InsertPlansSettings>): Promise<PlansSettings>;
+
+  // App branding settings operations
+  getAppBrandingSettings(): Promise<AppBrandingSettings | null>;
+  updateAppBrandingSettings(settings: Partial<InsertAppBrandingSettings>): Promise<AppBrandingSettings>;
+
+  // Artist bio operations
+  getArtistBios(): Promise<ArtistBio[]>;
+  getArtistBio(id: string): Promise<ArtistBio | undefined>;
+  createArtistBio(bio: InsertArtistBio): Promise<ArtistBio>;
+  updateArtistBio(id: string, bio: Partial<InsertArtistBio>): Promise<ArtistBio>;
+  deleteArtistBio(id: string): Promise<void>;
 }
 
 export class DatabaseStorage implements IStorage {
@@ -474,10 +498,70 @@ export class DatabaseStorage implements IStorage {
         message_enabled BOOLEAN NOT NULL DEFAULT true,
         message_subject TEXT NOT NULL DEFAULT 'New Contact Form Submission',
         message_template TEXT NOT NULL DEFAULT 'You have received a new message from your contact form.',
+        facebook_url TEXT NOT NULL DEFAULT '',
+        instagram_url TEXT NOT NULL DEFAULT '',
+        twitter_url TEXT NOT NULL DEFAULT '',
+        youtube_url TEXT NOT NULL DEFAULT '',
+        tiktok_url TEXT NOT NULL DEFAULT '',
         created_at DATETIME,
         updated_at DATETIME
       )
     `);
+
+    // Create artist bios table
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS artist_bios (
+        id TEXT PRIMARY KEY,
+        name TEXT NOT NULL,
+        image_url TEXT NOT NULL DEFAULT '',
+        bio TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'Artist',
+        social_links TEXT NOT NULL DEFAULT '{}',
+        is_active BOOLEAN NOT NULL DEFAULT true,
+        sort_order INTEGER NOT NULL DEFAULT 0,
+        created_at DATETIME,
+        updated_at DATETIME
+      )
+    `);
+
+    // Create plans settings table
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS plans_settings (
+        id TEXT PRIMARY KEY,
+        page_title TEXT NOT NULL DEFAULT 'Beat Licensing Plans',
+        page_subtitle TEXT NOT NULL DEFAULT 'Choose the perfect licensing plan for your music project. From basic commercial use to exclusive ownership.',
+        basic_plan TEXT NOT NULL DEFAULT '{"name":"Basic License","price":29,"description":"Perfect for independent artists and small projects","features":["Commercial use rights","Up to 5,000 copies","Streaming on all platforms","Radio play up to 1M listeners","Music video rights","Social media promotion","1 year license term","Email support"],"isActive":true}',
+        premium_plan TEXT NOT NULL DEFAULT '{"name":"Premium License","price":99,"description":"Ideal for established artists and larger projects","features":["Everything in Basic License","Up to 50,000 copies","Radio play unlimited","TV and film synchronization","Live performance rights","Remix and adaptation rights","Priority support","3 year license term","Custom contract available"],"isActive":true,"isPopular":true}',
+        exclusive_plan TEXT NOT NULL DEFAULT '{"name":"Exclusive Rights","price":999,"description":"Complete ownership and exclusive rights to the beat","features":["Complete ownership of the beat","Unlimited commercial use","Unlimited copies and streams","Full publishing rights","Master recording ownership","Exclusive to you forever","No attribution required","Priority support","Custom contract","Beat removed from store","Stems and project files included"],"isActive":true}',
+        additional_features_title TEXT NOT NULL DEFAULT 'Why Choose BeatBazaar?',
+        additional_features TEXT NOT NULL DEFAULT '[{"title":"Legal Protection","description":"All licenses come with legal documentation and protection","icon":"Shield"},{"title":"Artist Support","description":"Dedicated support team to help with your music career","icon":"Users"},{"title":"Instant Download","description":"Get your beats immediately after purchase","icon":"Download"},{"title":"High Quality","description":"Professional studio quality beats and stems","icon":"Headphones"}]',
+        faq_section TEXT NOT NULL DEFAULT '{"title":"Frequently Asked Questions","questions":[{"question":"What''s the difference between Basic and Premium licenses?","answer":"Basic licenses are perfect for independent artists with limited distribution. Premium licenses offer higher copy limits, TV/film rights, and longer terms for established artists."},{"question":"What does \\"Exclusive Rights\\" mean?","answer":"With exclusive rights, you own the beat completely. It''s removed from our store, you get all stems and project files, and no one else can use it. You have full creative and commercial control."},{"question":"Do I need to credit the producer?","answer":"For Basic and Premium licenses, crediting is appreciated but not required. With Exclusive Rights, no attribution is needed as you own the beat completely."}]}',
+        trust_badges TEXT NOT NULL DEFAULT '[{"text":"Legal Protection Included","icon":"Shield"},{"text":"Instant Download","icon":"Zap"},{"text":"24/7 Support","icon":"Users"}]',
+        created_at DATETIME,
+        updated_at DATETIME
+      )
+    `);
+
+    // Create app branding settings table
+    console.log("🎨 Creating app branding settings table...");
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS app_branding_settings (
+        id TEXT PRIMARY KEY,
+        app_name TEXT NOT NULL DEFAULT 'BeatBazaar',
+        app_logo TEXT NOT NULL DEFAULT '',
+        hero_title TEXT NOT NULL DEFAULT 'Discover Your Sound',
+        hero_subtitle TEXT NOT NULL DEFAULT 'Premium beats for every artist. Find your perfect sound and bring your music to life.',
+        hero_image TEXT NOT NULL DEFAULT '',
+        hero_button_text TEXT NOT NULL DEFAULT 'Start Creating',
+        hero_button_link TEXT NOT NULL DEFAULT '/beats',
+        login_title TEXT NOT NULL DEFAULT 'Welcome Back',
+        login_subtitle TEXT NOT NULL DEFAULT 'Sign in to your account to continue',
+        login_image TEXT NOT NULL DEFAULT '',
+        created_at DATETIME,
+        updated_at DATETIME
+      )
+    `);
+    console.log("✅ App branding settings table created");
   }
 
   private async createPostgreSQLTables() {
@@ -687,11 +771,75 @@ export class DatabaseStorage implements IStorage {
           message_enabled BOOLEAN NOT NULL DEFAULT true,
           message_subject TEXT NOT NULL DEFAULT 'New Contact Form Submission',
           message_template TEXT NOT NULL DEFAULT 'You have received a new message from your contact form.',
+          facebook_url TEXT NOT NULL DEFAULT '',
+          instagram_url TEXT NOT NULL DEFAULT '',
+          twitter_url TEXT NOT NULL DEFAULT '',
+          youtube_url TEXT NOT NULL DEFAULT '',
+          tiktok_url TEXT NOT NULL DEFAULT '',
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `);
       console.log("✅ Contact settings table created");
+
+      // Create artist bios table
+      console.log("📋 Creating artist bios table...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS artist_bios (
+          id TEXT PRIMARY KEY,
+          name TEXT NOT NULL,
+          image_url TEXT NOT NULL DEFAULT '',
+          bio TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'Artist',
+          social_links JSONB NOT NULL DEFAULT '{}',
+          is_active BOOLEAN NOT NULL DEFAULT true,
+          sort_order INTEGER NOT NULL DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log("✅ Artist bios table created");
+
+      // Create plans settings table
+      console.log("📋 Creating plans settings table...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS plans_settings (
+          id TEXT PRIMARY KEY,
+          page_title TEXT NOT NULL DEFAULT 'Beat Licensing Plans',
+          page_subtitle TEXT NOT NULL DEFAULT 'Choose the perfect licensing plan for your music project. From basic commercial use to exclusive ownership.',
+          basic_plan JSONB NOT NULL DEFAULT '{"name":"Basic License","price":29,"description":"Perfect for independent artists and small projects","features":["Commercial use rights","Up to 5,000 copies","Streaming on all platforms","Radio play up to 1M listeners","Music video rights","Social media promotion","1 year license term","Email support"],"isActive":true}',
+          premium_plan JSONB NOT NULL DEFAULT '{"name":"Premium License","price":99,"description":"Ideal for established artists and larger projects","features":["Everything in Basic License","Up to 50,000 copies","Radio play unlimited","TV and film synchronization","Live performance rights","Remix and adaptation rights","Priority support","3 year license term","Custom contract available"],"isActive":true,"isPopular":true}',
+          exclusive_plan JSONB NOT NULL DEFAULT '{"name":"Exclusive Rights","price":999,"description":"Complete ownership and exclusive rights to the beat","features":["Complete ownership of the beat","Unlimited commercial use","Unlimited copies and streams","Full publishing rights","Master recording ownership","Exclusive to you forever","No attribution required","Priority support","Custom contract","Beat removed from store","Stems and project files included"],"isActive":true}',
+          additional_features_title TEXT NOT NULL DEFAULT 'Why Choose BeatBazaar?',
+          additional_features JSONB NOT NULL DEFAULT '[{"title":"Legal Protection","description":"All licenses come with legal documentation and protection","icon":"Shield"},{"title":"Artist Support","description":"Dedicated support team to help with your music career","icon":"Users"},{"title":"Instant Download","description":"Get your beats immediately after purchase","icon":"Download"},{"title":"High Quality","description":"Professional studio quality beats and stems","icon":"Headphones"}]',
+          faq_section JSONB NOT NULL DEFAULT '{"title":"Frequently Asked Questions","questions":[{"question":"What''s the difference between Basic and Premium licenses?","answer":"Basic licenses are perfect for independent artists with limited distribution. Premium licenses offer higher copy limits, TV/film rights, and longer terms for established artists."},{"question":"What does \\"Exclusive Rights\\" mean?","answer":"With exclusive rights, you own the beat completely. It''s removed from our store, you get all stems and project files, and no one else can use it. You have full creative and commercial control."},{"question":"Do I need to credit the producer?","answer":"For Basic and Premium licenses, crediting is appreciated but not required. With Exclusive Rights, no attribution is needed as you own the beat completely."}]}',
+          trust_badges JSONB NOT NULL DEFAULT '[{"text":"Legal Protection Included","icon":"Shield"},{"text":"Instant Download","icon":"Zap"},{"text":"24/7 Support","icon":"Users"}]',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log("✅ Plans settings table created");
+
+      // Create app branding settings table
+      console.log("🎨 Creating app branding settings table...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS app_branding_settings (
+          id TEXT PRIMARY KEY,
+          app_name TEXT NOT NULL DEFAULT 'BeatBazaar',
+          app_logo TEXT NOT NULL DEFAULT '',
+          hero_title TEXT NOT NULL DEFAULT 'Discover Your Sound',
+          hero_subtitle TEXT NOT NULL DEFAULT 'Premium beats for every artist. Find your perfect sound and bring your music to life.',
+          hero_image TEXT NOT NULL DEFAULT '',
+          hero_button_text TEXT NOT NULL DEFAULT 'Start Creating',
+          hero_button_link TEXT NOT NULL DEFAULT '/beats',
+          login_title TEXT NOT NULL DEFAULT 'Welcome Back',
+          login_subtitle TEXT NOT NULL DEFAULT 'Sign in to your account to continue',
+          login_image TEXT NOT NULL DEFAULT '',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `);
+      console.log("✅ App branding settings table created");
     } catch (error) {
       console.error("❌ Error creating PostgreSQL tables:", error);
       throw error;
@@ -1842,6 +1990,188 @@ export class DatabaseStorage implements IStorage {
       }
     } catch (error) {
       console.error("Update contact settings error:", error);
+      throw error;
+    }
+  }
+
+  // Plans settings operations
+  async getPlansSettings(): Promise<PlansSettings | undefined> {
+    try {
+      const result = await db
+        .select()
+        .from(plansSettings)
+        .limit(1);
+      
+      return result[0];
+    } catch (error) {
+      console.error("Get plans settings error:", error);
+      return undefined;
+    }
+  }
+
+  async updatePlansSettings(settings: Partial<InsertPlansSettings>): Promise<PlansSettings> {
+    try {
+      // Check if plans settings exist
+      const existingSettings = await this.getPlansSettings();
+      
+      if (existingSettings) {
+        // Update existing settings
+        const result = await db
+          .update(plansSettings)
+          .set({
+            ...settings,
+            updatedAt: new Date()
+          })
+          .where(eq(plansSettings.id, existingSettings.id))
+          .returning();
+        
+        return result[0];
+      } else {
+        // Create new settings
+        const result = await db
+          .insert(plansSettings)
+          .values({
+            ...settings,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
+          .returning();
+        
+        return result[0];
+      }
+    } catch (error) {
+      console.error("Update plans settings error:", error);
+      throw error;
+    }
+  }
+
+  // Artist bio operations
+  async getArtistBios(): Promise<ArtistBio[]> {
+    try {
+      const result = await db
+        .select()
+        .from(artistBios)
+        .where(eq(artistBios.isActive, true))
+        .orderBy(artistBios.sortOrder, artistBios.createdAt);
+      
+      return result;
+    } catch (error) {
+      console.error("Get artist bios error:", error);
+      return [];
+    }
+  }
+
+  async getArtistBio(id: string): Promise<ArtistBio | undefined> {
+    try {
+      const result = await db
+        .select()
+        .from(artistBios)
+        .where(eq(artistBios.id, id))
+        .limit(1);
+      
+      return result[0];
+    } catch (error) {
+      console.error("Get artist bio error:", error);
+      return undefined;
+    }
+  }
+
+  async createArtistBio(bio: InsertArtistBio): Promise<ArtistBio> {
+    try {
+      const result = await db
+        .insert(artistBios)
+        .values({
+          ...bio,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        })
+        .returning();
+      
+      return result[0];
+    } catch (error) {
+      console.error("Create artist bio error:", error);
+      throw error;
+    }
+  }
+
+  async updateArtistBio(id: string, bio: Partial<InsertArtistBio>): Promise<ArtistBio> {
+    try {
+      const result = await db
+        .update(artistBios)
+        .set({
+          ...bio,
+          updatedAt: new Date()
+        })
+        .where(eq(artistBios.id, id))
+        .returning();
+      
+      if (result.length === 0) {
+        throw new Error("Artist bio not found");
+      }
+      
+      return result[0];
+    } catch (error) {
+      console.error("Update artist bio error:", error);
+      throw error;
+    }
+  }
+
+  async deleteArtistBio(id: string): Promise<void> {
+    try {
+      await db
+        .delete(artistBios)
+        .where(eq(artistBios.id, id));
+    } catch (error) {
+      console.error("Delete artist bio error:", error);
+      throw error;
+    }
+  }
+
+  // App Branding Settings
+  async getAppBrandingSettings(): Promise<AppBrandingSettings | null> {
+    try {
+      const result = await db
+        .select()
+        .from(appBrandingSettings)
+        .limit(1);
+      
+      return result[0] || null;
+    } catch (error) {
+      console.error("Get app branding settings error:", error);
+      throw error;
+    }
+  }
+
+  async updateAppBrandingSettings(settings: Partial<AppBrandingSettings>): Promise<AppBrandingSettings> {
+    try {
+      const existing = await this.getAppBrandingSettings();
+      
+      if (existing) {
+        const result = await db
+          .update(appBrandingSettings)
+          .set({
+            ...settings,
+            updatedAt: new Date()
+          })
+          .where(eq(appBrandingSettings.id, existing.id))
+          .returning();
+        
+        return result[0];
+      } else {
+        const result = await db
+          .insert(appBrandingSettings)
+          .values({
+            ...settings,
+            id: `app-branding-${Date.now()}`,
+            createdAt: new Date(),
+            updatedAt: new Date()
+          })
+          .returning();
+        
+        return result[0];
+      }
+    } catch (error) {
+      console.error("Update app branding settings error:", error);
       throw error;
     }
   }

@@ -1,45 +1,21 @@
-import { Checkbox } from "@/components/ui/checkbox";
 import { Label } from "@/components/ui/label";
 import { Slider } from "@/components/ui/slider";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useState } from "react";
 import { useTheme } from "@/contexts/ThemeContext";
-import { useQuery } from "@tanstack/react-query";
 
 interface FilterSidebarProps {
   onFiltersChange?: (filters: {
-    selectedGenres: string[];
     bpmRange: [number, number];
     priceRange: [number, number];
   }) => void;
 }
 
 export default function FilterSidebar({ onFiltersChange }: FilterSidebarProps) {
-  const [selectedGenres, setSelectedGenres] = useState<string[]>([]);
   const [bpmRange, setBpmRange] = useState([60, 200]);
   const [priceRange, setPriceRange] = useState([0, 100]);
   const { getThemeColors } = useTheme();
   const themeColors = getThemeColors();
-
-  // Fetch genres from API
-  const { data: genres = [] } = useQuery<any[]>({
-    queryKey: ['/api/genres'],
-  });
-
-  const toggleGenre = (genre: string) => {
-    const newSelectedGenres = selectedGenres.includes(genre)
-      ? selectedGenres.filter(g => g !== genre)
-      : [...selectedGenres, genre];
-    
-    setSelectedGenres(newSelectedGenres);
-    
-    // Notify parent component of filter changes
-    onFiltersChange?.({
-      selectedGenres: newSelectedGenres,
-      bpmRange,
-      priceRange,
-    });
-  };
 
   return (
     <div 
@@ -57,32 +33,6 @@ export default function FilterSidebar({ onFiltersChange }: FilterSidebarProps) {
         >
           Filters
         </h3>
-      </div>
-
-      <div className="space-y-3">
-        <Label 
-          className="text-base font-semibold"
-          style={{ color: themeColors.text }}
-        >
-          Genre
-        </Label>
-        {genres.map((genre) => (
-          <div key={genre.name} className="flex items-center space-x-2">
-            <Checkbox
-              id={genre.name}
-              checked={selectedGenres.includes(genre.name)}
-              onCheckedChange={() => toggleGenre(genre.name)}
-              data-testid={`checkbox-genre-${genre.name.toLowerCase()}`}
-            />
-            <label
-              htmlFor={genre.name}
-              className="text-sm font-medium leading-none peer-disabled:cursor-not-allowed peer-disabled:opacity-70 cursor-pointer"
-              style={{ color: themeColors.text }}
-            >
-              {genre.name}
-            </label>
-          </div>
-        ))}
       </div>
 
       <div className="space-y-3">

@@ -8,10 +8,14 @@ import { Switch } from "@/components/ui/switch";
 import { Textarea } from "@/components/ui/textarea";
 import { Dialog, DialogContent, DialogDescription, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { Badge } from "@/components/ui/badge";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import { useLocation } from "wouter";
 import { 
   CreditCard, 
   Building2, 
@@ -44,11 +48,35 @@ import {
   MessageSquare,
   Image,
   Phone,
-  MapPin
+  MapPin,
+  Users2,
+  ExternalLink,
+  Crown,
+  Star,
+  Globe,
+  Type
 } from "lucide-react";
 import GenreManagement from "@/components/GenreManagement";
 import ThemeSelector from "@/components/ThemeSelector";
 import ThemePreview from "@/components/ThemePreview";
+
+interface ArtistBio {
+  id: string;
+  name: string;
+  imageUrl: string;
+  bio: string;
+  role: string;
+  socialLinks: {
+    instagram?: string;
+    twitter?: string;
+    youtube?: string;
+    spotify?: string;
+  };
+  isActive: boolean;
+  sortOrder: number;
+  createdAt: Date;
+  updatedAt: Date;
+}
 
 interface PaymentSettings {
   paypal: {
@@ -81,6 +109,65 @@ interface EmailSettings {
   fromEmail: string;
 }
 
+interface PlansSettings {
+  id?: string;
+  pageTitle: string;
+  pageSubtitle: string;
+  basicPlan: {
+    name: string;
+    price: number;
+    description: string;
+    features: string[];
+    isActive: boolean;
+  };
+  premiumPlan: {
+    name: string;
+    price: number;
+    description: string;
+    features: string[];
+    isActive: boolean;
+    isPopular: boolean;
+  };
+  exclusivePlan: {
+    name: string;
+    price: number;
+    description: string;
+    features: string[];
+    isActive: boolean;
+  };
+  additionalFeaturesTitle: string;
+  additionalFeatures: {
+    title: string;
+    description: string;
+    icon: string;
+  }[];
+  faqSection: {
+    title: string;
+    questions: {
+      question: string;
+      answer: string;
+    }[];
+  };
+  trustBadges: {
+    text: string;
+    icon: string;
+  }[];
+}
+
+interface AppBrandingSettings {
+  id?: string;
+  appName: string;
+  appLogo: string;
+  heroTitle: string;
+  heroSubtitle: string;
+  heroImage: string;
+  heroButtonText: string;
+  heroButtonLink: string;
+  loginTitle: string;
+  loginSubtitle: string;
+  loginImage: string;
+}
+
 interface User {
   id: string;
   username: string;
@@ -103,8 +190,14 @@ function AdminSettingsContent() {
   const themeColors = getThemeColors();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const [location] = useLocation();
   const [showSecrets, setShowSecrets] = useState(false);
-  const [activeTab, setActiveTab] = useState("paypal");
+  
+  // Get tab from URL parameters
+  const urlParams = new URLSearchParams(location.split('?')[1] || '');
+  const tabFromUrl = urlParams.get('tab');
+  
+  const [activeTab, setActiveTab] = useState(tabFromUrl || "branding");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
   const [settings, setSettings] = useState<PaymentSettings>({
     paypal: {
@@ -137,12 +230,17 @@ function AdminSettingsContent() {
     fromEmail: ''
   });
 
-  const [socialMediaSettings, setSocialMediaSettings] = useState({
-    facebookUrl: '',
-    instagramUrl: '',
-    twitterUrl: '',
-    youtubeUrl: '',
-    tiktokUrl: ''
+  const [appBrandingSettings, setAppBrandingSettings] = useState<AppBrandingSettings>({
+    appName: 'BeatBazaar',
+    appLogo: '',
+    heroTitle: 'Discover Your Sound',
+    heroSubtitle: 'Premium beats for every artist. Find your perfect sound and bring your music to life.',
+    heroImage: '',
+    heroButtonText: 'Start Creating',
+    heroButtonLink: '/beats',
+    loginTitle: 'Welcome Back',
+    loginSubtitle: 'Sign in to your account to continue',
+    loginImage: ''
   });
 
   const [contactSettings, setContactSettings] = useState({
@@ -157,16 +255,152 @@ function AdminSettingsContent() {
     contactCountry: 'USA',
     messageEnabled: true,
     messageSubject: 'New Contact Form Submission',
-    messageTemplate: 'You have received a new message from your contact form.'
+    messageTemplate: 'You have received a new message from your contact form.',
+    // Social Media Settings
+    facebookUrl: '',
+    instagramUrl: '',
+    twitterUrl: '',
+    youtubeUrl: '',
+    tiktokUrl: ''
+  });
+
+  const [plansSettings, setPlansSettings] = useState<PlansSettings>({
+    pageTitle: 'Beat Licensing Plans',
+    pageSubtitle: 'Choose the perfect licensing plan for your music project. From basic commercial use to exclusive ownership.',
+    basicPlan: {
+      name: 'Basic License',
+      price: 29,
+      description: 'Perfect for independent artists and small projects',
+      features: [
+        'Commercial use rights',
+        'Up to 5,000 copies',
+        'Streaming on all platforms',
+        'Radio play up to 1M listeners',
+        'Music video rights',
+        'Social media promotion',
+        '1 year license term',
+        'Email support'
+      ],
+      isActive: true
+    },
+    premiumPlan: {
+      name: 'Premium License',
+      price: 99,
+      description: 'Ideal for established artists and larger projects',
+      features: [
+        'Everything in Basic License',
+        'Up to 50,000 copies',
+        'Radio play unlimited',
+        'TV and film synchronization',
+        'Live performance rights',
+        'Remix and adaptation rights',
+        'Priority support',
+        '3 year license term',
+        'Custom contract available'
+      ],
+      isActive: true,
+      isPopular: true
+    },
+    exclusivePlan: {
+      name: 'Exclusive Rights',
+      price: 999,
+      description: 'Complete ownership and exclusive rights to the beat',
+      features: [
+        'Complete ownership of the beat',
+        'Unlimited commercial use',
+        'Unlimited copies and streams',
+        'Full publishing rights',
+        'Master recording ownership',
+        'Exclusive to you forever',
+        'No attribution required',
+        'Priority support',
+        'Custom contract',
+        'Beat removed from store',
+        'Stems and project files included'
+      ],
+      isActive: true
+    },
+    additionalFeaturesTitle: 'Why Choose BeatBazaar?',
+    additionalFeatures: [
+      {
+        title: 'Legal Protection',
+        description: 'All licenses come with legal documentation and protection',
+        icon: 'Shield'
+      },
+      {
+        title: 'Artist Support',
+        description: 'Dedicated support team to help with your music career',
+        icon: 'Users'
+      },
+      {
+        title: 'Instant Download',
+        description: 'Get your beats immediately after purchase',
+        icon: 'Download'
+      },
+      {
+        title: 'High Quality',
+        description: 'Professional studio quality beats and stems',
+        icon: 'Headphones'
+      }
+    ],
+    faqSection: {
+      title: 'Frequently Asked Questions',
+      questions: [
+        {
+          question: "What's the difference between Basic and Premium licenses?",
+          answer: 'Basic licenses are perfect for independent artists with limited distribution. Premium licenses offer higher copy limits, TV/film rights, and longer terms for established artists.'
+        },
+        {
+          question: 'What does "Exclusive Rights" mean?',
+          answer: 'With exclusive rights, you own the beat completely. It\'s removed from our store, you get all stems and project files, and no one else can use it. You have full creative and commercial control.'
+        },
+        {
+          question: 'Do I need to credit the producer?',
+          answer: 'For Basic and Premium licenses, crediting is appreciated but not required. With Exclusive Rights, no attribution is needed as you own the beat completely.'
+        }
+      ]
+    },
+    trustBadges: [
+      {
+        text: 'Legal Protection Included',
+        icon: 'Shield'
+      },
+      {
+        text: 'Instant Download',
+        icon: 'Zap'
+      },
+      {
+        text: '24/7 Support',
+        icon: 'Users'
+      }
+    ]
+  });
+
+  const [artistBios, setArtistBios] = useState<ArtistBio[]>([]);
+  const [editingBio, setEditingBio] = useState<ArtistBio | null>(null);
+  const [showBioDialog, setShowBioDialog] = useState(false);
+  const [bioFormData, setBioFormData] = useState({
+    name: '',
+    imageUrl: '',
+    bio: '',
+    role: 'Artist',
+    socialLinks: {
+      instagram: '',
+      twitter: '',
+      youtube: '',
+      spotify: ''
+    },
+    isActive: true,
+    sortOrder: 0
   });
 
   // Navigation menu items
   const menuItems = [
+    { id: "branding", label: "App Branding", icon: Globe, shortLabel: "Branding" },
+    { id: "site-settings", label: "Site Settings", icon: MessageSquare, shortLabel: "Site" },
     { id: "paypal", label: "PayPal", icon: CreditCard, shortLabel: "PayPal" },
     { id: "bank", label: "Bank Account", icon: Building2, shortLabel: "Bank" },
     { id: "email", label: "Email Settings", icon: Mail, shortLabel: "Email" },
-    { id: "social", label: "Social Media", icon: Share2, shortLabel: "Social" },
-    { id: "contact", label: "Contact Page", icon: MessageSquare, shortLabel: "Contact" },
     { id: "users", label: "Admin Users", icon: Users, shortLabel: "Users" },
     { id: "genres", label: "Genre Management", icon: Music, shortLabel: "Genres" },
     { id: "themes", label: "Themes", icon: Palette, shortLabel: "Themes" },
@@ -204,27 +438,7 @@ function AdminSettingsContent() {
         console.error('Failed to load email settings:', error);
       });
 
-    // Load social media settings from API
-    fetch('/api/social-media-settings', {
-      credentials: 'include',
-    })
-      .then(res => res.json())
-      .then(data => {
-        if (data) {
-          setSocialMediaSettings({
-            facebookUrl: data.facebookUrl || '',
-            instagramUrl: data.instagramUrl || '',
-            twitterUrl: data.twitterUrl || '',
-            youtubeUrl: data.youtubeUrl || '',
-            tiktokUrl: data.tiktokUrl || ''
-          });
-        }
-      })
-      .catch(error => {
-        console.error('Failed to load social media settings:', error);
-      });
-
-    // Load contact settings from API
+    // Load contact settings from API (including social media)
     fetch('/api/contact-settings', {
       credentials: 'include',
     })
@@ -243,12 +457,181 @@ function AdminSettingsContent() {
             contactCountry: data.contactCountry || 'USA',
             messageEnabled: data.messageEnabled !== undefined ? data.messageEnabled : true,
             messageSubject: data.messageSubject || 'New Contact Form Submission',
-            messageTemplate: data.messageTemplate || 'You have received a new message from your contact form.'
+            messageTemplate: data.messageTemplate || 'You have received a new message from your contact form.',
+            // Social Media Settings
+            facebookUrl: data.facebookUrl || '',
+            instagramUrl: data.instagramUrl || '',
+            twitterUrl: data.twitterUrl || '',
+            youtubeUrl: data.youtubeUrl || '',
+            tiktokUrl: data.tiktokUrl || ''
           });
         }
       })
       .catch(error => {
         console.error('Failed to load contact settings:', error);
+      });
+
+    // Load plans settings from API
+    fetch('/api/plans-settings', {
+      credentials: 'include',
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data) {
+          setPlansSettings({
+            pageTitle: data.pageTitle || 'Beat Licensing Plans',
+            pageSubtitle: data.pageSubtitle || 'Choose the perfect licensing plan for your music project. From basic commercial use to exclusive ownership.',
+            basicPlan: data.basicPlan || {
+              name: 'Basic License',
+              price: 29,
+              description: 'Perfect for independent artists and small projects',
+              features: [
+                'Commercial use rights',
+                'Up to 5,000 copies',
+                'Streaming on all platforms',
+                'Radio play up to 1M listeners',
+                'Music video rights',
+                'Social media promotion',
+                '1 year license term',
+                'Email support'
+              ],
+              isActive: true
+            },
+            premiumPlan: data.premiumPlan || {
+              name: 'Premium License',
+              price: 99,
+              description: 'Ideal for established artists and larger projects',
+              features: [
+                'Everything in Basic License',
+                'Up to 50,000 copies',
+                'Radio play unlimited',
+                'TV and film synchronization',
+                'Live performance rights',
+                'Remix and adaptation rights',
+                'Priority support',
+                '3 year license term',
+                'Custom contract available'
+              ],
+              isActive: true,
+              isPopular: true
+            },
+            exclusivePlan: data.exclusivePlan || {
+              name: 'Exclusive Rights',
+              price: 999,
+              description: 'Complete ownership and exclusive rights to the beat',
+              features: [
+                'Complete ownership of the beat',
+                'Unlimited commercial use',
+                'Unlimited copies and streams',
+                'Full publishing rights',
+                'Master recording ownership',
+                'Exclusive to you forever',
+                'No attribution required',
+                'Priority support',
+                'Custom contract',
+                'Beat removed from store',
+                'Stems and project files included'
+              ],
+              isActive: true
+            },
+            additionalFeaturesTitle: data.additionalFeaturesTitle || 'Why Choose BeatBazaar?',
+            additionalFeatures: data.additionalFeatures || [
+              {
+                title: 'Legal Protection',
+                description: 'All licenses come with legal documentation and protection',
+                icon: 'Shield'
+              },
+              {
+                title: 'Artist Support',
+                description: 'Dedicated support team to help with your music career',
+                icon: 'Users'
+              },
+              {
+                title: 'Instant Download',
+                description: 'Get your beats immediately after purchase',
+                icon: 'Download'
+              },
+              {
+                title: 'High Quality',
+                description: 'Professional studio quality beats and stems',
+                icon: 'Headphones'
+              }
+            ],
+            faqSection: data.faqSection || {
+              title: 'Frequently Asked Questions',
+              questions: [
+                {
+                  question: "What's the difference between Basic and Premium licenses?",
+                  answer: 'Basic licenses are perfect for independent artists with limited distribution. Premium licenses offer higher copy limits, TV/film rights, and longer terms for established artists.'
+                },
+                {
+                  question: 'What does "Exclusive Rights" mean?',
+                  answer: 'With exclusive rights, you own the beat completely. It\'s removed from our store, you get all stems and project files, and no one else can use it. You have full creative and commercial control.'
+                },
+                {
+                  question: 'Do I need to credit the producer?',
+                  answer: 'For Basic and Premium licenses, crediting is appreciated but not required. With Exclusive Rights, no attribution is needed as you own the beat completely.'
+                }
+              ]
+            },
+            trustBadges: data.trustBadges || [
+              {
+                text: 'Legal Protection Included',
+                icon: 'Shield'
+              },
+              {
+                text: 'Instant Download',
+                icon: 'Zap'
+              },
+              {
+                text: '24/7 Support',
+                icon: 'Users'
+              }
+            ]
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Failed to load plans settings:', error);
+      });
+
+    // Load app branding settings from API
+    fetch('/api/app-branding-settings', {
+      credentials: 'include',
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data) {
+          setAppBrandingSettings({
+            appName: data.appName || 'BeatBazaar',
+            appLogo: data.appLogo || '',
+            heroTitle: data.heroTitle || 'Discover Your Sound',
+            heroSubtitle: data.heroSubtitle || 'Premium beats for every artist. Find your perfect sound and bring your music to life.',
+            heroImage: data.heroImage || '',
+            heroButtonText: data.heroButtonText || 'Start Creating',
+            heroButtonLink: data.heroButtonLink || '/beats',
+            loginTitle: data.loginTitle || 'Welcome Back',
+            loginSubtitle: data.loginSubtitle || 'Sign in to your account to continue',
+            loginImage: data.loginImage || ''
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Failed to load app branding settings:', error);
+      });
+
+    // Load artist bios from API
+    fetch('/api/artist-bios', {
+      credentials: 'include',
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (Array.isArray(data)) {
+          setArtistBios(data);
+        }
+      })
+      .catch(error => {
+        console.error('Failed to load artist bios:', error);
       });
   }, []);
 
@@ -328,32 +711,6 @@ function AdminSettingsContent() {
     },
   });
 
-  const saveSocialMediaMutation = useMutation({
-    mutationFn: async (socialSettings: typeof socialMediaSettings) => {
-      const response = await fetch('/api/admin/social-media-settings', {
-        method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
-        credentials: 'include',
-        body: JSON.stringify(socialSettings),
-      });
-      if (!response.ok) throw new Error('Failed to save social media settings');
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Social Media Settings Saved",
-        description: "Your social media settings have been updated successfully",
-      });
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to save social media settings",
-        variant: "destructive",
-      });
-    },
-  });
-
   const saveContactSettingsMutation = useMutation({
     mutationFn: async (contactSettingsData: typeof contactSettings) => {
       const response = await fetch('/api/admin/contact-settings', {
@@ -375,6 +732,167 @@ function AdminSettingsContent() {
       toast({
         title: "Error",
         description: "Failed to save contact settings",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const savePlansSettingsMutation = useMutation({
+    mutationFn: async (plansSettingsData: PlansSettings) => {
+      const response = await fetch('/api/admin/plans-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(plansSettingsData),
+      });
+      if (!response.ok) throw new Error('Failed to save plans settings');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Plans Settings Saved",
+        description: "Your plans page settings have been updated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save plans settings",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const saveAppBrandingSettingsMutation = useMutation({
+    mutationFn: async (brandingSettingsData: AppBrandingSettings) => {
+      const response = await fetch('/api/admin/app-branding-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(brandingSettingsData),
+      });
+      if (!response.ok) throw new Error('Failed to save app branding settings');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "App Branding Saved",
+        description: "Your app branding settings have been updated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save app branding settings",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const createArtistBioMutation = useMutation({
+    mutationFn: async (bioData: typeof bioFormData) => {
+      const response = await fetch('/api/admin/artist-bios', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(bioData),
+      });
+      if (!response.ok) throw new Error('Failed to create artist bio');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Artist Bio Created",
+        description: "Artist bio has been created successfully",
+      });
+      setShowBioDialog(false);
+      setBioFormData({
+        name: '',
+        imageUrl: '',
+        bio: '',
+        role: 'Artist',
+        socialLinks: { instagram: '', twitter: '', youtube: '', spotify: '' },
+        isActive: true,
+        sortOrder: 0
+      });
+      // Reload artist bios
+      fetch('/api/artist-bios', { credentials: 'include' })
+        .then(res => res.json())
+        .then(data => setArtistBios(data));
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to create artist bio",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const updateArtistBioMutation = useMutation({
+    mutationFn: async ({ id, data }: { id: string; data: typeof bioFormData }) => {
+      const response = await fetch(`/api/admin/artist-bios/${id}`, {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(data),
+      });
+      if (!response.ok) throw new Error('Failed to update artist bio');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Artist Bio Updated",
+        description: "Artist bio has been updated successfully",
+      });
+      setShowBioDialog(false);
+      setEditingBio(null);
+      setBioFormData({
+        name: '',
+        imageUrl: '',
+        bio: '',
+        role: 'Artist',
+        socialLinks: { instagram: '', twitter: '', youtube: '', spotify: '' },
+        isActive: true,
+        sortOrder: 0
+      });
+      // Reload artist bios
+      fetch('/api/artist-bios', { credentials: 'include' })
+        .then(res => res.json())
+        .then(data => setArtistBios(data));
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to update artist bio",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const deleteArtistBioMutation = useMutation({
+    mutationFn: async (id: string) => {
+      const response = await fetch(`/api/admin/artist-bios/${id}`, {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to delete artist bio');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Artist Bio Deleted",
+        description: "Artist bio has been deleted successfully",
+      });
+      // Reload artist bios
+      fetch('/api/artist-bios', { credentials: 'include' })
+        .then(res => res.json())
+        .then(data => setArtistBios(data));
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to delete artist bio",
         variant: "destructive",
       });
     },
@@ -529,7 +1047,6 @@ function AdminSettingsContent() {
   const handleSave = () => {
     saveSettingsMutation.mutate(settings);
     saveEmailSettingsMutation.mutate(emailSettings);
-    saveSocialMediaMutation.mutate(socialMediaSettings);
     saveContactSettingsMutation.mutate(contactSettings);
   };
 
@@ -675,6 +1192,940 @@ function AdminSettingsContent() {
 
         {/* Content Area */}
         <div className="space-y-6">
+
+          {/* App Branding Settings */}
+          {activeTab === "branding" && (
+            <div className="space-y-6">
+              {/* App Information */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Globe className="h-5 w-5" />
+                    App Information
+                  </CardTitle>
+                  <CardDescription>
+                    Configure your app name and logo that will appear throughout the application
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="appName">App Name</Label>
+                      <Input
+                        id="appName"
+                        value={appBrandingSettings.appName}
+                        onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, appName: e.target.value }))}
+                        placeholder="Enter your app name"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="appLogo">App Logo URL</Label>
+                      <Input
+                        id="appLogo"
+                        value={appBrandingSettings.appLogo}
+                        onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, appLogo: e.target.value }))}
+                        placeholder="https://example.com/logo.png"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Hero Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Type className="h-5 w-5" />
+                    Hero Section
+                  </CardTitle>
+                  <CardDescription>
+                    Customize the main hero section on your homepage
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="heroTitle">Hero Title</Label>
+                      <Input
+                        id="heroTitle"
+                        value={appBrandingSettings.heroTitle}
+                        onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, heroTitle: e.target.value }))}
+                        placeholder="Enter hero title"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="heroSubtitle">Hero Subtitle</Label>
+                      <Textarea
+                        id="heroSubtitle"
+                        value={appBrandingSettings.heroSubtitle}
+                        onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, heroSubtitle: e.target.value }))}
+                        placeholder="Enter hero subtitle"
+                        rows={3}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="heroImage">Hero Image URL</Label>
+                      <Input
+                        id="heroImage"
+                        value={appBrandingSettings.heroImage}
+                        onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, heroImage: e.target.value }))}
+                        placeholder="https://example.com/hero-image.jpg"
+                      />
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="heroButtonText">Button Text</Label>
+                        <Input
+                          id="heroButtonText"
+                          value={appBrandingSettings.heroButtonText}
+                          onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, heroButtonText: e.target.value }))}
+                          placeholder="Enter button text"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="heroButtonLink">Button Link</Label>
+                        <Input
+                          id="heroButtonLink"
+                          value={appBrandingSettings.heroButtonLink}
+                          onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, heroButtonLink: e.target.value }))}
+                          placeholder="/beats"
+                        />
+                      </div>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Login Page */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <User className="h-5 w-5" />
+                    Login Page
+                  </CardTitle>
+                  <CardDescription>
+                    Customize the login page appearance and content
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="loginTitle">Login Title</Label>
+                      <Input
+                        id="loginTitle"
+                        value={appBrandingSettings.loginTitle}
+                        onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, loginTitle: e.target.value }))}
+                        placeholder="Enter login title"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="loginSubtitle">Login Subtitle</Label>
+                      <Input
+                        id="loginSubtitle"
+                        value={appBrandingSettings.loginSubtitle}
+                        onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, loginSubtitle: e.target.value }))}
+                        placeholder="Enter login subtitle"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="loginImage">Login Image URL</Label>
+                      <Input
+                        id="loginImage"
+                        value={appBrandingSettings.loginImage}
+                        onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, loginImage: e.target.value }))}
+                        placeholder="https://example.com/login-image.jpg"
+                      />
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Save Button */}
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => saveAppBrandingSettingsMutation.mutate(appBrandingSettings)}
+                  disabled={saveAppBrandingSettingsMutation.isPending}
+                  className="flex items-center gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  {saveAppBrandingSettingsMutation.isPending ? "Saving..." : "Save App Branding"}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Site Settings */}
+          {activeTab === "site-settings" && (
+            <div className="space-y-6">
+              <Tabs defaultValue="contact" className="w-full">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="contact" className="flex items-center gap-2">
+                    <MessageSquare className="h-4 w-4" />
+                    Contact Page
+                  </TabsTrigger>
+                  <TabsTrigger value="plans" className="flex items-center gap-2">
+                    <Crown className="h-4 w-4" />
+                    Plans Page
+                  </TabsTrigger>
+                  <TabsTrigger value="artists" className="flex items-center gap-2">
+                    <Users2 className="h-4 w-4" />
+                    Artist Bios
+                  </TabsTrigger>
+                </TabsList>
+
+                {/* Contact Page Tab */}
+                <TabsContent value="contact" className="space-y-6 mt-6">
+                  {/* Band Information */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Image className="h-5 w-5" />
+                        Band Information
+                      </CardTitle>
+                      <CardDescription>
+                        Configure the band image and name displayed on the contact page
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="band-name">Band Name</Label>
+                          <Input
+                            id="band-name"
+                            value={contactSettings.bandName}
+                            onChange={(e) => setContactSettings(prev => ({ ...prev, bandName: e.target.value }))}
+                            placeholder="Enter band name"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="band-image">Band Image URL</Label>
+                          <Input
+                            id="band-image"
+                            value={contactSettings.bandImageUrl}
+                            onChange={(e) => setContactSettings(prev => ({ ...prev, bandImageUrl: e.target.value }))}
+                            placeholder="https://example.com/band-image.jpg"
+                          />
+                        </div>
+                      </div>
+                      {contactSettings.bandImageUrl && (
+                        <div className="mt-4">
+                          <Label>Preview</Label>
+                          <div className="mt-2 w-32 h-32 rounded-lg overflow-hidden border">
+                            <img
+                              src={contactSettings.bandImageUrl}
+                              alt="Band Preview"
+                              className="w-full h-full object-cover"
+                              onError={(e) => {
+                                e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='128' height='128' viewBox='0 0 128 128'%3E%3Crect width='128' height='128' fill='%236366f1'/%3E%3Ctext x='64' y='70' text-anchor='middle' fill='white' font-size='24' font-family='Arial'%3E🎵%3C/text%3E%3C/svg%3E";
+                              }}
+                            />
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+
+                  {/* Contact Information */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Phone className="h-5 w-5" />
+                        Contact Information
+                      </CardTitle>
+                      <CardDescription>
+                        Configure contact details displayed on the contact page
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="contact-email">Email</Label>
+                          <Input
+                            id="contact-email"
+                            type="email"
+                            value={contactSettings.contactEmail}
+                            onChange={(e) => setContactSettings(prev => ({ ...prev, contactEmail: e.target.value }))}
+                            placeholder="contact@example.com"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="contact-phone">Phone</Label>
+                          <Input
+                            id="contact-phone"
+                            value={contactSettings.contactPhone}
+                            onChange={(e) => setContactSettings(prev => ({ ...prev, contactPhone: e.target.value }))}
+                            placeholder="+1 (555) 123-4567"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="contact-address">Address</Label>
+                        <Input
+                          id="contact-address"
+                          value={contactSettings.contactAddress}
+                          onChange={(e) => setContactSettings(prev => ({ ...prev, contactAddress: e.target.value }))}
+                          placeholder="123 Music Street"
+                        />
+                      </div>
+                      <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="contact-city">City</Label>
+                          <Input
+                            id="contact-city"
+                            value={contactSettings.contactCity}
+                            onChange={(e) => setContactSettings(prev => ({ ...prev, contactCity: e.target.value }))}
+                            placeholder="Los Angeles"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="contact-state">State</Label>
+                          <Input
+                            id="contact-state"
+                            value={contactSettings.contactState}
+                            onChange={(e) => setContactSettings(prev => ({ ...prev, contactState: e.target.value }))}
+                            placeholder="CA"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="contact-zip">ZIP Code</Label>
+                          <Input
+                            id="contact-zip"
+                            value={contactSettings.contactZipCode}
+                            onChange={(e) => setContactSettings(prev => ({ ...prev, contactZipCode: e.target.value }))}
+                            placeholder="90210"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="contact-country">Country</Label>
+                          <Input
+                            id="contact-country"
+                            value={contactSettings.contactCountry}
+                            onChange={(e) => setContactSettings(prev => ({ ...prev, contactCountry: e.target.value }))}
+                            placeholder="USA"
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Social Media Settings */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Facebook className="h-5 w-5" />
+                        Social Media Links
+                      </CardTitle>
+                      <CardDescription>
+                        Configure social media links that will appear as buttons on the contact page
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="facebook-url">Facebook URL</Label>
+                          <Input
+                            id="facebook-url"
+                            type="url"
+                            value={contactSettings.facebookUrl}
+                            onChange={(e) => setContactSettings(prev => ({ ...prev, facebookUrl: e.target.value }))}
+                            placeholder="https://facebook.com/yourpage"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="instagram-url">Instagram URL</Label>
+                          <Input
+                            id="instagram-url"
+                            type="url"
+                            value={contactSettings.instagramUrl}
+                            onChange={(e) => setContactSettings(prev => ({ ...prev, instagramUrl: e.target.value }))}
+                            placeholder="https://instagram.com/yourpage"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="twitter-url">Twitter URL</Label>
+                          <Input
+                            id="twitter-url"
+                            type="url"
+                            value={contactSettings.twitterUrl}
+                            onChange={(e) => setContactSettings(prev => ({ ...prev, twitterUrl: e.target.value }))}
+                            placeholder="https://twitter.com/yourpage"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="youtube-url">YouTube URL</Label>
+                          <Input
+                            id="youtube-url"
+                            type="url"
+                            value={contactSettings.youtubeUrl}
+                            onChange={(e) => setContactSettings(prev => ({ ...prev, youtubeUrl: e.target.value }))}
+                            placeholder="https://youtube.com/yourchannel"
+                          />
+                        </div>
+                      </div>
+                      
+                      <div className="mt-6">
+                        <h4 className="font-medium mb-2">Preview</h4>
+                        <p className="text-sm text-muted-foreground mb-3">
+                          These links will appear as buttons on the contact page:
+                        </p>
+                        <div className="flex flex-wrap gap-2">
+                          {contactSettings.facebookUrl && (
+                            <Button size="sm" variant="outline" className="bg-blue-600 text-white hover:bg-blue-700">
+                              <Facebook className="h-4 w-4 mr-2" />
+                              Facebook
+                            </Button>
+                          )}
+                          {contactSettings.instagramUrl && (
+                            <Button size="sm" variant="outline" className="bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600">
+                              <Instagram className="h-4 w-4 mr-2" />
+                              Instagram
+                            </Button>
+                          )}
+                          {contactSettings.twitterUrl && (
+                            <Button size="sm" variant="outline" className="bg-blue-400 text-white hover:bg-blue-500">
+                              <Twitter className="h-4 w-4 mr-2" />
+                              Twitter
+                            </Button>
+                          )}
+                          {contactSettings.youtubeUrl && (
+                            <Button size="sm" variant="outline" className="bg-red-600 text-white hover:bg-red-700">
+                              <Youtube className="h-4 w-4 mr-2" />
+                              YouTube
+                            </Button>
+                          )}
+                          {!contactSettings.facebookUrl && !contactSettings.instagramUrl && !contactSettings.twitterUrl && !contactSettings.youtubeUrl && (
+                            <p className="text-sm text-muted-foreground">No social media links configured</p>
+                          )}
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Save Button */}
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={() => saveContactSettingsMutation.mutate(contactSettings)}
+                      disabled={saveContactSettingsMutation.isPending}
+                      className="flex items-center gap-2"
+                    >
+                      <Save className="h-4 w-4" />
+                      {saveContactSettingsMutation.isPending ? "Saving..." : "Save Contact Settings"}
+                    </Button>
+                  </div>
+                </TabsContent>
+
+                {/* Plans Page Tab */}
+                <TabsContent value="plans" className="space-y-6 mt-6">
+                  {/* Page Settings */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Crown className="h-5 w-5" />
+                        Page Settings
+                      </CardTitle>
+                      <CardDescription>
+                        Configure the main page title and subtitle for the plans page
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="plans-title">Page Title</Label>
+                        <Input
+                          id="plans-title"
+                          value={plansSettings.pageTitle}
+                          onChange={(e) => setPlansSettings(prev => ({ ...prev, pageTitle: e.target.value }))}
+                          placeholder="Beat Licensing Plans"
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="plans-subtitle">Page Subtitle</Label>
+                        <Textarea
+                          id="plans-subtitle"
+                          value={plansSettings.pageSubtitle}
+                          onChange={(e) => setPlansSettings(prev => ({ ...prev, pageSubtitle: e.target.value }))}
+                          placeholder="Choose the perfect licensing plan for your music project."
+                          rows={3}
+                        />
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Basic Plan */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Basic Plan</CardTitle>
+                      <CardDescription>Configure the basic licensing plan</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="basic-name">Plan Name</Label>
+                          <Input
+                            id="basic-name"
+                            value={plansSettings.basicPlan.name}
+                            onChange={(e) => setPlansSettings(prev => ({ 
+                              ...prev, 
+                              basicPlan: { ...prev.basicPlan, name: e.target.value }
+                            }))}
+                            placeholder="Basic License"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="basic-price">Price ($)</Label>
+                          <Input
+                            id="basic-price"
+                            type="number"
+                            value={plansSettings.basicPlan.price}
+                            onChange={(e) => setPlansSettings(prev => ({ 
+                              ...prev, 
+                              basicPlan: { ...prev.basicPlan, price: parseInt(e.target.value) || 0 }
+                            }))}
+                            placeholder="29"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="basic-description">Description</Label>
+                        <Textarea
+                          id="basic-description"
+                          value={plansSettings.basicPlan.description}
+                          onChange={(e) => setPlansSettings(prev => ({ 
+                            ...prev, 
+                            basicPlan: { ...prev.basicPlan, description: e.target.value }
+                          }))}
+                          placeholder="Perfect for independent artists and small projects"
+                          rows={2}
+                        />
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="basic-active"
+                          checked={plansSettings.basicPlan.isActive}
+                          onCheckedChange={(checked) => setPlansSettings(prev => ({ 
+                            ...prev, 
+                            basicPlan: { ...prev.basicPlan, isActive: checked }
+                          }))}
+                        />
+                        <Label htmlFor="basic-active">Active</Label>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Premium Plan */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Premium Plan</CardTitle>
+                      <CardDescription>Configure the premium licensing plan</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="premium-name">Plan Name</Label>
+                          <Input
+                            id="premium-name"
+                            value={plansSettings.premiumPlan.name}
+                            onChange={(e) => setPlansSettings(prev => ({ 
+                              ...prev, 
+                              premiumPlan: { ...prev.premiumPlan, name: e.target.value }
+                            }))}
+                            placeholder="Premium License"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="premium-price">Price ($)</Label>
+                          <Input
+                            id="premium-price"
+                            type="number"
+                            value={plansSettings.premiumPlan.price}
+                            onChange={(e) => setPlansSettings(prev => ({ 
+                              ...prev, 
+                              premiumPlan: { ...prev.premiumPlan, price: parseInt(e.target.value) || 0 }
+                            }))}
+                            placeholder="99"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="premium-description">Description</Label>
+                        <Textarea
+                          id="premium-description"
+                          value={plansSettings.premiumPlan.description}
+                          onChange={(e) => setPlansSettings(prev => ({ 
+                            ...prev, 
+                            premiumPlan: { ...prev.premiumPlan, description: e.target.value }
+                          }))}
+                          placeholder="Ideal for established artists and larger projects"
+                          rows={2}
+                        />
+                      </div>
+                      <div className="flex items-center space-x-4">
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            id="premium-active"
+                            checked={plansSettings.premiumPlan.isActive}
+                            onCheckedChange={(checked) => setPlansSettings(prev => ({ 
+                              ...prev, 
+                              premiumPlan: { ...prev.premiumPlan, isActive: checked }
+                            }))}
+                          />
+                          <Label htmlFor="premium-active">Active</Label>
+                        </div>
+                        <div className="flex items-center space-x-2">
+                          <Switch
+                            id="premium-popular"
+                            checked={plansSettings.premiumPlan.isPopular}
+                            onCheckedChange={(checked) => setPlansSettings(prev => ({ 
+                              ...prev, 
+                              premiumPlan: { ...prev.premiumPlan, isPopular: checked }
+                            }))}
+                          />
+                          <Label htmlFor="premium-popular">Popular</Label>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Exclusive Plan */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle>Exclusive Plan</CardTitle>
+                      <CardDescription>Configure the exclusive licensing plan</CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="exclusive-name">Plan Name</Label>
+                          <Input
+                            id="exclusive-name"
+                            value={plansSettings.exclusivePlan.name}
+                            onChange={(e) => setPlansSettings(prev => ({ 
+                              ...prev, 
+                              exclusivePlan: { ...prev.exclusivePlan, name: e.target.value }
+                            }))}
+                            placeholder="Exclusive Rights"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="exclusive-price">Price ($)</Label>
+                          <Input
+                            id="exclusive-price"
+                            type="number"
+                            value={plansSettings.exclusivePlan.price}
+                            onChange={(e) => setPlansSettings(prev => ({ 
+                              ...prev, 
+                              exclusivePlan: { ...prev.exclusivePlan, price: parseInt(e.target.value) || 0 }
+                            }))}
+                            placeholder="999"
+                          />
+                        </div>
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="exclusive-description">Description</Label>
+                        <Textarea
+                          id="exclusive-description"
+                          value={plansSettings.exclusivePlan.description}
+                          onChange={(e) => setPlansSettings(prev => ({ 
+                            ...prev, 
+                            exclusivePlan: { ...prev.exclusivePlan, description: e.target.value }
+                          }))}
+                          placeholder="Complete ownership and exclusive rights to the beat"
+                          rows={2}
+                        />
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Switch
+                          id="exclusive-active"
+                          checked={plansSettings.exclusivePlan.isActive}
+                          onCheckedChange={(checked) => setPlansSettings(prev => ({ 
+                            ...prev, 
+                            exclusivePlan: { ...prev.exclusivePlan, isActive: checked }
+                          }))}
+                        />
+                        <Label htmlFor="exclusive-active">Active</Label>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Additional Features */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Star className="h-5 w-5" />
+                        Additional Features Section
+                      </CardTitle>
+                      <CardDescription>
+                        Configure the "Why Choose BeatBazaar?" section
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="additional-features-title">Section Title</Label>
+                        <Input
+                          id="additional-features-title"
+                          value={plansSettings.additionalFeaturesTitle}
+                          onChange={(e) => setPlansSettings(prev => ({ ...prev, additionalFeaturesTitle: e.target.value }))}
+                          placeholder="Why Choose BeatBazaar?"
+                        />
+                      </div>
+                      <div className="space-y-4">
+                        <Label>Features</Label>
+                        {plansSettings.additionalFeatures.map((feature, index) => (
+                          <div key={index} className="grid grid-cols-1 md:grid-cols-3 gap-4 p-4 border rounded-lg">
+                            <div className="space-y-2">
+                              <Label htmlFor={`feature-title-${index}`}>Title</Label>
+                              <Input
+                                id={`feature-title-${index}`}
+                                value={feature.title}
+                                onChange={(e) => {
+                                  const newFeatures = [...plansSettings.additionalFeatures];
+                                  newFeatures[index] = { ...feature, title: e.target.value };
+                                  setPlansSettings(prev => ({ ...prev, additionalFeatures: newFeatures }));
+                                }}
+                                placeholder="Feature Title"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor={`feature-description-${index}`}>Description</Label>
+                              <Input
+                                id={`feature-description-${index}`}
+                                value={feature.description}
+                                onChange={(e) => {
+                                  const newFeatures = [...plansSettings.additionalFeatures];
+                                  newFeatures[index] = { ...feature, description: e.target.value };
+                                  setPlansSettings(prev => ({ ...prev, additionalFeatures: newFeatures }));
+                                }}
+                                placeholder="Feature Description"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor={`feature-icon-${index}`}>Icon</Label>
+                              <Input
+                                id={`feature-icon-${index}`}
+                                value={feature.icon}
+                                onChange={(e) => {
+                                  const newFeatures = [...plansSettings.additionalFeatures];
+                                  newFeatures[index] = { ...feature, icon: e.target.value };
+                                  setPlansSettings(prev => ({ ...prev, additionalFeatures: newFeatures }));
+                                }}
+                                placeholder="Shield, Users, Download, etc."
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* FAQ Section */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <MessageSquare className="h-5 w-5" />
+                        FAQ Section
+                      </CardTitle>
+                      <CardDescription>
+                        Configure frequently asked questions
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="faq-title">Section Title</Label>
+                        <Input
+                          id="faq-title"
+                          value={plansSettings.faqSection.title}
+                          onChange={(e) => setPlansSettings(prev => ({ 
+                            ...prev, 
+                            faqSection: { ...prev.faqSection, title: e.target.value }
+                          }))}
+                          placeholder="Frequently Asked Questions"
+                        />
+                      </div>
+                      <div className="space-y-4">
+                        <Label>Questions & Answers</Label>
+                        {plansSettings.faqSection.questions.map((faq, index) => (
+                          <div key={index} className="space-y-4 p-4 border rounded-lg">
+                            <div className="space-y-2">
+                              <Label htmlFor={`faq-question-${index}`}>Question</Label>
+                              <Input
+                                id={`faq-question-${index}`}
+                                value={faq.question}
+                                onChange={(e) => {
+                                  const newQuestions = [...plansSettings.faqSection.questions];
+                                  newQuestions[index] = { ...faq, question: e.target.value };
+                                  setPlansSettings(prev => ({ 
+                                    ...prev, 
+                                    faqSection: { ...prev.faqSection, questions: newQuestions }
+                                  }));
+                                }}
+                                placeholder="What's the difference between Basic and Premium licenses?"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor={`faq-answer-${index}`}>Answer</Label>
+                              <Textarea
+                                id={`faq-answer-${index}`}
+                                value={faq.answer}
+                                onChange={(e) => {
+                                  const newQuestions = [...plansSettings.faqSection.questions];
+                                  newQuestions[index] = { ...faq, answer: e.target.value };
+                                  setPlansSettings(prev => ({ 
+                                    ...prev, 
+                                    faqSection: { ...prev.faqSection, questions: newQuestions }
+                                  }));
+                                }}
+                                placeholder="Basic licenses are perfect for independent artists..."
+                                rows={3}
+                              />
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Trust Badges */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Shield className="h-5 w-5" />
+                        Trust Badges
+                      </CardTitle>
+                      <CardDescription>
+                        Configure trust badges displayed on the plans page
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      {plansSettings.trustBadges.map((badge, index) => (
+                        <div key={index} className="grid grid-cols-1 md:grid-cols-2 gap-4 p-4 border rounded-lg">
+                          <div className="space-y-2">
+                            <Label htmlFor={`badge-text-${index}`}>Badge Text</Label>
+                            <Input
+                              id={`badge-text-${index}`}
+                              value={badge.text}
+                              onChange={(e) => {
+                                const newBadges = [...plansSettings.trustBadges];
+                                newBadges[index] = { ...badge, text: e.target.value };
+                                setPlansSettings(prev => ({ ...prev, trustBadges: newBadges }));
+                              }}
+                              placeholder="Legal Protection Included"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor={`badge-icon-${index}`}>Icon</Label>
+                            <Input
+                              id={`badge-icon-${index}`}
+                              value={badge.icon}
+                              onChange={(e) => {
+                                const newBadges = [...plansSettings.trustBadges];
+                                newBadges[index] = { ...badge, icon: e.target.value };
+                                setPlansSettings(prev => ({ ...prev, trustBadges: newBadges }));
+                              }}
+                              placeholder="Shield, Zap, Users, etc."
+                            />
+                          </div>
+                        </div>
+                      ))}
+                    </CardContent>
+                  </Card>
+
+                  {/* Save Button */}
+                  <div className="flex justify-end">
+                    <Button
+                      onClick={() => savePlansSettingsMutation.mutate(plansSettings)}
+                      disabled={savePlansSettingsMutation.isPending}
+                      className="flex items-center gap-2"
+                    >
+                      <Save className="h-4 w-4" />
+                      {savePlansSettingsMutation.isPending ? "Saving..." : "Save Plans Settings"}
+                    </Button>
+                  </div>
+                </TabsContent>
+
+                {/* Artist Bios Tab */}
+                <TabsContent value="artists" className="space-y-6 mt-6">
+                  <Card>
+                    <CardHeader className="flex flex-row items-center justify-between">
+                      <div>
+                        <CardTitle>Artist Bios</CardTitle>
+                        <CardDescription>Manage artist profiles and biographies</CardDescription>
+                      </div>
+                      <Button onClick={() => setShowBioDialog(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add Artist
+                      </Button>
+                    </CardHeader>
+                    <CardContent>
+                      <Table>
+                        <TableHeader>
+                          <TableRow>
+                            <TableHead>Image</TableHead>
+                            <TableHead>Name</TableHead>
+                            <TableHead>Role</TableHead>
+                            <TableHead>Status</TableHead>
+                            <TableHead>Actions</TableHead>
+                          </TableRow>
+                        </TableHeader>
+                        <TableBody>
+                          {artistBios.map((bio: any) => (
+                            <TableRow key={bio.id}>
+                              <TableCell>
+                                <div className="w-10 h-10 rounded-lg overflow-hidden">
+                                  <img
+                                    src={bio.imageUrl}
+                                    alt={bio.name}
+                                    className="w-full h-full object-cover"
+                                  />
+                                </div>
+                              </TableCell>
+                              <TableCell className="font-medium">{bio.name}</TableCell>
+                              <TableCell>{bio.role}</TableCell>
+                              <TableCell>
+                                <Badge variant={bio.isActive ? "default" : "secondary"}>
+                                  {bio.isActive ? "Active" : "Inactive"}
+                                </Badge>
+                              </TableCell>
+                              <TableCell>
+                                <div className="flex items-center gap-2">
+                                  <Button
+                                    size="sm"
+                                    variant="outline"
+                                    onClick={() => {
+                                      setEditingBio(bio);
+                                      setBioFormData({
+                                        name: bio.name,
+                                        imageUrl: bio.imageUrl,
+                                        bio: bio.bio,
+                                        role: bio.role,
+                                        socialLinks: bio.socialLinks || { instagram: '', twitter: '', youtube: '', spotify: '' },
+                                        isActive: bio.isActive
+                                      });
+                                      setShowBioDialog(true);
+                                    }}
+                                  >
+                                    <Edit className="h-4 w-4 mr-1" />
+                                    Edit
+                                  </Button>
+                                  <Button
+                                    size="sm"
+                                    variant="destructive"
+                                    onClick={() => deleteArtistBioMutation.mutate(bio.id)}
+                                    disabled={deleteArtistBioMutation.isPending}
+                                  >
+                                    <Trash className="h-4 w-4 mr-1" />
+                                    Delete
+                                  </Button>
+                                </div>
+                              </TableCell>
+                            </TableRow>
+                          ))}
+                        </TableBody>
+                      </Table>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            </div>
+          )}
 
           {/* PayPal Settings */}
           {activeTab === "paypal" && (
@@ -1111,117 +2562,6 @@ function AdminSettingsContent() {
             </Card>
           )}
 
-          {/* Social Media Settings */}
-          {activeTab === "social" && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Share2 className="h-5 w-5" />
-                  Social Media Links
-                </CardTitle>
-                <CardDescription>
-                  Configure social media links that appear on the contact page
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  <div className="space-y-2">
-                    <Label htmlFor="facebook-url">Facebook URL</Label>
-                    <Input
-                      id="facebook-url"
-                      type="url"
-                      value={socialMediaSettings.facebookUrl}
-                      onChange={(e) => setSocialMediaSettings(prev => ({ ...prev, facebookUrl: e.target.value }))}
-                      placeholder="https://facebook.com/yourpage"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="instagram-url">Instagram URL</Label>
-                    <Input
-                      id="instagram-url"
-                      type="url"
-                      value={socialMediaSettings.instagramUrl}
-                      onChange={(e) => setSocialMediaSettings(prev => ({ ...prev, instagramUrl: e.target.value }))}
-                      placeholder="https://instagram.com/yourpage"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="twitter-url">Twitter URL</Label>
-                    <Input
-                      id="twitter-url"
-                      type="url"
-                      value={socialMediaSettings.twitterUrl}
-                      onChange={(e) => setSocialMediaSettings(prev => ({ ...prev, twitterUrl: e.target.value }))}
-                      placeholder="https://twitter.com/yourpage"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="youtube-url">YouTube URL</Label>
-                    <Input
-                      id="youtube-url"
-                      type="url"
-                      value={socialMediaSettings.youtubeUrl}
-                      onChange={(e) => setSocialMediaSettings(prev => ({ ...prev, youtubeUrl: e.target.value }))}
-                      placeholder="https://youtube.com/yourchannel"
-                    />
-                  </div>
-                  <div className="space-y-2">
-                    <Label htmlFor="tiktok-url">TikTok URL</Label>
-                    <Input
-                      id="tiktok-url"
-                      type="url"
-                      value={socialMediaSettings.tiktokUrl}
-                      onChange={(e) => setSocialMediaSettings(prev => ({ ...prev, tiktokUrl: e.target.value }))}
-                      placeholder="https://tiktok.com/@yourpage"
-                    />
-                  </div>
-                </div>
-                
-                <div className="bg-muted/50 p-4 rounded-lg">
-                  <h4 className="font-medium mb-2">Preview</h4>
-                  <p className="text-sm text-muted-foreground mb-3">
-                    These links will appear as buttons on the contact page:
-                  </p>
-                  <div className="flex flex-wrap gap-2">
-                    {socialMediaSettings.facebookUrl && (
-                      <Button size="sm" variant="outline" className="bg-blue-600 text-white hover:bg-blue-700">
-                        <Facebook className="h-4 w-4 mr-2" />
-                        Facebook
-                      </Button>
-                    )}
-                    {socialMediaSettings.instagramUrl && (
-                      <Button size="sm" variant="outline" className="bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600">
-                        <Instagram className="h-4 w-4 mr-2" />
-                        Instagram
-                      </Button>
-                    )}
-                    {socialMediaSettings.twitterUrl && (
-                      <Button size="sm" variant="outline" className="bg-blue-400 text-white hover:bg-blue-500">
-                        <Twitter className="h-4 w-4 mr-2" />
-                        Twitter
-                      </Button>
-                    )}
-                    {socialMediaSettings.youtubeUrl && (
-                      <Button size="sm" variant="outline" className="bg-red-600 text-white hover:bg-red-700">
-                        <Youtube className="h-4 w-4 mr-2" />
-                        YouTube
-                      </Button>
-                    )}
-                    {socialMediaSettings.tiktokUrl && (
-                      <Button size="sm" variant="outline" className="bg-black text-white hover:bg-gray-800">
-                        <Music className="h-4 w-4 mr-2" />
-                        TikTok
-                      </Button>
-                    )}
-                    {!socialMediaSettings.facebookUrl && !socialMediaSettings.instagramUrl && !socialMediaSettings.twitterUrl && !socialMediaSettings.youtubeUrl && !socialMediaSettings.tiktokUrl && (
-                      <p className="text-sm text-muted-foreground">No social media links configured</p>
-                    )}
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-          )}
-
           {/* Contact Settings */}
           {activeTab === "contact" && (
             <div className="space-y-6">
@@ -1412,6 +2752,560 @@ function AdminSettingsContent() {
                       Use placeholders: {"{name}"}, {"{email}"}, {"{subject}"}, {"{message}"}
                     </p>
                   </div>
+                </CardContent>
+              </Card>
+
+              {/* Social Media Settings */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Share2 className="h-5 w-5" />
+                    Social Media Links
+                  </CardTitle>
+                  <CardDescription>
+                    Configure social media links that will appear as buttons on the contact page
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="facebook-url">Facebook URL</Label>
+                      <Input
+                        id="facebook-url"
+                        type="url"
+                        value={contactSettings.facebookUrl}
+                        onChange={(e) => setContactSettings(prev => ({ ...prev, facebookUrl: e.target.value }))}
+                        placeholder="https://facebook.com/yourpage"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="instagram-url">Instagram URL</Label>
+                      <Input
+                        id="instagram-url"
+                        type="url"
+                        value={contactSettings.instagramUrl}
+                        onChange={(e) => setContactSettings(prev => ({ ...prev, instagramUrl: e.target.value }))}
+                        placeholder="https://instagram.com/yourpage"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="twitter-url">Twitter URL</Label>
+                      <Input
+                        id="twitter-url"
+                        type="url"
+                        value={contactSettings.twitterUrl}
+                        onChange={(e) => setContactSettings(prev => ({ ...prev, twitterUrl: e.target.value }))}
+                        placeholder="https://twitter.com/yourpage"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="youtube-url">YouTube URL</Label>
+                      <Input
+                        id="youtube-url"
+                        type="url"
+                        value={contactSettings.youtubeUrl}
+                        onChange={(e) => setContactSettings(prev => ({ ...prev, youtubeUrl: e.target.value }))}
+                        placeholder="https://youtube.com/yourchannel"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="tiktok-url">TikTok URL</Label>
+                      <Input
+                        id="tiktok-url"
+                        type="url"
+                        value={contactSettings.tiktokUrl}
+                        onChange={(e) => setContactSettings(prev => ({ ...prev, tiktokUrl: e.target.value }))}
+                        placeholder="https://tiktok.com/@yourpage"
+                      />
+                    </div>
+                  </div>
+                  
+                  <div className="mt-6">
+                    <h4 className="font-medium mb-2">Preview</h4>
+                    <p className="text-sm text-muted-foreground mb-3">
+                      These links will appear as buttons on the contact page:
+                    </p>
+                    <div className="flex flex-wrap gap-2">
+                      {contactSettings.facebookUrl && (
+                        <Button size="sm" variant="outline" className="bg-blue-600 text-white hover:bg-blue-700">
+                          <Facebook className="h-4 w-4 mr-2" />
+                          Facebook
+                        </Button>
+                      )}
+                      {contactSettings.instagramUrl && (
+                        <Button size="sm" variant="outline" className="bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600">
+                          <Instagram className="h-4 w-4 mr-2" />
+                          Instagram
+                        </Button>
+                      )}
+                      {contactSettings.twitterUrl && (
+                        <Button size="sm" variant="outline" className="bg-blue-400 text-white hover:bg-blue-500">
+                          <Twitter className="h-4 w-4 mr-2" />
+                          Twitter
+                        </Button>
+                      )}
+                      {contactSettings.youtubeUrl && (
+                        <Button size="sm" variant="outline" className="bg-red-600 text-white hover:bg-red-700">
+                          <Youtube className="h-4 w-4 mr-2" />
+                          YouTube
+                        </Button>
+                      )}
+                      {contactSettings.tiktokUrl && (
+                        <Button size="sm" variant="outline" className="bg-black text-white hover:bg-gray-800">
+                          <Music className="h-4 w-4 mr-2" />
+                          TikTok
+                        </Button>
+                      )}
+                      {!contactSettings.facebookUrl && !contactSettings.instagramUrl && !contactSettings.twitterUrl && !contactSettings.youtubeUrl && !contactSettings.tiktokUrl && (
+                        <p className="text-sm text-muted-foreground">No social media links configured</p>
+                      )}
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+            </div>
+          )}
+
+          {/* Plans Settings */}
+          {activeTab === "plans" && (
+            <div className="space-y-6">
+              {/* Page Settings */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Crown className="h-5 w-5" />
+                    Page Settings
+                  </CardTitle>
+                  <CardDescription>
+                    Configure the main page title and subtitle for the plans page
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="page-title">Page Title</Label>
+                    <Input
+                      id="page-title"
+                      value={plansSettings.pageTitle}
+                      onChange={(e) => setPlansSettings(prev => ({ ...prev, pageTitle: e.target.value }))}
+                      placeholder="Beat Licensing Plans"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="page-subtitle">Page Subtitle</Label>
+                    <Textarea
+                      id="page-subtitle"
+                      value={plansSettings.pageSubtitle}
+                      onChange={(e) => setPlansSettings(prev => ({ ...prev, pageSubtitle: e.target.value }))}
+                      placeholder="Choose the perfect licensing plan for your music project..."
+                      rows={3}
+                    />
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Basic Plan */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Music className="h-5 w-5" />
+                    Basic Plan
+                  </CardTitle>
+                  <CardDescription>
+                    Configure the basic licensing plan details
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="basic-name">Plan Name</Label>
+                      <Input
+                        id="basic-name"
+                        value={plansSettings.basicPlan.name}
+                        onChange={(e) => setPlansSettings(prev => ({ 
+                          ...prev, 
+                          basicPlan: { ...prev.basicPlan, name: e.target.value }
+                        }))}
+                        placeholder="Basic License"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="basic-price">Price ($)</Label>
+                      <Input
+                        id="basic-price"
+                        type="number"
+                        value={plansSettings.basicPlan.price}
+                        onChange={(e) => setPlansSettings(prev => ({ 
+                          ...prev, 
+                          basicPlan: { ...prev.basicPlan, price: parseInt(e.target.value) || 0 }
+                        }))}
+                        placeholder="29"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="basic-description">Description</Label>
+                    <Textarea
+                      id="basic-description"
+                      value={plansSettings.basicPlan.description}
+                      onChange={(e) => setPlansSettings(prev => ({ 
+                        ...prev, 
+                        basicPlan: { ...prev.basicPlan, description: e.target.value }
+                      }))}
+                      placeholder="Perfect for independent artists and small projects"
+                      rows={2}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Features (one per line)</Label>
+                    <Textarea
+                      value={plansSettings.basicPlan.features.join('\n')}
+                      onChange={(e) => setPlansSettings(prev => ({ 
+                        ...prev, 
+                        basicPlan: { ...prev.basicPlan, features: e.target.value.split('\n').filter(f => f.trim()) }
+                      }))}
+                      placeholder="Commercial use rights&#10;Up to 5,000 copies&#10;Streaming on all platforms"
+                      rows={8}
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="basic-active"
+                      checked={plansSettings.basicPlan.isActive}
+                      onCheckedChange={(checked) => setPlansSettings(prev => ({ 
+                        ...prev, 
+                        basicPlan: { ...prev.basicPlan, isActive: checked }
+                      }))}
+                    />
+                    <Label htmlFor="basic-active">Active</Label>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Premium Plan */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Crown className="h-5 w-5" />
+                    Premium Plan
+                  </CardTitle>
+                  <CardDescription>
+                    Configure the premium licensing plan details
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="premium-name">Plan Name</Label>
+                      <Input
+                        id="premium-name"
+                        value={plansSettings.premiumPlan.name}
+                        onChange={(e) => setPlansSettings(prev => ({ 
+                          ...prev, 
+                          premiumPlan: { ...prev.premiumPlan, name: e.target.value }
+                        }))}
+                        placeholder="Premium License"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="premium-price">Price ($)</Label>
+                      <Input
+                        id="premium-price"
+                        type="number"
+                        value={plansSettings.premiumPlan.price}
+                        onChange={(e) => setPlansSettings(prev => ({ 
+                          ...prev, 
+                          premiumPlan: { ...prev.premiumPlan, price: parseInt(e.target.value) || 0 }
+                        }))}
+                        placeholder="99"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="premium-description">Description</Label>
+                    <Textarea
+                      id="premium-description"
+                      value={plansSettings.premiumPlan.description}
+                      onChange={(e) => setPlansSettings(prev => ({ 
+                        ...prev, 
+                        premiumPlan: { ...prev.premiumPlan, description: e.target.value }
+                      }))}
+                      placeholder="Ideal for established artists and larger projects"
+                      rows={2}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Features (one per line)</Label>
+                    <Textarea
+                      value={plansSettings.premiumPlan.features.join('\n')}
+                      onChange={(e) => setPlansSettings(prev => ({ 
+                        ...prev, 
+                        premiumPlan: { ...prev.premiumPlan, features: e.target.value.split('\n').filter(f => f.trim()) }
+                      }))}
+                      placeholder="Everything in Basic License&#10;Up to 50,000 copies&#10;Radio play unlimited"
+                      rows={8}
+                    />
+                  </div>
+                  <div className="flex items-center space-x-4">
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="premium-active"
+                        checked={plansSettings.premiumPlan.isActive}
+                        onCheckedChange={(checked) => setPlansSettings(prev => ({ 
+                          ...prev, 
+                          premiumPlan: { ...prev.premiumPlan, isActive: checked }
+                        }))}
+                      />
+                      <Label htmlFor="premium-active">Active</Label>
+                    </div>
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="premium-popular"
+                        checked={plansSettings.premiumPlan.isPopular}
+                        onCheckedChange={(checked) => setPlansSettings(prev => ({ 
+                          ...prev, 
+                          premiumPlan: { ...prev.premiumPlan, isPopular: checked }
+                        }))}
+                      />
+                      <Label htmlFor="premium-popular">Popular</Label>
+                    </div>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Exclusive Plan */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Star className="h-5 w-5" />
+                    Exclusive Plan
+                  </CardTitle>
+                  <CardDescription>
+                    Configure the exclusive rights plan details
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="exclusive-name">Plan Name</Label>
+                      <Input
+                        id="exclusive-name"
+                        value={plansSettings.exclusivePlan.name}
+                        onChange={(e) => setPlansSettings(prev => ({ 
+                          ...prev, 
+                          exclusivePlan: { ...prev.exclusivePlan, name: e.target.value }
+                        }))}
+                        placeholder="Exclusive Rights"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="exclusive-price">Price ($)</Label>
+                      <Input
+                        id="exclusive-price"
+                        type="number"
+                        value={plansSettings.exclusivePlan.price}
+                        onChange={(e) => setPlansSettings(prev => ({ 
+                          ...prev, 
+                          exclusivePlan: { ...prev.exclusivePlan, price: parseInt(e.target.value) || 0 }
+                        }))}
+                        placeholder="999"
+                      />
+                    </div>
+                  </div>
+                  <div className="space-y-2">
+                    <Label htmlFor="exclusive-description">Description</Label>
+                    <Textarea
+                      id="exclusive-description"
+                      value={plansSettings.exclusivePlan.description}
+                      onChange={(e) => setPlansSettings(prev => ({ 
+                        ...prev, 
+                        exclusivePlan: { ...prev.exclusivePlan, description: e.target.value }
+                      }))}
+                      placeholder="Complete ownership and exclusive rights to the beat"
+                      rows={2}
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Features (one per line)</Label>
+                    <Textarea
+                      value={plansSettings.exclusivePlan.features.join('\n')}
+                      onChange={(e) => setPlansSettings(prev => ({ 
+                        ...prev, 
+                        exclusivePlan: { ...prev.exclusivePlan, features: e.target.value.split('\n').filter(f => f.trim()) }
+                      }))}
+                      placeholder="Complete ownership of the beat&#10;Unlimited commercial use&#10;Unlimited copies and streams"
+                      rows={8}
+                    />
+                  </div>
+                  <div className="flex items-center space-x-2">
+                    <Switch
+                      id="exclusive-active"
+                      checked={plansSettings.exclusivePlan.isActive}
+                      onCheckedChange={(checked) => setPlansSettings(prev => ({ 
+                        ...prev, 
+                        exclusivePlan: { ...prev.exclusivePlan, isActive: checked }
+                      }))}
+                    />
+                    <Label htmlFor="exclusive-active">Active</Label>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Additional Features Section */}
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Shield className="h-5 w-5" />
+                    Additional Features Section
+                  </CardTitle>
+                  <CardDescription>
+                    Configure the "Why Choose BeatBazaar?" section and features
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="additional-features-title">Section Title</Label>
+                    <Input
+                      id="additional-features-title"
+                      value={plansSettings.additionalFeaturesTitle}
+                      onChange={(e) => setPlansSettings(prev => ({ ...prev, additionalFeaturesTitle: e.target.value }))}
+                      placeholder="Why Choose BeatBazaar?"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label>Features (one per line, format: Title|Description|Icon)</Label>
+                    <Textarea
+                      value={plansSettings.additionalFeatures.map(f => `${f.title}|${f.description}|${f.icon}`).join('\n')}
+                      onChange={(e) => {
+                        const features = e.target.value.split('\n').filter(f => f.trim()).map(line => {
+                          const [title, description, icon] = line.split('|');
+                          return {
+                            title: title?.trim() || '',
+                            description: description?.trim() || '',
+                            icon: icon?.trim() || 'Shield'
+                          };
+                        });
+                        setPlansSettings(prev => ({ ...prev, additionalFeatures: features }));
+                      }}
+                      placeholder="Legal Protection|All licenses come with legal documentation and protection|Shield&#10;Artist Support|Dedicated support team to help with your music career|Users&#10;Instant Download|Get your beats immediately after purchase|Download&#10;High Quality|Professional studio quality beats and stems|Headphones"
+                      rows={8}
+                    />
+                    <p className="text-xs text-muted-foreground">
+                      Format: Title|Description|Icon (one per line). Available icons: Shield, Users, Download, Headphones, Zap, Star, Music, Crown
+                    </p>
+                  </div>
+                </CardContent>
+              </Card>
+
+              {/* Save Button */}
+              <div className="flex justify-end">
+                <Button
+                  onClick={() => savePlansSettingsMutation.mutate(plansSettings)}
+                  disabled={savePlansSettingsMutation.isPending}
+                  className="flex items-center gap-2"
+                >
+                  <Save className="h-4 w-4" />
+                  {savePlansSettingsMutation.isPending ? 'Saving...' : 'Save Plans Settings'}
+                </Button>
+              </div>
+            </div>
+          )}
+
+          {/* Artist Bios Management */}
+          {activeTab === "artists" && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <div className="flex items-center justify-between">
+                    <div>
+                      <CardTitle className="flex items-center gap-2">
+                        <Users2 className="h-5 w-5" />
+                        Artist Bios
+                      </CardTitle>
+                      <CardDescription>
+                        Manage artist profiles and biographies
+                      </CardDescription>
+                    </div>
+                    <Button onClick={() => setShowBioDialog(true)}>
+                      <Plus className="h-4 w-4 mr-2" />
+                      Add Artist
+                    </Button>
+                  </div>
+                </CardHeader>
+                <CardContent>
+                  {artistBios.length === 0 ? (
+                    <div className="text-center py-8">
+                      <Users2 className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
+                      <h3 className="text-lg font-medium mb-2">No artists yet</h3>
+                      <p className="text-muted-foreground mb-4">
+                        Get started by adding your first artist profile
+                      </p>
+                      <Button onClick={() => setShowBioDialog(true)}>
+                        <Plus className="h-4 w-4 mr-2" />
+                        Add First Artist
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      {artistBios.map((bio) => (
+                        <div key={bio.id} className="flex items-center space-x-4 p-4 border rounded-lg">
+                          <div className="w-16 h-16 rounded-full overflow-hidden bg-muted">
+                            {bio.imageUrl ? (
+                              <img
+                                src={bio.imageUrl}
+                                alt={bio.name}
+                                className="w-full h-full object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='64' height='64' viewBox='0 0 64 64'%3E%3Crect width='64' height='64' fill='%236366f1'/%3E%3Ctext x='32' y='35' text-anchor='middle' fill='white' font-size='24' font-family='Arial'%3E🎵%3C/text%3E%3C/svg%3E";
+                                }}
+                              />
+                            ) : (
+                              <div className="w-full h-full flex items-center justify-center">
+                                <Users2 className="h-8 w-8 text-muted-foreground" />
+                              </div>
+                            )}
+                          </div>
+                          <div className="flex-1 min-w-0">
+                            <h3 className="font-medium truncate">{bio.name}</h3>
+                            <p className="text-sm text-muted-foreground">{bio.role}</p>
+                            <p className="text-sm text-muted-foreground truncate">{bio.bio}</p>
+                          </div>
+                          <div className="flex items-center space-x-2">
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => {
+                                setEditingBio(bio);
+                                setBioFormData({
+                                  name: bio.name,
+                                  imageUrl: bio.imageUrl,
+                                  bio: bio.bio,
+                                  role: bio.role,
+                                  socialLinks: {
+                                    instagram: bio.socialLinks?.instagram || '',
+                                    twitter: bio.socialLinks?.twitter || '',
+                                    youtube: bio.socialLinks?.youtube || '',
+                                    spotify: bio.socialLinks?.spotify || ''
+                                  },
+                                  isActive: bio.isActive,
+                                  sortOrder: bio.sortOrder
+                                });
+                                setShowBioDialog(true);
+                              }}
+                            >
+                              <Edit className="h-4 w-4" />
+                            </Button>
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => deleteArtistBioMutation.mutate(bio.id)}
+                            >
+                              <Trash className="h-4 w-4" />
+                            </Button>
+                          </div>
+                        </div>
+                      ))}
+                    </div>
+                  )}
                 </CardContent>
               </Card>
             </div>
@@ -1765,6 +3659,156 @@ function AdminSettingsContent() {
           </DialogContent>
         </Dialog>
       </div>
+
+      {/* Artist Bio Dialog */}
+      <Dialog open={showBioDialog} onOpenChange={setShowBioDialog}>
+        <DialogContent className="max-w-2xl">
+          <DialogHeader>
+            <DialogTitle>
+              {editingBio ? 'Edit Artist Bio' : 'Add New Artist Bio'}
+            </DialogTitle>
+            <DialogDescription>
+              {editingBio ? 'Update the artist information below.' : 'Fill in the artist information below.'}
+            </DialogDescription>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="bio-name">Artist Name</Label>
+                <Input
+                  id="bio-name"
+                  value={bioFormData.name}
+                  onChange={(e) => setBioFormData(prev => ({ ...prev, name: e.target.value }))}
+                  placeholder="Enter artist name"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="bio-role">Role</Label>
+                <Input
+                  id="bio-role"
+                  value={bioFormData.role}
+                  onChange={(e) => setBioFormData(prev => ({ ...prev, role: e.target.value }))}
+                  placeholder="e.g., Producer, Singer, Rapper"
+                />
+              </div>
+            </div>
+            
+            <div className="space-y-2">
+              <Label htmlFor="bio-image">Image URL</Label>
+              <Input
+                id="bio-image"
+                value={bioFormData.imageUrl}
+                onChange={(e) => setBioFormData(prev => ({ ...prev, imageUrl: e.target.value }))}
+                placeholder="https://example.com/artist-image.jpg"
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label htmlFor="bio-bio">Biography</Label>
+              <Textarea
+                id="bio-bio"
+                rows={4}
+                value={bioFormData.bio}
+                onChange={(e) => setBioFormData(prev => ({ ...prev, bio: e.target.value }))}
+                placeholder="Tell us about the artist..."
+              />
+            </div>
+
+            <div className="space-y-2">
+              <Label>Social Media Links</Label>
+              <div className="grid grid-cols-2 gap-4">
+                <div className="space-y-2">
+                  <Label htmlFor="bio-instagram">Instagram</Label>
+                  <Input
+                    id="bio-instagram"
+                    value={bioFormData.socialLinks.instagram}
+                    onChange={(e) => setBioFormData(prev => ({ 
+                      ...prev, 
+                      socialLinks: { ...prev.socialLinks, instagram: e.target.value }
+                    }))}
+                    placeholder="https://instagram.com/username"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bio-twitter">Twitter</Label>
+                  <Input
+                    id="bio-twitter"
+                    value={bioFormData.socialLinks.twitter}
+                    onChange={(e) => setBioFormData(prev => ({ 
+                      ...prev, 
+                      socialLinks: { ...prev.socialLinks, twitter: e.target.value }
+                    }))}
+                    placeholder="https://twitter.com/username"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bio-youtube">YouTube</Label>
+                  <Input
+                    id="bio-youtube"
+                    value={bioFormData.socialLinks.youtube}
+                    onChange={(e) => setBioFormData(prev => ({ 
+                      ...prev, 
+                      socialLinks: { ...prev.socialLinks, youtube: e.target.value }
+                    }))}
+                    placeholder="https://youtube.com/channel/..."
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="bio-spotify">Spotify</Label>
+                  <Input
+                    id="bio-spotify"
+                    value={bioFormData.socialLinks.spotify}
+                    onChange={(e) => setBioFormData(prev => ({ 
+                      ...prev, 
+                      socialLinks: { ...prev.socialLinks, spotify: e.target.value }
+                    }))}
+                    placeholder="https://open.spotify.com/artist/..."
+                  />
+                </div>
+              </div>
+            </div>
+
+            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+              <div className="space-y-2">
+                <Label htmlFor="bio-sort">Sort Order</Label>
+                <Input
+                  id="bio-sort"
+                  type="number"
+                  value={bioFormData.sortOrder}
+                  onChange={(e) => setBioFormData(prev => ({ ...prev, sortOrder: parseInt(e.target.value) || 0 }))}
+                  placeholder="0"
+                />
+              </div>
+              <div className="flex items-center space-x-2">
+                <Switch
+                  id="bio-active"
+                  checked={bioFormData.isActive}
+                  onCheckedChange={(checked) => setBioFormData(prev => ({ ...prev, isActive: checked }))}
+                />
+                <Label htmlFor="bio-active">Active</Label>
+              </div>
+            </div>
+
+            <div className="flex justify-end space-x-2">
+              <Button variant="outline" onClick={() => setShowBioDialog(false)}>
+                Cancel
+              </Button>
+              <Button
+                onClick={() => {
+                  if (editingBio) {
+                    updateArtistBioMutation.mutate({ id: editingBio.id, data: bioFormData });
+                  } else {
+                    createArtistBioMutation.mutate(bioFormData);
+                  }
+                }}
+                disabled={createArtistBioMutation.isPending || updateArtistBioMutation.isPending}
+              >
+                {createArtistBioMutation.isPending || updateArtistBioMutation.isPending ? 'Saving...' : editingBio ? 'Update' : 'Create'}
+              </Button>
+            </div>
+          </div>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 }

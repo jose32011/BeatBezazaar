@@ -8,7 +8,10 @@ import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle } from "@/components/ui/dialog";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Users, Download, Eye, Music, LogOut, Wand2, Image, Edit, Trash2, CreditCard, UserCheck, Play, Pause, Settings, Search, ChevronLeft, ChevronRight, TrendingUp, Menu, X, BarChart3, UserCheck as CustomerIcon, CreditCard as PaymentIcon, Music as BeatIcon } from "lucide-react";
+import { Textarea } from "@/components/ui/textarea";
+import { Switch } from "@/components/ui/switch";
+import { Badge } from "@/components/ui/badge";
+import { Users, Download, Eye, Music, LogOut, Wand2, Image, Edit, Trash2, CreditCard, UserCheck, Play, Pause, Settings, Search, ChevronLeft, ChevronRight, TrendingUp, Menu, X, BarChart3, UserCheck as CustomerIcon, CreditCard as PaymentIcon, Music as BeatIcon, Globe, MessageSquare, Crown, Users2, Phone, MapPin, Facebook, Instagram, Twitter, Youtube, Plus, Save, Trash } from "lucide-react";
 import { LineChart, Line, AreaChart, Area, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, BarChart, Bar, PieChart, Pie, Cell } from 'recharts';
 import { Link } from "wouter";
 import { ProtectedRoute } from "@/contexts/AuthContext";
@@ -40,6 +43,9 @@ function AdminDashboardContent() {
   const queryClient = useQueryClient();
   const [activeTab, setActiveTab] = useState("overview");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+
+
 
   // Navigation menu items
   const menuItems = [
@@ -226,6 +232,9 @@ function AdminDashboardContent() {
     refetchOnWindowFocus: true, // Refetch when window gains focus
   });
 
+
+
+
   // Delete beat mutation
   const deleteBeatMutation = useMutation({
     mutationFn: async (beatId: string) => {
@@ -311,6 +320,12 @@ function AdminDashboardContent() {
       },
     });
   };
+
+  // Site Pages mutations
+
+
+
+
 
   // Audio player handlers
   const handlePlayPause = (beat: Beat) => {
@@ -528,8 +543,8 @@ function AdminDashboardContent() {
           {/* Overview */}
           {activeTab === "overview" && (
             <div className="space-y-6">
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
-                <Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-6 mb-8">
+          <Card>
             <CardHeader className="flex flex-row items-center justify-between space-y-0 pb-2">
               <CardTitle className="text-sm font-medium">Site Visits</CardTitle>
               <Eye className="h-4 w-4 text-muted-foreground" />
@@ -982,13 +997,13 @@ function AdminDashboardContent() {
             <PaymentManagement />
           )}
 
+
+
           {/* Settings */}
           {activeTab === "settings" && (
             <AdminSettings />
           )}
         </div>
-      </div>
-
       {/* Edit Beat Dialog */}
       <Dialog open={!!editingBeat} onOpenChange={() => setEditingBeat(null)}>
         <DialogContent className="sm:max-w-[425px]">
@@ -1100,6 +1115,7 @@ function AdminDashboardContent() {
           isFullSong={true}
         />
       )}
+    </div>
     </div>
   );
 }

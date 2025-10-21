@@ -26,7 +26,7 @@ export default function GenreCard({ name, beatCount, imageUrl, onClick, isSelect
         color: themeColors.text
       }}
     >
-      <div className="aspect-[4/3] relative">
+      <div className="aspect-[2/1] relative">
         <img
           src={imageUrl}
           alt={name}
@@ -38,16 +38,16 @@ export default function GenreCard({ name, beatCount, imageUrl, onClick, isSelect
             background: `linear-gradient(to top, ${themeColors.background}, ${themeColors.background}80, transparent)`
           }}
         />
-        <div className="absolute bottom-0 left-0 right-0 p-6">
+        <div className="absolute bottom-0 left-0 right-0 p-2">
           <h3 
-            className="text-2xl font-bold font-display mb-1" 
+            className="text-sm font-bold font-display mb-0.5" 
             data-testid={`text-genre-name-${name.toLowerCase()}`}
             style={{ color: themeColors.text }}
           >
             {name}
           </h3>
           <p 
-            className="text-sm" 
+            className="text-xs" 
             data-testid={`text-genre-count-${name.toLowerCase()}`}
             style={{ color: themeColors.textSecondary }}
           >

@@ -8,6 +8,7 @@ import multer from "multer";
 import path from "path";
 import fs from "fs";
 import { randomUUID } from "crypto";
+import nodemailer from "nodemailer";
 import bcrypt from "bcryptjs";
 import { sendEmail, generateVerificationCode, createPasswordResetEmail } from "./email";
 
@@ -758,6 +759,65 @@ app.post("/api/contact", async (req, res) => {
   }
 });
 
+// Artist bio routes
+app.get("/api/artist-bios", async (req, res) => {
+  try {
+    const bios = await storage.getArtistBios();
+    res.json(bios);
+  } catch (error) {
+    console.error("Get artist bios error:", error);
+    res.status(500).json({ error: "Failed to get artist bios" });
+  }
+});
+
+app.get("/api/artist-bios/:id", async (req, res) => {
+  try {
+    const { id } = req.params;
+    const bio = await storage.getArtistBio(id);
+    
+    if (!bio) {
+      return res.status(404).json({ error: "Artist bio not found" });
+    }
+    
+    res.json(bio);
+  } catch (error) {
+    console.error("Get artist bio error:", error);
+    res.status(500).json({ error: "Failed to get artist bio" });
+  }
+});
+
+app.post("/api/admin/artist-bios", requireAdmin, async (req, res) => {
+  try {
+    const bio = await storage.createArtistBio(req.body);
+    res.json(bio);
+  } catch (error) {
+    console.error("Create artist bio error:", error);
+    res.status(500).json({ error: "Failed to create artist bio" });
+  }
+});
+
+app.put("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    const bio = await storage.updateArtistBio(id, req.body);
+    res.json(bio);
+  } catch (error) {
+    console.error("Update artist bio error:", error);
+    res.status(500).json({ error: "Failed to update artist bio" });
+  }
+});
+
+app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
+  try {
+    const { id } = req.params;
+    await storage.deleteArtistBio(id);
+    res.json({ message: "Artist bio deleted successfully" });
+  } catch (error) {
+    console.error("Delete artist bio error:", error);
+    res.status(500).json({ error: "Failed to delete artist bio" });
+  }
+});
+
   // Theme endpoints
   app.put("/api/auth/theme", requireAuth, async (req, res) => {
     try {
@@ -1438,6 +1498,48 @@ app.post("/api/contact", async (req, res) => {
     } catch (error) {
       console.error('Genre deletion error:', error);
       res.status(500).json({ error: "Failed to delete genre" });
+    }
+  });
+
+  // Plans settings routes
+  app.get("/api/plans-settings", async (req, res) => {
+    try {
+      const settings = await storage.getPlansSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Get plans settings error:", error);
+      res.status(500).json({ error: "Failed to get plans settings" });
+    }
+  });
+
+  app.put("/api/admin/plans-settings", requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.updatePlansSettings(req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error("Update plans settings error:", error);
+      res.status(500).json({ error: "Failed to update plans settings" });
+    }
+  });
+
+  // App branding settings routes
+  app.get("/api/app-branding-settings", async (req, res) => {
+    try {
+      const settings = await storage.getAppBrandingSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Get app branding settings error:", error);
+      res.status(500).json({ error: "Failed to get app branding settings" });
+    }
+  });
+
+  app.put("/api/admin/app-branding-settings", requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.updateAppBrandingSettings(req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error("Update app branding settings error:", error);
+      res.status(500).json({ error: "Failed to update app branding settings" });
     }
   });
 

@@ -5,6 +5,7 @@ import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useQuery } from "@tanstack/react-query";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -23,6 +24,12 @@ export default function Header({ cartCount = 0, onCartClick }: HeaderProps) {
   const { getThemeColors } = useTheme();
   const themeColors = getThemeColors();
 
+  // Fetch app branding settings
+  const { data: brandingSettings } = useQuery({
+    queryKey: ['/api/app-branding-settings'],
+    select: (data: any) => data || { appName: 'BeatBazaar', appLogo: '' }
+  });
+
   return (
     <header 
       className="sticky top-0 z-50 backdrop-blur-md border-b"
@@ -35,13 +42,22 @@ export default function Header({ cartCount = 0, onCartClick }: HeaderProps) {
         <div className="flex items-center justify-between gap-6">
           <div className="flex items-center gap-8">
             <Link href="/">
-              <h1 
-                className="text-2xl font-bold font-display cursor-pointer" 
-                data-testid="text-logo"
-                style={{ color: themeColors.primary }}
-              >
-                Beat-Bazaar
-              </h1>
+              <div className="flex items-center gap-2">
+                {brandingSettings?.appLogo && (
+                  <img 
+                    src={brandingSettings.appLogo} 
+                    alt="Logo" 
+                    className="h-8 w-8 object-contain"
+                  />
+                )}
+                <h1 
+                  className="text-2xl font-bold font-display cursor-pointer" 
+                  data-testid="text-logo"
+                  style={{ color: themeColors.primary }}
+                >
+                  {brandingSettings?.appName || 'BeatBazaar'}
+                </h1>
+              </div>
             </Link>
             <nav className="hidden md:flex items-center gap-6">
               <Link href="/">
@@ -49,11 +65,22 @@ export default function Header({ cartCount = 0, onCartClick }: HeaderProps) {
                   Browse
                 </Button>
               </Link>
+              <Link href="/bio">
+                <Button variant="ghost" size="sm">
+                  Bio
+                </Button>
+              </Link>
+              <Link href="/plans">
+                <Button variant="ghost" size="sm">
+                  Plans
+                </Button>
+              </Link>
               <Link href="/contact">
                 <Button variant="ghost" size="sm">
                   Contact
                 </Button>
               </Link>
+             
               {user?.role === "admin" && (
                 <Link href="/admin/upload">
                   <Button variant="ghost" size="sm" data-testid="button-upload">
