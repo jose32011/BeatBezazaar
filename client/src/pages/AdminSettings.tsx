@@ -957,38 +957,6 @@ function AdminSettingsContent() {
     },
   });
 
-  const resetDatabaseMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch('/api/admin/reset-database', {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (!response.ok) {
-        throw new Error('Failed to reset database');
-      }
-      return response.json();
-    },
-    onSuccess: (data) => {
-      toast({
-        title: "Database Reset",
-        description: data.message || "All customers, songs, and related data have been cleared successfully",
-      });
-      
-      // If redirect is required, logout and redirect to login
-      if (data.redirectToLogin) {
-        setTimeout(() => {
-          logout();
-        }, 2000); // Wait 2 seconds to show the success message
-      }
-    },
-    onError: () => {
-      toast({
-        title: "Error",
-        description: "Failed to reset database",
-        variant: "destructive",
-      });
-    },
-  });
 
   const migrateCustomersMutation = useMutation({
     mutationFn: async () => {

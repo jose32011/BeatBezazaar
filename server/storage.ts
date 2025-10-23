@@ -556,7 +556,7 @@ export class DatabaseStorage implements IStorage {
         exclusive_plan TEXT NOT NULL DEFAULT '{"name":"Exclusive Rights","price":999,"description":"Complete ownership and exclusive rights to the beat","features":["Complete ownership of the beat","Unlimited commercial use","Unlimited copies and streams","Full publishing rights","Master recording ownership","Exclusive to you forever","No attribution required","Priority support","Custom contract","Beat removed from store","Stems and project files included"],"isActive":true}',
         additional_features_title TEXT NOT NULL DEFAULT 'Why Choose BeatBazaar?',
         additional_features TEXT NOT NULL DEFAULT '[{"title":"Legal Protection","description":"All licenses come with legal documentation and protection","icon":"Shield"},{"title":"Artist Support","description":"Dedicated support team to help with your music career","icon":"Users"},{"title":"Instant Download","description":"Get your beats immediately after purchase","icon":"Download"},{"title":"High Quality","description":"Professional studio quality beats and stems","icon":"Headphones"}]',
-        faq_section TEXT NOT NULL DEFAULT '{"title":"Frequently Asked Questions","questions":[{"question":"What''s the difference between Basic and Premium licenses?","answer":"Basic licenses are perfect for independent artists with limited distribution. Premium licenses offer higher copy limits, TV/film rights, and longer terms for established artists."},{"question":"What does \\"Exclusive Rights\\" mean?","answer":"With exclusive rights, you own the beat completely. It''s removed from our store, you get all stems and project files, and no one else can use it. You have full creative and commercial control."},{"question":"Do I need to credit the producer?","answer":"For Basic and Premium licenses, crediting is appreciated but not required. With Exclusive Rights, no attribution is needed as you own the beat completely."}]}',
+        faq_section TEXT NOT NULL DEFAULT '{"title":"Frequently Asked Questions","questions":[{"question":"What''s the difference between Basic and Premium licenses?","answer":"Basic licenses are perfect for independent artists with limited distribution. Premium licenses offer higher copy limits, TV/film rights, and longer terms for established artists."},{"question":"What does "Exclusive Rights" mean?","answer":"With exclusive rights, you own the beat completely. It''s removed from our store, you get all stems and project files, and no one else can use it. You have full creative and commercial control."},{"question":"Do I need to credit the producer?","answer":"For Basic and Premium licenses, crediting is appreciated but not required. With Exclusive Rights, no attribution is needed as you own the beat completely."}]}',
         trust_badges TEXT NOT NULL DEFAULT '[{"text":"Legal Protection Included","icon":"Shield"},{"text":"Instant Download","icon":"Zap"},{"text":"24/7 Support","icon":"Users"}]',
         created_at DATETIME,
         updated_at DATETIME
@@ -833,7 +833,7 @@ export class DatabaseStorage implements IStorage {
           exclusive_plan JSONB NOT NULL DEFAULT '{"name":"Exclusive Rights","price":999,"description":"Complete ownership and exclusive rights to the beat","features":["Complete ownership of the beat","Unlimited commercial use","Unlimited copies and streams","Full publishing rights","Master recording ownership","Exclusive to you forever","No attribution required","Priority support","Custom contract","Beat removed from store","Stems and project files included"],"isActive":true}',
           additional_features_title TEXT NOT NULL DEFAULT 'Why Choose BeatBazaar?',
           additional_features JSONB NOT NULL DEFAULT '[{"title":"Legal Protection","description":"All licenses come with legal documentation and protection","icon":"Shield"},{"title":"Artist Support","description":"Dedicated support team to help with your music career","icon":"Users"},{"title":"Instant Download","description":"Get your beats immediately after purchase","icon":"Download"},{"title":"High Quality","description":"Professional studio quality beats and stems","icon":"Headphones"}]',
-          faq_section JSONB NOT NULL DEFAULT '{"title":"Frequently Asked Questions","questions":[{"question":"What''s the difference between Basic and Premium licenses?","answer":"Basic licenses are perfect for independent artists with limited distribution. Premium licenses offer higher copy limits, TV/film rights, and longer terms for established artists."},{"question":"What does \\"Exclusive Rights\\" mean?","answer":"With exclusive rights, you own the beat completely. It''s removed from our store, you get all stems and project files, and no one else can use it. You have full creative and commercial control."},{"question":"Do I need to credit the producer?","answer":"For Basic and Premium licenses, crediting is appreciated but not required. With Exclusive Rights, no attribution is needed as you own the beat completely."}]}',
+          faq_section JSONB NOT NULL DEFAULT '{"title":"Frequently Asked Questions","questions":[{"question":"What''s the difference between Basic and Premium licenses?","answer":"Basic licenses are perfect for independent artists with limited distribution. Premium licenses offer higher copy limits, TV/film rights, and longer terms for established artists."},{"question":"What does "Exclusive Rights" mean?","answer":"With exclusive rights, you own the beat completely. It''s removed from our store, you get all stems and project files, and no one else can use it. You have full creative and commercial control."},{"question":"Do I need to credit the producer?","answer":"For Basic and Premium licenses, crediting is appreciated but not required. With Exclusive Rights, no attribution is needed as you own the beat completely."}]}',
           trust_badges JSONB NOT NULL DEFAULT '[{"text":"Legal Protection Included","icon":"Shield"},{"text":"Instant Download","icon":"Zap"},{"text":"24/7 Support","icon":"Users"}]',
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
@@ -2065,6 +2065,7 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+  
 
   // Artist bio operations
   async getArtistBios(): Promise<ArtistBio[]> {
@@ -2196,52 +2197,11 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
-}
+  
+  
 
-  async resetDatabase(): Promise<void> {
-    try {
-      console.log("🔄 Starting database reset...");
-      
-      // First, get the admin user to preserve it
-      const adminUser = await this.getUserByUsername("admin");
-      
-      // Delete all uploaded files
-      await this.deleteAllUploadedFiles();
-      
-      // Clear all tables except users
-      await this.clearAllTables();
-      
-      // Recreate the admin user if it existed
-      if (adminUser) {
-        console.log("👤 Recreating admin user...");
-        const hashedPassword = await bcrypt.hash("admin123", 10);
-        const adminId = randomUUID();
-        
-        if (isProduction) {
-          await db.run(sql`
-            INSERT INTO users (id, username, password, role, email, password_change_required, theme, created_at, updated_at)
-            VALUES (${adminId}, 'admin', ${hashedPassword}, 'admin', 'admin@beatbazaar.com', true, 'original', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-          `);
-        } else {
-          await db.run(sql`
-            INSERT INTO users (id, username, password, role, email, password_change_required, theme, created_at, updated_at)
-            VALUES (${adminId}, 'admin', ${hashedPassword}, 'admin', 'admin@beatbazaar.com', 1, 'original', ${new Date().toISOString()}, ${new Date().toISOString()})
-          `);
-        }
-        console.log("✅ Admin user recreated");
-      }
-      
-      // Reinitialize default data
-      await this.initializeDefaultGenres();
-      
-      console.log("✅ Database reset completed successfully");
-    } catch (error) {
-      console.error("❌ Database reset error:", error);
-      throw error;
-    }
-  }
-
-  private async deleteAllUploadedFiles(): Promise<void> {
+  
+private async deleteAllUploadedFiles(): Promise<void> {
     try {
       console.log("🗑️ Deleting all uploaded files...");
       
@@ -2305,5 +2265,8 @@ export class DatabaseStorage implements IStorage {
       throw error;
     }
   }
+}
+
+
 
 export const storage = new DatabaseStorage();
