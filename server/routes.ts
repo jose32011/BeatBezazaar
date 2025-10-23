@@ -1178,6 +1178,18 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
     }
   });
 
+  // Database reset endpoint (admin only)
+  app.post("/api/admin/reset-database", requireAdmin, async (req, res) => {
+    try {
+      console.log("🔄 Database reset requested by admin");
+      await storage.resetDatabase();
+      res.json({ message: "Database reset completed successfully" });
+    } catch (error) {
+      console.error("Database reset error:", error);
+      res.status(500).json({ error: "Failed to reset database" });
+    }
+  });
+
   // Migration endpoint to create customer records for users without them
   app.post("/api/admin/migrate-customers", requireAdmin, async (req, res) => {
     try {

@@ -162,6 +162,9 @@ export interface IStorage {
   // App branding settings operations
   getAppBrandingSettings(): Promise<AppBrandingSettings | null>;
   updateAppBrandingSettings(settings: Partial<InsertAppBrandingSettings>): Promise<AppBrandingSettings>;
+  
+  // Database reset operations
+  resetDatabase(): Promise<void>;
 
   // Artist bio operations
   getArtistBios(): Promise<ArtistBio[]>;
@@ -2194,5 +2197,113 @@ export class DatabaseStorage implements IStorage {
     }
   }
 }
+
+  async resetDatabase(): Promise<void> {
+    try {
+      console.log("🔄 Starting database reset...");
+      
+      // First, get the admin user to preserve it
+      const adminUser = await this.getUserByUsername("admin");
+      
+      // Delete all uploaded files
+      await this.deleteAllUploadedFiles();
+      
+      // Clear all tables except users
+      await this.clearAllTables();
+      
+      // Recreate the admin user if it existed
+      if (adminUser) {
+        console.log("👤 Recreating admin user...");
+        const hashedPassword = await bcrypt.hash("admin123", 10);
+        const adminId = randomUUID();
+        
+        if (isProduction) {
+          await db.run(sql`
+            INSERT INTO users (id, username, password, role, email, password_change_required, theme, created_at, updated_at)
+            VALUES (${adminId}, 'admin', ${hashedPassword}, 'admin', 'admin@beatbazaar.com', true, 'original', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          `);
+        } else {
+          await db.run(sql`
+            INSERT INTO users (id, username, password, role, email, password_change_required, theme, created_at, updated_at)
+            VALUES (${adminId}, 'admin', ${hashedPassword}, 'admin', 'admin@beatbazaar.com', 1, 'original', ${new Date().toISOString()}, ${new Date().toISOString()})
+          `);
+        }
+        console.log("✅ Admin user recreated");
+      }
+      
+      // Reinitialize default data
+      await this.initializeDefaultGenres();
+      
+      console.log("✅ Database reset completed successfully");
+    } catch (error) {
+      console.error("❌ Database reset error:", error);
+      throw error;
+    }
+  }
+
+  private async deleteAllUploadedFiles(): Promise<void> {
+    try {
+      console.log("🗑️ Deleting all uploaded files...");
+      
+      // Delete all audio files
+      const audioDir = path.join(process.cwd(), 'uploads', 'audio');
+      if (fs.existsSync(audioDir)) {
+        const audioFiles = fs.readdirSync(audioDir);
+        for (const file of audioFiles) {
+          const filePath = path.join(audioDir, file);
+          if (fs.statSync(filePath).isFile()) {
+            fs.unlinkSync(filePath);
+            console.log(`Deleted audio file: ${file}`);
+          }
+        }
+      }
+      
+      // Delete all image files
+      const imageDir = path.join(process.cwd(), 'uploads', 'images');
+      if (fs.existsSync(imageDir)) {
+        const imageFiles = fs.readdirSync(imageDir);
+        for (const file of imageFiles) {
+          const filePath = path.join(imageDir, file);
+          if (fs.statSync(filePath).isFile()) {
+            fs.unlinkSync(filePath);
+            console.log(`Deleted image file: ${file}`);
+          }
+        }
+      }
+      
+      console.log("✅ All uploaded files deleted");
+    } catch (error) {
+      console.error("❌ Error deleting uploaded files:", error);
+      throw error;
+    }
+  }
+
+  private async clearAllTables(): Promise<void> {
+    try {
+      console.log("🧹 Clearing all database tables...");
+      
+      // Clear all tables in the correct order (respecting foreign key constraints)
+      await db.run(sql`DELETE FROM purchases`);
+      await db.run(sql`DELETE FROM cart`);
+      await db.run(sql`DELETE FROM payments`);
+      await db.run(sql`DELETE FROM beats`);
+      await db.run(sql`DELETE FROM customers`);
+      await db.run(sql`DELETE FROM verification_codes`);
+      await db.run(sql`DELETE FROM email_settings`);
+      await db.run(sql`DELETE FROM social_media_settings`);
+      await db.run(sql`DELETE FROM contact_settings`);
+      await db.run(sql`DELETE FROM plans_settings`);
+      await db.run(sql`DELETE FROM app_branding_settings`);
+      await db.run(sql`DELETE FROM artist_bios`);
+      await db.run(sql`DELETE FROM genres`);
+      await db.run(sql`DELETE FROM analytics`);
+      await db.run(sql`DELETE FROM users WHERE username != 'admin'`);
+      
+      console.log("✅ All tables cleared");
+    } catch (error) {
+      console.error("❌ Error clearing tables:", error);
+      throw error;
+    }
+  }
 
 export const storage = new DatabaseStorage();

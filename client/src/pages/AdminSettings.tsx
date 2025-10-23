@@ -797,6 +797,35 @@ function AdminSettingsContent() {
     },
   });
 
+  const resetDatabaseMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/admin/reset-database', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!response.ok) throw new Error('Failed to reset database');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Database Reset Complete",
+        description: "All data has been cleared except the admin user. You may need to refresh the page.",
+      });
+      // Refresh the page after a short delay to show the reset state
+      setTimeout(() => {
+        window.location.reload();
+      }, 2000);
+    },
+    onError: (error: any) => {
+      console.error("Database reset error:", error);
+      toast({
+        title: "Error",
+        description: error.message || "Failed to reset database",
+        variant: "destructive",
+      });
+    },
+  });
+
   const createArtistBioMutation = useMutation({
     mutationFn: async (bioData: typeof bioFormData) => {
       const response = await fetch('/api/admin/artist-bios', {
@@ -3555,6 +3584,64 @@ function AdminSettingsContent() {
             )}
           </Button>
         </div>
+
+        {/* Database Reset Section */}
+        <Card className="mt-8 border-destructive/50">
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2 text-destructive">
+              <Trash className="h-5 w-5" />
+              Danger Zone
+            </CardTitle>
+            <CardDescription>
+              These actions are irreversible. Use with extreme caution.
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <div className="space-y-4">
+              <div>
+                <h4 className="font-medium mb-2">Reset Database</h4>
+                <p className="text-sm text-muted-foreground mb-4">
+                  This will permanently delete all data including beats, customers, purchases, and uploaded files. 
+                  Only the admin user will be preserved with default credentials (admin/admin123).
+                </p>
+                <Button
+                  variant="destructive"
+                  onClick={() => {
+                    if (window.confirm(
+                      "⚠️ DANGER: This will permanently delete ALL data including:\n\n" +
+                      "• All beats and uploaded files\n" +
+                      "• All customers and purchases\n" +
+                      "• All settings and configurations\n" +
+                      "• All analytics data\n\n" +
+                      "Only the admin user will be preserved.\n\n" +
+                      "Are you absolutely sure you want to proceed?\n\n" +
+                      "Type 'RESET' to confirm:"
+                    )) {
+                      const confirmation = window.prompt("Type 'RESET' to confirm database reset:");
+                      if (confirmation === 'RESET') {
+                        resetDatabaseMutation.mutate();
+                      }
+                    }
+                  }}
+                  disabled={resetDatabaseMutation.isPending}
+                  className="gap-2"
+                >
+                  {resetDatabaseMutation.isPending ? (
+                    <>
+                      <Settings className="h-4 w-4 animate-spin" />
+                      Resetting Database...
+                    </>
+                  ) : (
+                    <>
+                      <Trash className="h-4 w-4" />
+                      Reset Database
+                    </>
+                  )}
+                </Button>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
 
         {/* User Form Dialog */}
         <Dialog open={showUserDialog} onOpenChange={setShowUserDialog}>
