@@ -287,6 +287,24 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
+      // Check if social media columns exist in contact_settings table, if not add them
+      try {
+        await db.run(sql`SELECT facebook_url FROM contact_settings LIMIT 1`);
+        console.log("✓ Social media columns exist in contact_settings");
+      } catch (error) {
+        console.log("⚠️ Social media columns missing in contact_settings, adding them...");
+        try {
+          await db.run(sql`ALTER TABLE contact_settings ADD COLUMN facebook_url TEXT NOT NULL DEFAULT ''`);
+          await db.run(sql`ALTER TABLE contact_settings ADD COLUMN instagram_url TEXT NOT NULL DEFAULT ''`);
+          await db.run(sql`ALTER TABLE contact_settings ADD COLUMN twitter_url TEXT NOT NULL DEFAULT ''`);
+          await db.run(sql`ALTER TABLE contact_settings ADD COLUMN youtube_url TEXT NOT NULL DEFAULT ''`);
+          await db.run(sql`ALTER TABLE contact_settings ADD COLUMN tiktok_url TEXT NOT NULL DEFAULT ''`);
+          console.log("✓ Added social media columns to contact_settings");
+        } catch (alterError) {
+          console.error("❌ Failed to add social media columns to contact_settings:", alterError);
+        }
+      }
+
       // Initialize default genres if none exist
       await this.initializeDefaultGenres();
 
@@ -495,7 +513,7 @@ export class DatabaseStorage implements IStorage {
         contact_state TEXT NOT NULL DEFAULT 'CA',
         contact_zip_code TEXT NOT NULL DEFAULT '90210',
         contact_country TEXT NOT NULL DEFAULT 'USA',
-        message_enabled BOOLEAN NOT NULL DEFAULT true,
+        message_enabled INTEGER NOT NULL DEFAULT 1,
         message_subject TEXT NOT NULL DEFAULT 'New Contact Form Submission',
         message_template TEXT NOT NULL DEFAULT 'You have received a new message from your contact form.',
         facebook_url TEXT NOT NULL DEFAULT '',

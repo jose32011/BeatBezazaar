@@ -713,13 +713,20 @@ function AdminSettingsContent() {
 
   const saveContactSettingsMutation = useMutation({
     mutationFn: async (contactSettingsData: typeof contactSettings) => {
+      console.log('Saving contact settings:', contactSettingsData);
       const response = await fetch('/api/admin/contact-settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
         credentials: 'include',
         body: JSON.stringify(contactSettingsData),
       });
-      if (!response.ok) throw new Error('Failed to save contact settings');
+      
+      if (!response.ok) {
+        const errorText = await response.text();
+        console.error('Contact settings save failed:', response.status, errorText);
+        throw new Error(`Failed to save contact settings: ${response.status} ${errorText}`);
+      }
+      
       return response.json();
     },
     onSuccess: () => {
@@ -728,10 +735,11 @@ function AdminSettingsContent() {
         description: "Your contact page settings have been updated successfully",
       });
     },
-    onError: () => {
+    onError: (error: any) => {
+      console.error("Contact settings save error:", error);
       toast({
         title: "Error",
-        description: "Failed to save contact settings",
+        description: error.message || "Failed to save contact settings",
         variant: "destructive",
       });
     },
@@ -1048,6 +1056,7 @@ function AdminSettingsContent() {
     saveSettingsMutation.mutate(settings);
     saveEmailSettingsMutation.mutate(emailSettings);
     saveContactSettingsMutation.mutate(contactSettings);
+    saveAppBrandingSettingsMutation.mutate(appBrandingSettings);
   };
 
   const updateEmailSetting = (key: keyof EmailSettings, value: any) => {
@@ -1340,17 +1349,6 @@ function AdminSettingsContent() {
                 </CardContent>
               </Card>
 
-              {/* Save Button */}
-              <div className="flex justify-end">
-                <Button
-                  onClick={() => saveAppBrandingSettingsMutation.mutate(appBrandingSettings)}
-                  disabled={saveAppBrandingSettingsMutation.isPending}
-                  className="flex items-center gap-2"
-                >
-                  <Save className="h-4 w-4" />
-                  {saveAppBrandingSettingsMutation.isPending ? "Saving..." : "Save App Branding"}
-                </Button>
-              </div>
             </div>
           )}
 
@@ -1601,17 +1599,6 @@ function AdminSettingsContent() {
                     </CardContent>
                   </Card>
 
-                  {/* Save Button */}
-                  <div className="flex justify-end">
-                    <Button
-                      onClick={() => saveContactSettingsMutation.mutate(contactSettings)}
-                      disabled={saveContactSettingsMutation.isPending}
-                      className="flex items-center gap-2"
-                    >
-                      <Save className="h-4 w-4" />
-                      {saveContactSettingsMutation.isPending ? "Saving..." : "Save Contact Settings"}
-                    </Button>
-                  </div>
                 </TabsContent>
 
                 {/* Plans Page Tab */}
@@ -3551,11 +3538,11 @@ function AdminSettingsContent() {
         <div className="flex justify-end mt-6">
           <Button
             onClick={handleSave}
-            disabled={saveSettingsMutation.isPending || saveEmailSettingsMutation.isPending}
+            disabled={saveSettingsMutation.isPending || saveEmailSettingsMutation.isPending || saveContactSettingsMutation.isPending || saveAppBrandingSettingsMutation.isPending}
             size="lg"
             className="px-6 sm:px-8 w-full sm:w-auto"
           >
-            {saveSettingsMutation.isPending || saveEmailSettingsMutation.isPending ? (
+            {saveSettingsMutation.isPending || saveEmailSettingsMutation.isPending || saveContactSettingsMutation.isPending || saveAppBrandingSettingsMutation.isPending ? (
               <>
                 <Settings className="h-5 w-5 mr-2 animate-spin" />
                 Saving...
