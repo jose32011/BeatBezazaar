@@ -136,11 +136,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
   app.get('/api/download/:beatId', requireAuth, async (req, res) => {
     try {
       const { beatId } = req.params;
-      const userId = req.session.userId;
+      const userId = req.session?.userId as string | undefined;
+      if (!userId) return res.status(401).json({ error: 'Not authenticated' });
 
-      // Check if user has purchased this beat
-      const purchase = await storage.getPurchaseByUserAndBeat(userId, beatId);
-      if (!purchase) {
+      // Check if user has a completed purchase for this beat
+      const owns = await storage.userOwnsBeat(userId, beatId);
+      if (!owns) {
         return res.status(403).json({ error: 'You have not purchased this song' });
       }
 
@@ -974,22 +975,26 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
 
   app.post("/api/purchases", requireAuth, async (req, res) => {
     try {
+      const userId = req.session?.userId as string | undefined;
+      if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
       const validatedPurchase = insertPurchaseSchema.parse({
         ...req.body,
-        userId: req.session.userId // Force user to be the authenticated user
+        userId // Force user to be the authenticated user
       });
-      
-      // Check if user already owns this beat
-      const existingPurchase = await storage.getPurchaseByUserAndBeat(req.session.userId, validatedPurchase.beatId);
-      if (existingPurchase) {
+
+      // Check if user already owns this beat (requires completed payment)
+      const alreadyOwns = await storage.userOwnsBeat(userId, validatedPurchase.beatId);
+      if (alreadyOwns) {
         return res.status(400).json({ error: "You already own this beat" });
       }
-      
+
+      // Create a purchase record now; payment flow should mark payment completed
       const purchase = await storage.createPurchase(validatedPurchase);
-      
-      // Increment download count
-      await storage.incrementDownloads();
-      
+
+      // IMPORTANT: purchases alone do not grant access until an associated payment is completed.
+      // Increment download count only after a successful payment (handled by payment flow/webhook).
+
       res.status(201).json(purchase);
     } catch (error) {
       res.status(400).json({ error: "Invalid purchase data" });
@@ -1178,17 +1183,8 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
     }
   });
 
-  // Database reset endpoint (admin only)
-  app.post("/api/admin/reset-database", requireAdmin, async (req, res) => {
-    try {
-      console.log("🔄 Database reset requested by admin");
-      await storage.resetDatabase();
-      res.json({ message: "Database reset completed successfully" });
-    } catch (error) {
-      console.error("Database reset error:", error);
-      res.status(500).json({ error: "Failed to reset database" });
-    }
-  });
+  // Database reset endpoint removed for safety. Manual reset operations
+  // should be performed directly on the server by a developer/ops person.
 
   // Migration endpoint to create customer records for users without them
   app.post("/api/admin/migrate-customers", requireAdmin, async (req, res) => {
@@ -1304,6 +1300,104 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
   });
 
   // Payment routes
+  // Create a Stripe payment intent for a beat purchase
+  app.post('/api/stripe/create-payment-intent', requireAuth, async (req, res) => {
+    try {
+      const userId = req.session?.userId as string | undefined;
+      if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+      const { beatId } = req.body;
+      if (!beatId) return res.status(400).json({ error: 'beatId is required' });
+
+      const beat = await storage.getBeat(beatId);
+      if (!beat) return res.status(404).json({ error: 'Beat not found' });
+
+      // Get or create customer record for this user
+      let customer = await storage.getCustomerByUserId(userId);
+      if (!customer) {
+        const user = await storage.getUser(userId);
+        const customerData = {
+          userId,
+          firstName: user?.username || 'Customer',
+          lastName: '',
+          email: user?.email || '',
+        };
+        customer = await storage.createCustomer(customerData);
+      }
+
+      // Create a purchase record (does NOT grant access until payment completes)
+      const purchase = await storage.createPurchase({
+        userId,
+        beatId,
+        price: beat.price
+      });
+
+      // Create a payment record in pending state
+      const payment = await storage.createPayment({
+        purchaseId: purchase.id,
+        customerId: customer.id,
+        amount: beat.price,
+        paymentMethod: 'stripe',
+        status: 'pending'
+      });
+
+      // Create Stripe payment intent
+      const { createPaymentIntent } = await Promise.resolve(require('./stripe'));
+      const stripePaymentIntent = await createPaymentIntent(beat.price, 'usd', customer, beat, { paymentId: payment.id, purchaseId: purchase.id });
+      if (!stripePaymentIntent) {
+        return res.status(500).json({ error: 'Stripe not configured' });
+      }
+
+      // Record stripe transaction
+      await storage.createStripeTransaction({
+        paymentId: payment.id,
+        stripePaymentIntentId: stripePaymentIntent.id,
+        stripeCustomerId: stripePaymentIntent.customer as string | undefined,
+        amount: beat.price,
+        currency: 'usd',
+        status: 'pending'
+      });
+
+      res.json({ clientSecret: stripePaymentIntent.client_secret, paymentIntentId: stripePaymentIntent.id });
+    } catch (error) {
+      console.error('Create payment intent error:', error);
+      res.status(500).json({ error: 'Failed to create payment intent' });
+    }
+  });
+
+  // Stripe webhook handler (use raw body)
+  app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
+    try {
+      const sig = req.headers['stripe-signature'] as string | undefined;
+      const { constructWebhookEvent } = await Promise.resolve(require('./stripe'));
+      const event = await constructWebhookEvent(req.body, sig || '');
+      if (!event) return res.status(400).send('Webhook configuration error');
+
+      if (event.type === 'payment_intent.succeeded') {
+        const pi = event.data.object as any;
+        const paymentIntentId = pi.id;
+
+        const tx = await storage.getStripeTransactionByPaymentIntent(paymentIntentId);
+        if (!tx) {
+          console.warn('Stripe transaction not found for payment intent:', paymentIntentId);
+          return res.json({ received: true });
+        }
+
+        // update stripe transaction
+        await storage.updateStripeTransaction(tx.id, { status: 'succeeded' });
+
+        // update payment status to completed
+        await storage.updatePaymentStatus(tx.paymentId, 'completed');
+
+        console.log('Payment intent succeeded, marked payment completed for paymentId:', tx.paymentId);
+      }
+
+      res.json({ received: true });
+    } catch (error) {
+      console.error('Stripe webhook error:', error);
+      res.status(400).send(`Webhook error: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  });
   app.get("/api/payments", requireAdmin, async (req, res) => {
     try {
       const payments = await storage.getPaymentsWithDetails();
@@ -1414,29 +1508,8 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
     }
   });
 
-  // Database reset endpoint (admin only)
-  app.post("/api/admin/reset-database", requireAdmin, async (req, res) => {
-    try {
-      console.log("Resetting database...");
-      await storage.resetDatabase();
-      console.log("Database reset completed");
-      
-      // Destroy the current session to force logout
-      req.session.destroy((err) => {
-        if (err) {
-          console.error("Error destroying session after reset:", err);
-        }
-      });
-      
-      res.json({ 
-        message: "Database reset successfully. Please log in with admin credentials.",
-        redirectToLogin: true
-      });
-    } catch (error) {
-      console.error("Database reset error:", error);
-      res.status(500).json({ error: "Failed to reset database" });
-    }
-  });
+  // Database reset endpoint removed for safety. Manual reset operations
+  // should be performed directly on the server by a developer/ops person.
 
   // Genre management routes
   app.get("/api/genres", async (req, res) => {

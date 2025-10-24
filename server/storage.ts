@@ -1,6 +1,14 @@
 import path from "path";
 import fs from "fs";
 import { 
+  type StripeSettings,
+  type InsertStripeSettings,
+  type StripeTransaction,
+  type InsertStripeTransaction,
+  stripeSettings,
+  stripeTransactions
+} from "@shared/schema";
+import { 
   type User, 
   type InsertUser,
   type Beat,
@@ -97,6 +105,7 @@ export interface IStorage {
   getAllPurchases(): Promise<Purchase[]>;
   createPurchase(purchase: InsertPurchase): Promise<Purchase>;
   getPurchaseByUserAndBeat(userId: string, beatId: string): Promise<Purchase | undefined>;
+  userOwnsBeat(userId: string, beatId: string): Promise<boolean>;
   
   // Analytics operations
   getAnalytics(): Promise<Analytics | undefined>;
@@ -172,9 +181,24 @@ export interface IStorage {
   createArtistBio(bio: InsertArtistBio): Promise<ArtistBio>;
   updateArtistBio(id: string, bio: Partial<InsertArtistBio>): Promise<ArtistBio>;
   deleteArtistBio(id: string): Promise<void>;
+
+  // Stripe settings operations
+  getStripeSettings(): Promise<StripeSettings | undefined>;
+  updateStripeSettings(settings: Partial<InsertStripeSettings>): Promise<StripeSettings>;
+  
+  // Stripe transaction operations
+  createStripeTransaction(transaction: InsertStripeTransaction): Promise<StripeTransaction>;
+  getStripeTransaction(id: string): Promise<StripeTransaction | undefined>;
+  getStripeTransactionByPaymentIntent(paymentIntentId: string): Promise<StripeTransaction | undefined>;
+  updateStripeTransaction(id: string, transaction: Partial<InsertStripeTransaction>): Promise<StripeTransaction | undefined>;
+  getStripeTransactionsByPaymentId(paymentId: string): Promise<StripeTransaction[]>;
 }
 
+
 export class DatabaseStorage implements IStorage {
+  getStripeSettings() {
+    throw new Error("Method not implemented.");
+  }
   constructor() {
     this.initializeDatabase();
   }
@@ -351,6 +375,41 @@ export class DatabaseStorage implements IStorage {
         updated_at DATETIME
       )
     `);
+
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS stripe_settings (
+        id TEXT PRIMARY KEY,
+        enabled INTEGER NOT NULL DEFAULT 0,
+        publishable_key TEXT NOT NULL DEFAULT '',
+        secret_key TEXT NOT NULL DEFAULT '',
+        webhook_secret TEXT NOT NULL DEFAULT '',
+        currency TEXT NOT NULL DEFAULT 'usd',
+        test_mode INTEGER NOT NULL DEFAULT 1,
+        created_at DATETIME,
+        updated_at DATETIME
+      )
+    `);
+
+    // Create stripe transactions table
+    await db.run(sql`
+      CREATE TABLE IF NOT EXISTS stripe_transactions (
+        id TEXT PRIMARY KEY,
+        payment_id TEXT NOT NULL,
+        stripe_payment_intent_id TEXT NOT NULL UNIQUE,
+        stripe_customer_id TEXT,
+        amount REAL NOT NULL,
+        currency TEXT NOT NULL DEFAULT 'usd',
+        status TEXT NOT NULL DEFAULT 'pending',
+        payment_method TEXT,
+        receipt_url TEXT,
+        metadata TEXT,
+        created_at DATETIME,
+        updated_at DATETIME,
+        FOREIGN KEY (payment_id) REFERENCES payments(id)
+      )
+    `);
+
+    console.log("✅ Stripe tables created");
 
     // Create beats table
     await db.run(sql`
@@ -1208,6 +1267,33 @@ export class DatabaseStorage implements IStorage {
       .where(and(eq(purchases.userId, userId), eq(purchases.beatId, beatId)))
       .limit(1);
     return result[0];
+  }
+
+  /**
+   * Check whether a given user actually owns a beat (purchase completed).
+   * This is safer than relying on a purchases row alone because purchases
+   * may be created before payment is completed. We require an associated
+   * payment with status 'completed' (or 'approved') to consider the beat owned.
+   */
+  async userOwnsBeat(userId: string, beatId: string): Promise<boolean> {
+    try {
+      const result = await db.select()
+        .from(purchases)
+        .innerJoin(payments, eq(purchases.id, payments.purchaseId))
+        .where(
+          and(
+            eq(purchases.userId, userId),
+            eq(purchases.beatId, beatId),
+            sql`${payments.status} = 'completed' OR ${payments.status} = 'approved'`
+          )
+        )
+        .limit(1);
+
+      return (result && result.length > 0);
+    } catch (error) {
+      console.error('Error checking ownership for user:', userId, 'beat:', beatId, error);
+      return false;
+    }
   }
 
   // Analytics operations
@@ -2265,7 +2351,129 @@ private async deleteAllUploadedFiles(): Promise<void> {
       throw error;
     }
   }
+
+  // Stripe Settings Operations
+  async getStripeSettings(): Promise<StripeSettings | undefined> {
+    try {
+      const result = await db.select().from(stripeSettings).limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("Error getting Stripe settings:", error);
+      return undefined;
+    }
+  }
+
+  async updateStripeSettings(settings: Partial<InsertStripeSettings>): Promise<StripeSettings> {
+    try {
+      const existing = await this.getStripeSettings();
+      const now = new Date().toISOString();
+
+      if (existing) {
+        const updated = await db
+          .update(stripeSettings)
+          .set({ ...settings, updatedAt: now })
+          .where(eq(stripeSettings.id, existing.id))
+          .returning();
+        return updated[0];
+      } else {
+        const newSettings: InsertStripeSettings = {
+          id: randomUUID(),
+          enabled: 0,
+          publishableKey: "",
+          secretKey: "",
+          webhookSecret: "",
+          currency: "usd",
+          testMode: 1,
+          ...settings,
+          createdAt: now,
+          updatedAt: now,
+        };
+        const created = await db.insert(stripeSettings).values(newSettings).returning();
+        return created[0];
+      }
+    } catch (error) {
+      console.error("Error updating Stripe settings:", error);
+      throw error;
+    }
+  }
+
+  // Stripe Transaction Operations
+  async createStripeTransaction(transaction: InsertStripeTransaction): Promise<StripeTransaction> {
+    try {
+      const now = new Date().toISOString();
+      const newTransaction: InsertStripeTransaction = {
+        ...transaction,
+        id: transaction.id || randomUUID(),
+        createdAt: now,
+        updatedAt: now,
+      };
+      const result = await db.insert(stripeTransactions).values(newTransaction).returning();
+      return result[0];
+    } catch (error) {
+      console.error("Error creating Stripe transaction:", error);
+      throw error;
+    }
+  }
+
+  async getStripeTransaction(id: string): Promise<StripeTransaction | undefined> {
+    try {
+      const result = await db
+        .select()
+        .from(stripeTransactions)
+        .where(eq(stripeTransactions.id, id))
+        .limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("Error getting Stripe transaction:", error);
+      return undefined;
+    }
+  }
+
+  async getStripeTransactionByPaymentIntent(paymentIntentId: string): Promise<StripeTransaction | undefined> {
+    try {
+      const result = await db
+        .select()
+        .from(stripeTransactions)
+        .where(eq(stripeTransactions.stripePaymentIntentId, paymentIntentId))
+        .limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("Error getting Stripe transaction by payment intent:", error);
+      return undefined;
+    }
+  }
+
+  async updateStripeTransaction(
+    id: string,
+    transaction: Partial<InsertStripeTransaction>
+  ): Promise<StripeTransaction | undefined> {
+    try {
+      const now = new Date().toISOString();
+      const updated = await db
+        .update(stripeTransactions)
+        .set({ ...transaction, updatedAt: now })
+        .where(eq(stripeTransactions.id, id))
+        .returning();
+      return updated[0];
+    } catch (error) {
+      console.error("Error updating Stripe transaction:", error);
+      return undefined;
+    }
+  }
+
+  async getStripeTransactionsByPaymentId(paymentId: string): Promise<StripeTransaction[]> {
+    try {
+      return await db
+        .select()
+        .from(stripeTransactions)
+        .where(eq(stripeTransactions.paymentId, paymentId));
+    } catch (error) {
+      console.error("Error getting Stripe transactions by payment ID:", error);
+      return [];
+    }
+  }
 }
+
 
 
 

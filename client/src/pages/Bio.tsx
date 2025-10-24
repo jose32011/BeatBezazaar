@@ -80,7 +80,7 @@ function Bio() {
         className="min-h-screen flex items-center justify-center"
         style={{
           backgroundColor: themeColors.background,
-          color: themeColors.foreground
+          color: themeColors.text
         }}
       >
         <Header />
@@ -98,7 +98,7 @@ function Bio() {
         className="min-h-screen flex items-center justify-center"
         style={{
           backgroundColor: themeColors.background,
-          color: themeColors.foreground
+          color: themeColors.text
         }}
       >
         <Header />
@@ -114,7 +114,7 @@ function Bio() {
       className="min-h-screen"
       style={{
         backgroundColor: themeColors.background,
-        color: themeColors.foreground
+        color: themeColors.text
       }}
     >
       <Header />
@@ -130,7 +130,7 @@ function Bio() {
           </h1>
           <p 
             className="text-xl max-w-2xl mx-auto"
-            style={{ color: themeColors.mutedForeground }}
+            style={{ color: themeColors.textSecondary }}
           >
             Discover the talented artists behind {appName}
           </p>
@@ -139,9 +139,9 @@ function Bio() {
         {/* Artists List */}
         {!artistBios || artistBios.length === 0 ? (
           <div className="text-center py-12">
-            <Music className="h-16 w-16 mx-auto mb-4" style={{ color: themeColors.mutedForeground }} />
+            <Music className="h-16 w-16 mx-auto mb-4" style={{ color: themeColors.textSecondary }} />
             <h3 className="text-xl font-medium mb-2">No artists yet</h3>
-            <p style={{ color: themeColors.mutedForeground }}>
+            <p style={{ color: themeColors.textSecondary }}>
               Check back soon to meet our amazing artists!
             </p>
           </div>
@@ -154,7 +154,7 @@ function Bio() {
               >
                 <div className="flex flex-col md:flex-row items-center md:items-start gap-8 p-6 rounded-lg"
                      style={{
-                       backgroundColor: themeColors.card,
+                       backgroundColor: themeColors.secondary,
                        borderColor: themeColors.border,
                        border: `1px solid ${themeColors.border}`
                      }}>
@@ -189,7 +189,7 @@ function Bio() {
                   <div className="flex-1 text-center md:text-left">
                     <h3 
                       className="text-3xl font-bold mb-2"
-                      style={{ color: themeColors.foreground }}
+                      style={{ color: themeColors.text }}
                     >
                       {artist.name}
                     </h3>
@@ -201,7 +201,7 @@ function Bio() {
                     </p>
                     <p 
                       className="text-base leading-relaxed mb-6"
-                      style={{ color: themeColors.mutedForeground }}
+                      style={{ color: themeColors.textSecondary }}
                     >
                       {artist.bio}
                     </p>

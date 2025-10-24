@@ -96,6 +96,14 @@ interface PaymentSettings {
     swiftCode: string;
     instructions: string;
   };
+  stripe?: {
+    enabled: boolean;
+    publishableKey: string;
+    secretKey: string;
+    webhookSecret: string;
+    currency: string;
+    testMode: boolean;
+  };
 }
 
 interface EmailSettings {
@@ -216,6 +224,15 @@ function AdminSettingsContent() {
       bankAddress: '',
       swiftCode: '',
       instructions: ''
+    }
+    ,
+    stripe: {
+      enabled: false,
+      publishableKey: '',
+      secretKey: '',
+      webhookSecret: '',
+      currency: 'usd',
+      testMode: true
     }
   });
 
@@ -399,6 +416,7 @@ function AdminSettingsContent() {
     { id: "branding", label: "App Branding", icon: Globe, shortLabel: "Branding" },
     { id: "site-settings", label: "Site Settings", icon: MessageSquare, shortLabel: "Site" },
     { id: "paypal", label: "PayPal", icon: CreditCard, shortLabel: "PayPal" },
+    { id: "stripe", label: "Stripe", icon: CreditCard, shortLabel: "Stripe" },
     { id: "bank", label: "Bank Account", icon: Building2, shortLabel: "Bank" },
     { id: "email", label: "Email Settings", icon: Mail, shortLabel: "Email" },
     { id: "users", label: "Admin Users", icon: Users, shortLabel: "Users" },
@@ -797,34 +815,6 @@ function AdminSettingsContent() {
     },
   });
 
-  const resetDatabaseMutation = useMutation({
-    mutationFn: async () => {
-      const response = await fetch('/api/admin/reset-database', {
-        method: 'POST',
-        credentials: 'include',
-      });
-      if (!response.ok) throw new Error('Failed to reset database');
-      return response.json();
-    },
-    onSuccess: () => {
-      toast({
-        title: "Database Reset Complete",
-        description: "All data has been cleared except the admin user. You may need to refresh the page.",
-      });
-      // Refresh the page after a short delay to show the reset state
-      setTimeout(() => {
-        window.location.reload();
-      }, 2000);
-    },
-    onError: (error: any) => {
-      console.error("Database reset error:", error);
-      toast({
-        title: "Error",
-        description: error.message || "Failed to reset database",
-        variant: "destructive",
-      });
-    },
-  });
 
   const createArtistBioMutation = useMutation({
     mutationFn: async (bioData: typeof bioFormData) => {
@@ -1078,6 +1068,16 @@ function AdminSettingsContent() {
       ...prev,
       bank: {
         ...prev.bank,
+        [key]: value
+      }
+    }));
+  };
+
+  const updateStripeSetting = (key: keyof NonNullable<PaymentSettings['stripe']>, value: any) => {
+    setSettings(prev => ({
+      ...prev,
+      stripe: {
+        ...(prev.stripe || {}),
         [key]: value
       }
     }));
@@ -2081,7 +2081,8 @@ function AdminSettingsContent() {
                                         bio: bio.bio,
                                         role: bio.role,
                                         socialLinks: bio.socialLinks || { instagram: '', twitter: '', youtube: '', spotify: '' },
-                                        isActive: bio.isActive
+                                        isActive: bio.isActive,
+                                        sortOrder: typeof bio.sortOrder === 'number' ? bio.sortOrder : 0
                                       });
                                       setShowBioDialog(true);
                                     }}
@@ -2213,6 +2214,117 @@ function AdminSettingsContent() {
                             <li>• Create a new application to get your Client ID and Secret</li>
                             <li>• Use Sandbox for testing, Live for production</li>
                             <li>• Configure webhooks for payment notifications</li>
+                          </ul>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </CardContent>
+            </Card>
+          )}
+
+          {/* Stripe Settings */}
+          {activeTab === "stripe" && (
+            <Card>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-2">
+                  <CreditCard className="h-5 w-5" />
+                  Stripe Configuration
+                </CardTitle>
+                <CardDescription>
+                  Configure Stripe payment processing settings
+                </CardDescription>
+              </CardHeader>
+              <CardContent className="space-y-6">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label className="text-base">Enable Stripe</Label>
+                    <p className="text-sm text-muted-foreground">Allow customers to pay using Stripe</p>
+                  </div>
+                  <Switch
+                    checked={!!settings.stripe?.enabled}
+                    onCheckedChange={(checked) => updateStripeSetting('enabled', checked)}
+                  />
+                </div>
+
+                {settings.stripe?.enabled && (
+                  <div className="space-y-4">
+                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                      <div className="space-y-2">
+                        <Label htmlFor="stripe-publishable">Publishable Key *</Label>
+                        <Input
+                          id="stripe-publishable"
+                          type="text"
+                          value={settings.stripe?.publishableKey || ''}
+                          onChange={(e) => updateStripeSetting('publishableKey', e.target.value)}
+                          placeholder="pk_test_..."
+                        />
+                      </div>
+                      <div className="space-y-2">
+                        <Label htmlFor="stripe-currency">Currency</Label>
+                        <Input
+                          id="stripe-currency"
+                          type="text"
+                          value={settings.stripe?.currency || 'usd'}
+                          onChange={(e) => updateStripeSetting('currency', e.target.value)}
+                          placeholder="usd"
+                        />
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="stripe-secret">Secret Key *</Label>
+                      <div className="relative">
+                        <Input
+                          id="stripe-secret"
+                          type={showSecrets ? 'text' : 'password'}
+                          value={settings.stripe?.secretKey || ''}
+                          onChange={(e) => updateStripeSetting('secretKey', e.target.value)}
+                          placeholder="sk_test_..."
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="sm"
+                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                          onClick={() => setShowSecrets(!showSecrets)}
+                        >
+                          {showSecrets ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                        </Button>
+                      </div>
+                    </div>
+
+                    <div className="space-y-2">
+                      <Label htmlFor="stripe-webhook">Webhook Signing Secret</Label>
+                      <Input
+                        id="stripe-webhook"
+                        type="text"
+                        value={settings.stripe?.webhookSecret || ''}
+                        onChange={(e) => updateStripeSetting('webhookSecret', e.target.value)}
+                        placeholder="whsec_..."
+                      />
+                    </div>
+
+                    <div className="flex items-center space-x-2">
+                      <Switch
+                        id="stripe-test-mode"
+                        checked={!!settings.stripe?.testMode}
+                        onCheckedChange={(checked) => updateStripeSetting('testMode', checked)}
+                      />
+                      <Label htmlFor="stripe-test-mode">Test Mode</Label>
+                    </div>
+
+                    <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                      <div className="flex items-start gap-2">
+                        <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                        <div className="space-y-1">
+                          <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Stripe Setup Instructions</p>
+                          <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                            <li>• Create a Stripe account at dashboard.stripe.com</li>
+                            <li>• Get your Publishable and Secret keys from Developers → API keys</li>
+                            <li>• Use test keys for development and live keys in production</li>
+                            <li>• Configure a webhook endpoint for <code>payment_intent.succeeded</code></li>
                           </ul>
                         </div>
                       </div>
@@ -3493,23 +3605,13 @@ function AdminSettingsContent() {
               </Button>
 
               <Button
-                onClick={() => resetDatabaseMutation.mutate()}
-                disabled={resetDatabaseMutation.isPending}
                 variant="destructive"
                 size="lg"
                 className="gap-2 w-full sm:w-auto"
+                disabled
               >
-                {resetDatabaseMutation.isPending ? (
-                  <>
-                    <Database className="h-5 w-5 animate-spin" />
-                    Resetting Database...
-                  </>
-                ) : (
-                  <>
-                    <Trash2 className="h-5 w-5" />
-                    Clear All Data
-                  </>
-                )}
+                <Trash2 className="h-5 w-5" />
+                Clear All Data (disabled)
               </Button>
             </div>
                 </div>
@@ -3553,63 +3655,7 @@ function AdminSettingsContent() {
           </Button>
         </div>
 
-        {/* Database Reset Section */}
-        <Card className="mt-8 border-destructive/50">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2 text-destructive">
-              <Trash className="h-5 w-5" />
-              Danger Zone
-            </CardTitle>
-            <CardDescription>
-              These actions are irreversible. Use with extreme caution.
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="space-y-4">
-              <div>
-                <h4 className="font-medium mb-2">Reset Database</h4>
-                <p className="text-sm text-muted-foreground mb-4">
-                  This will permanently delete all data including beats, customers, purchases, and uploaded files. 
-                  Only the admin user will be preserved with default credentials (admin/admin123).
-                </p>
-                <Button
-                  variant="destructive"
-                  onClick={() => {
-                    if (window.confirm(
-                      "⚠️ DANGER: This will permanently delete ALL data including:\n\n" +
-                      "• All beats and uploaded files\n" +
-                      "• All customers and purchases\n" +
-                      "• All settings and configurations\n" +
-                      "• All analytics data\n\n" +
-                      "Only the admin user will be preserved.\n\n" +
-                      "Are you absolutely sure you want to proceed?\n\n" +
-                      "Type 'RESET' to confirm:"
-                    )) {
-                      const confirmation = window.prompt("Type 'RESET' to confirm database reset:");
-                      if (confirmation === 'RESET') {
-                        resetDatabaseMutation.mutate();
-                      }
-                    }
-                  }}
-                  disabled={resetDatabaseMutation.isPending}
-                  className="gap-2"
-                >
-                  {resetDatabaseMutation.isPending ? (
-                    <>
-                      <Settings className="h-4 w-4 animate-spin" />
-                      Resetting Database...
-                    </>
-                  ) : (
-                    <>
-                      <Trash className="h-4 w-4" />
-                      Reset Database
-                    </>
-                  )}
-                </Button>
-              </div>
-            </div>
-          </CardContent>
-        </Card>
+        {/* Database Reset Section removed for safety: reset endpoint and UI have been disabled/removed. */}
 
         {/* User Form Dialog */}
         <Dialog open={showUserDialog} onOpenChange={setShowUserDialog}>

@@ -19,23 +19,6 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import { Music, Plus, LogIn, User } from "lucide-react";
 
-// Import beat artworks
-import hipHopArtwork from '@assets/generated_images/Hip-hop_beat_artwork_7e295d60.png';
-import rnbArtwork from '@assets/generated_images/R&B_beat_artwork_0c1becce.png';
-import trapArtwork from '@assets/generated_images/Trap_beat_artwork_7a3eb926.png';
-import lofiArtwork from '@assets/generated_images/Lo-fi_beat_artwork_fd552e59.png';
-import popArtwork from '@assets/generated_images/Pop_beat_artwork_27280072.png';
-import drillArtwork from '@assets/generated_images/Drill_beat_artwork_bb062263.png';
-
-// Default genre artwork mapping
-const genreArtworkMap: Record<string, string> = {
-  'Hip-Hop': hipHopArtwork,
-  'Trap': trapArtwork,
-  'R&B': rnbArtwork,
-  'Lo-fi': lofiArtwork,
-  'Pop': popArtwork,
-  'Drill': drillArtwork,
-};
 
 export default function Home() {
   const [isCartOpen, setIsCartOpen] = useState(false);
@@ -226,7 +209,7 @@ export default function Home() {
     return {
       ...genre,
       beatCount: matchingBeats.length,
-      imageUrl: genre.imageUrl || genreArtworkMap[genre.name] || 'https://via.placeholder.com/300x300/1a1a1a/ffffff?text=No+Image'
+      imageUrl: genre.imageUrl  || 'https://via.placeholder.com/300x300/1a1a1a/ffffff?text=No+Image'
     };
   });
 

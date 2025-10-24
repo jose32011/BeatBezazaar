@@ -1,49 +1,42 @@
+
 import { useState, useMemo } from "react";
-import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Input } from "@/components/ui/input";
-import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
-import { Check, X, Clock, CreditCard, Building2, Eye, Search, ChevronLeft, ChevronRight } from "lucide-react";
-import { apiRequest } from "@/lib/queryClient";
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
+import { apiRequest } from "@/lib/queryClient";
+import { Check, X, Clock, CreditCard, Building2, Eye, Search, ChevronLeft, ChevronRight, Menu } from "lucide-react";
+import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
+import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Badge } from "@/components/ui/badge";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 interface PaymentWithDetails {
   payment: {
     id: string;
     amount: string;
-    paymentMethod: string;
-    status: string;
+    status: 'pending' | 'approved' | 'rejected' | 'completed';
+    paymentMethod: 'bank_transfer' | 'credit_card' | 'paypal' | 'stripe';
     bankReference?: string;
-    notes?: string;
     createdAt: string;
-    approvedAt?: string;
   };
   customer: {
     id: string;
     firstName: string;
     lastName: string;
     email: string;
-  };
-  purchase: {
-    id: string;
-    price: string;
-    purchasedAt: string;
-  };
+  } | null;
   beat: {
     id: string;
     title: string;
-    producer: string;
-    genre: string;
-    imageUrl: string;
-  };
-  user: {
-    id: string;
-    username: string;
-  };
+  } | null;
 }
 
 export default function PaymentManagement() {
@@ -59,26 +52,57 @@ export default function PaymentManagement() {
 
   const { data: allPayments = [], isLoading } = useQuery<PaymentWithDetails[]>({
     queryKey: ['/api/payments'],
+    queryFn: async () => {
+      const res = await apiRequest('GET', '/api/payments');
+      return res.json();
+    }
   });
 
   const { data: pendingPayments = [] } = useQuery<PaymentWithDetails[]>({
     queryKey: ['/api/payments/status/pending'],
+    queryFn: async () => {
+      const res = await apiRequest('GET', '/api/payments/status/pending');
+      return res.json();
+    }
   });
 
   const { data: approvedPayments = [] } = useQuery<PaymentWithDetails[]>({
     queryKey: ['/api/payments/status/approved'],
+    queryFn: async () => {
+      const res = await apiRequest('GET', '/api/payments/status/approved');
+      return res.json();
+    }
   });
 
   const { data: rejectedPayments = [] } = useQuery<PaymentWithDetails[]>({
     queryKey: ['/api/payments/status/rejected'],
+    queryFn: async () => {
+      const res = await apiRequest('GET', '/api/payments/status/rejected');
+      return res.json();
+    }
   });
 
   // Filter and sort payments
   const filteredPayments = useMemo(() => {
-    let filtered = allPayments.filter(payment => payment && payment.payment); // Only include payments with valid payment data
+    let sourcePayments: PaymentWithDetails[];
+    switch (selectedStatus) {
+      case 'pending':
+        sourcePayments = pendingPayments;
+        break;
+      case 'approved':
+        sourcePayments = approvedPayments;
+        break;
+      case 'rejected':
+        sourcePayments = rejectedPayments;
+        break;
+      default:
+        sourcePayments = allPayments;
+    }
+
+    let filtered = sourcePayments.filter(payment => payment && payment.payment); // Only include payments with valid payment data
 
     // Filter by search term
-    if (searchTerm) {
+    if (searchTerm && selectedStatus === 'all') {
       filtered = filtered.filter(payment => 
         payment.customer?.firstName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
         payment.customer?.lastName?.toLowerCase().includes(searchTerm.toLowerCase()) ||
@@ -89,49 +113,41 @@ export default function PaymentManagement() {
       );
     }
 
-    // Filter by status
-    if (selectedStatus !== "all") {
-      filtered = filtered.filter(payment => payment.payment?.status === selectedStatus);
-    }
-
-    // Sort payments
+    // Sort
     filtered.sort((a, b) => {
-      let aValue: string | number;
-      let bValue: string | number;
+      const aVal = a.payment;
+      const bVal = b.payment;
+      if (!aVal || !bVal) return 0;
 
+      let compareA: any, compareB: any;
       switch (sortBy) {
         case 'amount':
-          aValue = parseFloat(a.payment?.amount || '0');
-          bValue = parseFloat(b.payment?.amount || '0');
-          break;
-        case 'date':
-          aValue = a.payment?.createdAt || new Date().toISOString();
-          bValue = b.payment?.createdAt || new Date().toISOString();
+          compareA = parseFloat(aVal.amount);
+          compareB = parseFloat(bVal.amount);
           break;
         case 'customer':
-          aValue = `${a.customer?.firstName || 'Unknown'} ${a.customer?.lastName || 'Customer'}`.toLowerCase();
-          bValue = `${b.customer?.firstName || 'Unknown'} ${b.customer?.lastName || 'Customer'}`.toLowerCase();
+          compareA = `${a.customer?.firstName} ${a.customer?.lastName}`;
+          compareB = `${b.customer?.firstName} ${b.customer?.lastName}`;
           break;
         case 'status':
-          aValue = (a.payment?.status || 'unknown').toLowerCase();
-          bValue = (b.payment?.status || 'unknown').toLowerCase();
+          compareA = aVal.status;
+          compareB = bVal.status;
           break;
+        case 'date':
         default:
-          aValue = a.payment?.createdAt || new Date().toISOString();
-          bValue = b.payment?.createdAt || new Date().toISOString();
+          compareA = new Date(aVal.createdAt).getTime();
+          compareB = new Date(bVal.createdAt).getTime();
+          break;
       }
 
-      if (sortOrder === 'asc') {
-        return aValue < bValue ? -1 : aValue > bValue ? 1 : 0;
-      } else {
-        return aValue > bValue ? -1 : aValue < bValue ? 1 : 0;
-      }
+      if (compareA < compareB) return sortOrder === 'asc' ? -1 : 1;
+      if (compareA > compareB) return sortOrder === 'asc' ? 1 : -1;
+      return 0;
     });
 
     return filtered;
-  }, [allPayments, searchTerm, selectedStatus, sortBy, sortOrder]);
+  }, [allPayments, pendingPayments, approvedPayments, rejectedPayments, searchTerm, sortBy, sortOrder, selectedStatus]);
 
-  // Paginate payments
   const paginatedPayments = useMemo(() => {
     const startIndex = (currentPage - 1) * pageSize;
     const endIndex = startIndex + pageSize;
@@ -234,6 +250,8 @@ export default function PaymentManagement() {
       case 'paypal':
       case 'credit_card':
         return <CreditCard className="h-4 w-4" />;
+      case 'stripe':
+        return <CreditCard className="h-4 w-4" />;
       default:
         return <CreditCard className="h-4 w-4" />;
     }
@@ -266,38 +284,26 @@ export default function PaymentManagement() {
                 <SelectValue placeholder="Status" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="all">All Status</SelectItem>
+                <SelectItem value="all">All Statuses</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="approved">Approved</SelectItem>
                 <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={sortBy} onValueChange={(value: "amount" | "date" | "customer" | "status") => {
-              setSortBy(value);
-              setCurrentPage(1);
-            }}>
+            <Select value={sortBy} onValueChange={(value) => setSortBy(value as any)}>
               <SelectTrigger className="w-32">
                 <SelectValue placeholder="Sort by" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="amount">Amount</SelectItem>
                 <SelectItem value="date">Date</SelectItem>
+                <SelectItem value="amount">Amount</SelectItem>
                 <SelectItem value="customer">Customer</SelectItem>
                 <SelectItem value="status">Status</SelectItem>
               </SelectContent>
             </Select>
-            <Select value={sortOrder} onValueChange={(value: "asc" | "desc") => {
-              setSortOrder(value);
-              setCurrentPage(1);
-            }}>
-              <SelectTrigger className="w-24">
-                <SelectValue placeholder="Order" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="asc">Asc</SelectItem>
-                <SelectItem value="desc">Desc</SelectItem>
-              </SelectContent>
-            </Select>
+            <Button variant="outline" onClick={() => setSortOrder(sortOrder === 'asc' ? 'desc' : 'asc')}>
+              {sortOrder === 'asc' ? 'Asc' : 'Desc'}
+            </Button>
           </div>
         </div>
       )}
@@ -308,106 +314,58 @@ export default function PaymentManagement() {
           <TableRow>
             <TableHead>Customer</TableHead>
             <TableHead>Beat</TableHead>
-            <TableHead>Amount</TableHead>
+            <TableHead className="text-right">Amount</TableHead>
             <TableHead>Method</TableHead>
-            <TableHead>Status</TableHead>
             <TableHead>Date</TableHead>
+            <TableHead>Status</TableHead>
             <TableHead>Actions</TableHead>
           </TableRow>
         </TableHeader>
         <TableBody>
-          {payments.length === 0 ? (
+          {isLoading ? (
             <TableRow>
-              <TableCell colSpan={7} className="text-center text-muted-foreground py-8">
-                {searchTerm || selectedStatus !== "all" ? "No payments found matching your criteria" : "No payments found"}
-              </TableCell>
+              <TableCell colSpan={7} className="text-center">Loading payments...</TableCell>
             </TableRow>
-          ) : (
-            payments.filter(paymentData => paymentData && paymentData.payment).map((paymentData, index) => (
-            <TableRow key={paymentData.payment?.id || `payment-${index}`}>
-              <TableCell>
-                <div>
-                  <div className="font-medium">
-                    {paymentData.customer?.firstName || 'Unknown'} {paymentData.customer?.lastName || 'Customer'}
+          ) : payments.length > 0 ? (
+            payments.map(({ payment, customer, beat }) => payment && (
+              <TableRow key={payment.id}>
+                <TableCell>
+                  <div className="font-medium">{customer?.firstName || 'N/A'} {customer?.lastName}</div>
+                  <div className="text-sm text-muted-foreground">{customer?.email}</div>
+                </TableCell>
+                <TableCell>{beat?.title || 'N/A'}</TableCell>
+                <TableCell className="text-right">${parseFloat(payment.amount || '0').toFixed(2)}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    {getPaymentMethodIcon(payment.paymentMethod)}
+                    <span>{payment.paymentMethod.replace('_', ' ')}</span>
                   </div>
-                  <div className="text-sm text-muted-foreground">
-                    {paymentData.customer?.email || 'No email'}
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-3">
-                  <img
-                    src={paymentData.beat?.imageUrl || '/placeholder-beat.jpg'}
-                    alt={paymentData.beat?.title || 'Unknown Beat'}
-                    className="h-10 w-10 rounded object-cover"
-                  />
-                  <div>
-                    <div className="font-medium">{paymentData.beat?.title || 'Unknown Beat'}</div>
-                    <div className="text-sm text-muted-foreground">
-                      by {paymentData.beat?.producer || 'Unknown Producer'}
-                    </div>
-                  </div>
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="font-semibold">
-                  ${Number(paymentData.payment?.amount || 0).toFixed(2)}
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex items-center gap-2">
-                  {getPaymentMethodIcon(paymentData.payment?.paymentMethod || 'unknown')}
-                  <span className="capitalize">
-                    {(paymentData.payment?.paymentMethod || 'unknown').replace('_', ' ')}
-                  </span>
-                </div>
-              </TableCell>
-              <TableCell>
-                {getStatusBadge(paymentData.payment?.status || 'unknown')}
-              </TableCell>
-              <TableCell>
-                <div className="text-sm">
-                  {formatDate(paymentData.payment?.createdAt || new Date().toISOString())}
-                </div>
-              </TableCell>
-              <TableCell>
-                <div className="flex gap-2">
-                  {paymentData.payment?.status === 'pending' && (
-                    <>
-                      <Button
-                        size="sm"
-                        variant="outline"
-                        onClick={() => approvePaymentMutation.mutate(paymentData.payment?.id || '')}
-                        disabled={approvePaymentMutation.isPending}
-                      >
-                        <Check className="h-4 w-4 mr-1" />
-                        Approve
-                      </Button>
-                      <Button
-                        size="sm"
-                        variant="destructive"
-                        onClick={() => rejectPaymentMutation.mutate(paymentData.payment?.id || '')}
-                        disabled={rejectPaymentMutation.isPending}
-                      >
-                        <X className="h-4 w-4 mr-1" />
-                        Reject
-                      </Button>
-                    </>
-                  )}
-                  {paymentData.payment?.bankReference && (
-                    <Button
-                      size="sm"
-                      variant="outline"
-                      title={`Bank Reference: ${paymentData.payment.bankReference}`}
-                    >
+                </TableCell>
+                <TableCell>{formatDate(payment.createdAt)}</TableCell>
+                <TableCell>{getStatusBadge(payment.status)}</TableCell>
+                <TableCell>
+                  <div className="flex items-center gap-2">
+                    <Button variant="outline" size="icon">
                       <Eye className="h-4 w-4" />
                     </Button>
-                  )}
-                </div>
-              </TableCell>
-            </TableRow>
+                    {payment.status === 'pending' && (
+                      <>
+                        <Button variant="outline" size="icon" onClick={() => approvePaymentMutation.mutate(payment.id)}>
+                          <Check className="h-4 w-4 text-green-600" />
+                        </Button>
+                        <Button variant="outline" size="icon" onClick={() => rejectPaymentMutation.mutate(payment.id)}>
+                          <X className="h-4 w-4 text-red-600" />
+                        </Button>
+                      </>
+                    )}
+                  </div>
+                </TableCell>
+              </TableRow>
             ))
+          ) : (
+            <TableRow>
+              <TableCell colSpan={7} className="text-center">No payments found.</TableCell>
+            </TableRow>
           )}
         </TableBody>
       </Table>
@@ -416,38 +374,25 @@ export default function PaymentManagement() {
       {showControls && totalPages > 1 && (
         <div className="flex items-center justify-between">
           <div className="text-sm text-muted-foreground">
-            Showing {((currentPage - 1) * pageSize) + 1} to {Math.min(currentPage * pageSize, filteredPayments.length)} of {filteredPayments.length} payments
+            Page {currentPage} of {totalPages}
           </div>
-          <div className="flex items-center space-x-2">
+          <div className="flex items-center gap-2">
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(currentPage - 1)}
+              onClick={() => setCurrentPage(prev => Math.max(prev - 1, 1))}
               disabled={currentPage === 1}
             >
               <ChevronLeft className="h-4 w-4" />
-              Previous
+              <span className="sr-only">Previous</span>
             </Button>
-            <div className="flex items-center space-x-1">
-              {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => (
-                <Button
-                  key={page}
-                  variant={page === currentPage ? "default" : "outline"}
-                  size="sm"
-                  onClick={() => setCurrentPage(page)}
-                  className="w-8 h-8 p-0"
-                >
-                  {page}
-                </Button>
-              ))}
-            </div>
             <Button
               variant="outline"
               size="sm"
-              onClick={() => setCurrentPage(currentPage + 1)}
+              onClick={() => setCurrentPage(prev => Math.min(prev + 1, totalPages))}
               disabled={currentPage === totalPages}
             >
-              Next
+              <span className="sr-only">Next</span>
               <ChevronRight className="h-4 w-4" />
             </Button>
           </div>
@@ -456,75 +401,70 @@ export default function PaymentManagement() {
     </div>
   );
 
-  if (isLoading) {
-    return (
-      <Card>
-        <CardHeader>
-          <CardTitle>Payment Management</CardTitle>
-          <CardDescription>Loading payments...</CardDescription>
-        </CardHeader>
-        <CardContent>
-          <div className="flex items-center justify-center py-8">
-            <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-primary"></div>
-          </div>
-        </CardContent>
-      </Card>
-    );
-  }
-
   return (
     <Card>
       <CardHeader>
         <CardTitle>Payment Management</CardTitle>
         <CardDescription>
-          Manage payments and approve bank transfers
+          View, approve, and reject customer payments.
         </CardDescription>
       </CardHeader>
       <CardContent>
-        <Tabs defaultValue="all" className="w-full">
-          <TabsList className="grid w-full grid-cols-4">
-            <TabsTrigger value="all">All Payments ({allPayments.length})</TabsTrigger>
-            <TabsTrigger value="pending">Pending ({pendingPayments.length})</TabsTrigger>
-            <TabsTrigger value="approved">Approved ({approvedPayments.length})</TabsTrigger>
-            <TabsTrigger value="rejected">Rejected ({rejectedPayments.length})</TabsTrigger>
+        <Tabs
+          defaultValue="all"
+          value={selectedStatus}
+          className="space-y-4"
+          onValueChange={(value) => {
+            setSelectedStatus(value);
+            setCurrentPage(1);
+          }}
+        >
+          <div className="md:hidden">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="flex items-center gap-2 w-full">
+                  <Menu className="h-4 w-4" />
+                  <span>
+                    {selectedStatus.charAt(0).toUpperCase() + selectedStatus.slice(1)}
+                  </span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="start" className="w-full">
+                <DropdownMenuItem onClick={() => setSelectedStatus('all')}>All</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSelectedStatus('pending')}>Pending</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSelectedStatus('approved')}>Approved</DropdownMenuItem>
+                <DropdownMenuItem onClick={() => setSelectedStatus('rejected')}>Rejected</DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <TabsList className="hidden md:grid w-full grid-cols-4">
+            <TabsTrigger value="all">
+              All <Badge className="ml-2">{filteredPayments.length}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="pending">
+              Pending <Badge className="ml-2">{pendingPayments.length}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="approved">
+              Approved <Badge className="ml-2">{approvedPayments.length}</Badge>
+            </TabsTrigger>
+            <TabsTrigger value="rejected">
+              Rejected <Badge className="ml-2">{rejectedPayments.length}</Badge>
+            </TabsTrigger>
           </TabsList>
-          
-          <TabsContent value="all" className="mt-4">
+          <TabsContent value="all">
             {renderPaymentTable(paginatedPayments, true)}
           </TabsContent>
-          
-          <TabsContent value="pending" className="mt-4">
-            {pendingPayments.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">No pending payments.</p>
-              </div>
-            ) : (
-              renderPaymentTable(pendingPayments)
-            )}
+          <TabsContent value="pending">
+            {renderPaymentTable(pendingPayments)}
           </TabsContent>
-          
-          <TabsContent value="approved" className="mt-4">
-            {approvedPayments.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">No approved payments.</p>
-              </div>
-            ) : (
-              renderPaymentTable(approvedPayments)
-            )}
+          <TabsContent value="approved">
+            {renderPaymentTable(approvedPayments)}
           </TabsContent>
-          
-          <TabsContent value="rejected" className="mt-4">
-            {rejectedPayments.length === 0 ? (
-              <div className="text-center py-8">
-                <p className="text-muted-foreground">No rejected payments.</p>
-              </div>
-            ) : (
-              renderPaymentTable(rejectedPayments)
-            )}
+          <TabsContent value="rejected">
+            {renderPaymentTable(rejectedPayments)}
           </TabsContent>
         </Tabs>
       </CardContent>
     </Card>
   );
 }
-

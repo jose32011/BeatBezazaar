@@ -192,7 +192,8 @@ function ClientDashboardContent() {
             <CardDescription>Download your beats anytime</CardDescription>
           </CardHeader>
           <CardContent>
-            <Table>
+            {/* Desktop Table View */}
+            <Table className="hidden md:table">
               <TableHeader>
                 <TableRow>
                   <TableHead>Beat</TableHead>
@@ -262,6 +263,61 @@ function ClientDashboardContent() {
                 )}
               </TableBody>
             </Table>
+
+            {/* Mobile Card View */}
+            <div className="grid gap-4 md:hidden">
+              {purchasesWithBeats.length === 0 ? (
+                <p className="text-center text-muted-foreground">
+                  No purchases yet. Browse our catalog to find beats!
+                </p>
+              ) : (
+                <div className="grid gap-4 md:hidden">
+                  {purchasesWithBeats.length === 0 ? (
+                    <p className="text-center text-muted-foreground">
+                      No purchases yet. Browse our catalog to find beats!
+                    </p>
+                  ) : (
+                    purchasesWithBeats.map((purchase) => 
+                      purchase.beat ? (
+                        <Card key={purchase.id} className="w-full">
+                          <CardHeader>
+                            <CardTitle>{purchase.beat.title}</CardTitle>
+                            <CardDescription>by {purchase.beat.producer}</CardDescription>
+                          </CardHeader>
+                          <CardContent className="grid gap-2 text-sm">
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Genre</span>
+                              <span>{purchase.beat.genre}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">BPM</span>
+                              <span>{purchase.beat.bpm}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Price</span>
+                              <span>${purchase.beat.price}</span>
+                            </div>
+                            <div className="flex justify-between">
+                              <span className="text-muted-foreground">Purchased</span>
+                              <span>{purchase.purchasedAt ? new Date(purchase.purchasedAt).toLocaleDateString() : 'N/A'}</span>
+                            </div>
+                            <Button className="mt-2 w-full gap-2" onClick={() => {
+                              if (purchase.beat) {
+                                handleDownload(purchase.beat);
+                              }
+                            }}>
+                              <Download className="h-4 w-4" />
+                              Download
+                            </Button>
+                          </CardContent>
+                        </Card>
+                      ) : null
+                    )
+                  )}
+                </div>
+
+              )}
+            </div>
           </CardContent>
         </Card>
       </div>
