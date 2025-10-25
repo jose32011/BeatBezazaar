@@ -284,6 +284,57 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Check MySQL connection using provided credentials (does not persist)
+  app.post('/api/setup/check-connection', async (req, res) => {
+    try {
+      const { dbHost, dbPort, dbUser, dbPassword, dbName } = req.body || {};
+      if (!dbHost || !dbUser || !dbName) {
+        return res.status(400).json({ error: 'Missing required fields (host, user, database)' });
+      }
+
+  const mysql = await import('mysql2/promise');
+
+      // Try connecting to the provided database
+      let connection;
+      try {
+        connection = await mysql.createConnection({
+          host: dbHost,
+          port: Number(dbPort) || 3306,
+          user: dbUser,
+          password: dbPassword || '',
+          database: dbName,
+          connectTimeout: 5000
+        });
+        // run a simple query
+        await connection.query('SELECT 1');
+        await connection.end();
+        return res.json({ ok: true, canConnect: true, databaseExists: true });
+      } catch (err: any) {
+        // If database doesn't exist, try connecting without database to check server/credentials
+        if (err && err.code === 'ER_BAD_DB_ERROR') {
+          try {
+            connection = await mysql.createConnection({
+              host: dbHost,
+              port: Number(dbPort) || 3306,
+              user: dbUser,
+              password: dbPassword || '',
+              connectTimeout: 5000
+            });
+            await connection.end();
+            return res.json({ ok: true, canConnect: true, databaseExists: false });
+          } catch (err2: any) {
+            return res.status(400).json({ ok: false, error: String(err2.message || err2) });
+          }
+        }
+
+        return res.status(400).json({ ok: false, error: String(err.message || err) });
+      }
+    } catch (error) {
+      console.error('Check connection error:', error);
+      return res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to test connection' });
+    }
+  });
+
   // Debug endpoint to check current session
   app.get("/api/debug/session", async (req, res) => {
     console.log("🔍 Session debug request:");

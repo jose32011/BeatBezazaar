@@ -20,6 +20,7 @@ export default function SetupPage() {
   const [status, setStatus] = useState<Status | null>(null);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [errors, setErrors] = useState<Record<string, string>>({});
   const [form, setForm] = useState<any>({
     dbHost: 'localhost',
     dbPort: 3306,
@@ -53,6 +54,19 @@ export default function SetupPage() {
   async function handleSubmit(e: React.FormEvent) {
     e.preventDefault();
     setError(null);
+    setErrors({});
+    // client-side validation
+    const newErrors: Record<string, string> = {};
+    if (!form.dbHost) newErrors.dbHost = 'Host is required';
+    if (!form.dbUser) newErrors.dbUser = 'User is required';
+    if (!form.dbName) newErrors.dbName = 'Database name is required';
+    if (!form.adminUsername) newErrors.adminUsername = 'Admin username is required';
+    if (!form.adminPassword) newErrors.adminPassword = 'Admin password is required';
+    if (Object.keys(newErrors).length > 0) {
+      setErrors(newErrors);
+      setLoading(false);
+      return;
+    }
     setLoading(true);
     try {
       const payload: any = { ...form };
@@ -89,13 +103,37 @@ export default function SetupPage() {
   );
 
   async function handleTestStatus() {
-    // Refresh the status and show a toast. Real connection test happens server-side on configure.
+    // Call server endpoint to test provided DB credentials
+    setErrors({});
     try {
       setLoading(true);
-      await fetchStatus();
-      toast({ title: 'Status refreshed', description: 'Current setup status updated.' });
-    } catch (err) {
-      toast({ title: 'Error', description: 'Failed to refresh status', variant: 'destructive' });
+      const res = await fetch('/api/setup/check-connection', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dbHost: form.dbHost, dbPort: form.dbPort, dbUser: form.dbUser, dbPassword: form.dbPassword, dbName: form.dbName })
+      });
+      const data = await res.json();
+      if (!res.ok) {
+        toast({ title: 'Connection Test Failed', description: data.error || 'Failed to connect', variant: 'destructive' });
+        // map common errors to fields
+        if (data.error && /host|user|database|access/i.test(data.error)) {
+          setErrors({ dbHost: data.error });
+        }
+      } else {
+        if (data.canConnect) {
+          if (data.databaseExists) {
+            toast({ title: 'Connection OK', description: 'Connected and database exists.' });
+          } else {
+            toast({ title: 'Connected', description: 'Server reachable and credentials valid, database does not exist.' });
+          }
+        } else {
+          toast({ title: 'Connection Failed', description: 'Could not connect with provided credentials', variant: 'destructive' });
+        }
+        // also refresh status card
+        await fetchStatus();
+      }
+    } catch (err: any) {
+      toast({ title: 'Error', description: err?.message || 'Failed to test connection', variant: 'destructive' });
     } finally {
       setLoading(false);
     }
@@ -108,44 +146,14 @@ export default function SetupPage() {
       <div className="w-full px-6 py-8">
         <div className="mb-6 flex items-center justify-between">
           <div>
-            <h1 className="text-3xl font-bold font-display">BeatBazaar Setup</h1>
+            <h1 className="text-3xl font-bold font-display">Setup</h1>
             <p className="text-sm text-muted-foreground">Quickly configure MySQL and create an initial admin account.</p>
           </div>
         </div>
 
         <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
-          <div className="lg:col-span-1">
-            {/* Status */}
-            <Card className="mb-6 w-full">
-              <CardHeader>
-                <CardTitle>Current Status</CardTitle>
-                <CardDescription>Server setup and database connection information</CardDescription>
-              </CardHeader>
-              <CardContent>
-                {status ? (
-                  <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
-                    <div className="p-4 rounded bg-white/60 dark:bg-slate-800/60">
-                      <div className="text-sm text-muted-foreground">MySQL configured</div>
-                      <div className="font-medium">{String(status.configured)}</div>
-                    </div>
-                    <div className="p-4 rounded bg-white/60 dark:bg-slate-800/60">
-                      <div className="text-sm text-muted-foreground">Can connect</div>
-                      <div className="font-medium">{String(status.canConnect)}</div>
-                    </div>
-                    <div className="p-4 rounded bg-white/60 dark:bg-slate-800/60">
-                      <div className="text-sm text-muted-foreground">Admin exists</div>
-                      <div className="font-medium">{String(status.adminExists)}</div>
-                    </div>
-                  </div>
-                ) : (
-                  <div>Not available</div>
-                )}
-              </CardContent>
-            </Card>
-          </div>
-
           <div className="lg:col-span-2">
-            {/* Form */}
+            {/* Form (left) */}
             <Card className="w-full">
               <CardHeader>
                 <CardTitle>{status?.configured ? 'Update Database Settings' : 'Initial Setup'}</CardTitle>
@@ -178,6 +186,7 @@ export default function SetupPage() {
                         <Label>Host</Label>
                         <Input value={form.dbHost} onChange={e => setForm({ ...form, dbHost: e.target.value })} />
                         <p className="text-xs text-muted-foreground mt-1">Example: localhost or your-railway-host.internal</p>
+                        {errors.dbHost && <p className="text-sm text-red-500 mt-1">{errors.dbHost}</p>}
                       </div>
                       <div>
                         <Label>Port</Label>
@@ -186,6 +195,7 @@ export default function SetupPage() {
                       <div>
                         <Label>User</Label>
                         <Input value={form.dbUser} onChange={e => setForm({ ...form, dbUser: e.target.value })} />
+                        {errors.dbUser && <p className="text-sm text-red-500 mt-1">{errors.dbUser}</p>}
                       </div>
                       <div>
                         <Label>Password</Label>
@@ -194,6 +204,7 @@ export default function SetupPage() {
                       <div className="md:col-span-2">
                         <Label>Database name</Label>
                         <Input value={form.dbName} onChange={e => setForm({ ...form, dbName: e.target.value })} />
+                        {errors.dbName && <p className="text-sm text-red-500 mt-1">{errors.dbName}</p>}
                       </div>
                     </div>
                     <div className="mt-3 flex items-center gap-3">
@@ -208,6 +219,7 @@ export default function SetupPage() {
                       <div>
                         <Label>Admin username</Label>
                         <Input value={form.adminUsername} onChange={e => setForm({ ...form, adminUsername: e.target.value })} />
+                        {errors.adminUsername && <p className="text-sm text-red-500 mt-1">{errors.adminUsername}</p>}
                       </div>
                       <div>
                         <Label>Admin email</Label>
@@ -216,6 +228,7 @@ export default function SetupPage() {
                       <div className="md:col-span-2">
                         <Label>Admin password</Label>
                         <Input type="password" value={form.adminPassword} onChange={e => setForm({ ...form, adminPassword: e.target.value })} />
+                        {errors.adminPassword && <p className="text-sm text-red-500 mt-1">{errors.adminPassword}</p>}
                       </div>
                     </div>
                   </div>
@@ -224,6 +237,36 @@ export default function SetupPage() {
                     <Button type="submit" disabled={loading || !canSubmit}>{loading ? 'Saving...' : (status?.configured ? 'Update settings' : 'Create settings & admin')}</Button>
                   </div>
                 </form>
+              </CardContent>
+            </Card>
+          </div>
+
+          <div className="lg:col-span-1">
+            {/* Status (right) */}
+            <Card className="mb-6 w-full">
+              <CardHeader>
+                <CardTitle>Current Status</CardTitle>
+                <CardDescription>Server setup and database connection information</CardDescription>
+              </CardHeader>
+              <CardContent>
+                {status ? (
+                  <div className="space-y-3">
+                    <div className="p-4 rounded bg-white/60 dark:bg-slate-800/60">
+                      <div className="text-sm text-muted-foreground">MySQL configured</div>
+                      <div className="font-medium">{String(status.configured)}</div>
+                    </div>
+                    <div className="p-4 rounded bg-white/60 dark:bg-slate-800/60">
+                      <div className="text-sm text-muted-foreground">Can connect</div>
+                      <div className="font-medium">{String(status.canConnect)}</div>
+                    </div>
+                    <div className="p-4 rounded bg-white/60 dark:bg-slate-800/60">
+                      <div className="text-sm text-muted-foreground">Admin exists</div>
+                      <div className="font-medium">{String(status.adminExists)}</div>
+                    </div>
+                  </div>
+                ) : (
+                  <div>Not available</div>
+                )}
               </CardContent>
             </Card>
           </div>
