@@ -1,6 +1,7 @@
 import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
+import { isMysqlConfigured, checkDbAndAdmin, writeEnvAndCreateAdmin } from "./setup";
 import { insertBeatSchema, insertPurchaseSchema, insertUserSchema } from "@shared/schema";
 import session from "express-session";
 import MemoryStore from "memorystore";
@@ -221,6 +222,65 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
     } catch (error) {
       res.status(500).json({ error: error instanceof Error ? error.message : 'Unknown error' });
+    }
+  });
+
+  // Setup endpoints - check status and configure DB + initial admin
+  app.get('/api/setup/status', async (req, res) => {
+    try {
+      const status = await checkDbAndAdmin();
+      res.json(status);
+    } catch (error) {
+      console.error('Setup status error:', error);
+      res.status(500).json({ error: 'Failed to check setup status' });
+    }
+  });
+
+  app.post('/api/setup/configure', async (req, res) => {
+    try {
+      const {
+        dbHost,
+        dbPort,
+        dbUser,
+        dbPassword,
+        dbName,
+        adminUsername,
+        adminEmail,
+        adminPassword,
+        existingAdminUsername,
+        existingAdminPassword
+      } = req.body;
+
+      if (!dbHost || !dbUser || !dbName || !adminUsername || !adminPassword) {
+        return res.status(400).json({ error: 'Missing required database or admin fields' });
+      }
+
+      // If currently configured, require admin authentication to update settings
+      if (isMysqlConfigured()) {
+        if (!existingAdminUsername || !existingAdminPassword) {
+          return res.status(401).json({ error: 'Admin authentication required to update settings' });
+        }
+
+        const verified = await storage.verifyPassword(existingAdminUsername, existingAdminPassword);
+        if (!verified || verified.role !== 'admin') {
+          return res.status(403).json({ error: 'Invalid admin credentials' });
+        }
+      }
+
+      const dbCfg = {
+        host: dbHost,
+        port: dbPort || 3306,
+        user: dbUser,
+        password: dbPassword || '',
+        database: dbName
+      };
+
+      const result = await writeEnvAndCreateAdmin(dbCfg, { username: adminUsername, email: adminEmail, password: adminPassword });
+
+      res.json({ success: true, ...result, restartRequired: true });
+    } catch (error) {
+      console.error('Setup configure error:', error);
+      res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to configure' });
     }
   });
 

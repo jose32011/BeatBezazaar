@@ -55,10 +55,12 @@ import {
   plansSettings,
   appBrandingSettings
 } from "@shared/schema";
-import { drizzle } from "drizzle-orm/better-sqlite3";
+// Note: SQLite support removed — application requires MySQL-only runtime
 import { drizzle as drizzlePg } from "drizzle-orm/postgres-js";
-import Database from "better-sqlite3";
+import { drizzle as drizzleMysql } from "drizzle-orm/mysql2";
+// (better-sqlite3 import removed)
 import postgres from "postgres";
+import mysql from "mysql2/promise";
 import { eq, desc, sql, and } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
@@ -67,16 +69,69 @@ import { randomUUID } from "crypto";
 const isProduction = process.env.NODE_ENV === 'production';
 let db: any;
 
-if (isProduction && process.env.DATABASE_URL) {
-  // Use PostgreSQL in production
-  const client = postgres(process.env.DATABASE_URL);
-  db = drizzlePg(client);
-  console.log("✓ Using PostgreSQL database");
+/**
+ * Database selection logic
+ * Priority:
+ * 1) If running in production and DATABASE_URL is provided, inspect its scheme:
+ *    - postgres:// or postgresql:// -> use Postgres
+ *    - mysql:// -> use MySQL
+ * 2) If RAILWAY_MYSQL_ env vars are provided (Railway), use them to build a MySQL connection
+ * 3) Fallback to SQLite for local development
+ */
+const datasourceUrl = process.env.DATABASE_URL || '';
+const railwayHasMySql = !!(process.env.RAILWAY_MYSQL_HOST && process.env.RAILWAY_MYSQL_USERNAME && process.env.RAILWAY_MYSQL_PASSWORD && process.env.RAILWAY_MYSQL_DB);
+
+// Prefer DATABASE_URL if it points to MySQL, otherwise use Railway or explicit MYSQL_* vars
+let mysqlUri: string | undefined;
+if (datasourceUrl && datasourceUrl.startsWith('mysql')) {
+  mysqlUri = datasourceUrl;
+} else if (railwayHasMySql) {
+  const host = process.env.RAILWAY_MYSQL_HOST;
+  const user = process.env.RAILWAY_MYSQL_USERNAME;
+  const password = process.env.RAILWAY_MYSQL_PASSWORD;
+  const database = process.env.RAILWAY_MYSQL_DB;
+  const port = process.env.RAILWAY_MYSQL_PORT || '3306';
+  mysqlUri = `mysql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${encodeURIComponent(database)}`;
+} else if (process.env.MYSQL_HOST && process.env.MYSQL_USER && process.env.MYSQL_DB) {
+  const host = process.env.MYSQL_HOST;
+  const user = process.env.MYSQL_USER;
+  const password = process.env.MYSQL_PASSWORD || '';
+  const database = process.env.MYSQL_DB;
+  const port = process.env.MYSQL_PORT || '3306';
+  mysqlUri = `mysql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${encodeURIComponent(database)}`;
+}
+
+const mysqlConfigured = !!mysqlUri || railwayHasMySql || (!!process.env.MYSQL_HOST && !!process.env.MYSQL_USER && !!process.env.MYSQL_DB);
+
+// Initialize MySQL pool and Drizzle adapter if configured; otherwise provide a stub db so server can start
+if (mysqlConfigured) {
+  try {
+    const pool = mysql.createPool(mysqlUri!);
+    db = drizzleMysql(pool);
+    console.log(`✓ Using MySQL database (${mysqlUri && mysqlUri.startsWith('mysql://') ? 'from env' : 'configured'})`);
+  } catch (err) {
+    console.error('Failed to create MySQL pool:', err);
+    // Fall back to an inert stub to allow the server to start and the setup page to run
+    const notConfiguredError = new Error('Database initialization failed. See server logs.');
+    db = new Proxy({}, {
+      get() { return () => { throw notConfiguredError; }; }
+    });
+  }
 } else {
-  // Use SQLite in development
-  const sqlite = new Database("beatbazaar.db");
-  db = drizzle(sqlite);
-  console.log("✓ Using SQLite database");
+  console.warn('MySQL is not configured. Server will start in setup mode. Use /api/setup to configure the database.');
+  const notConfiguredError = new Error('MySQL is not configured. Use /api/setup to configure the database.');
+  db = new Proxy({}, {
+    get() { return () => { throw notConfiguredError; }; }
+  });
+}
+
+const isMySQL = mysqlConfigured;
+
+// If running in production with a DATABASE_URL that points to Postgres, use it.
+if (isProduction && datasourceUrl && datasourceUrl.startsWith('postgres')) {
+  const client = postgres(datasourceUrl);
+  db = drizzlePg(client);
+  console.log("✓ Using PostgreSQL database (from DATABASE_URL)");
 }
 
 export interface IStorage {
@@ -205,6 +260,10 @@ export class DatabaseStorage implements IStorage {
 
   private async initializeDatabase() {
     try {
+      if (!isMySQL) {
+        console.log('MySQL is not configured — skipping database initialization. Use /api/setup to configure the DB.');
+        return;
+      }
       console.log("🚀 Starting database initialization...");
       
       // Create tables if they don't exist
@@ -254,21 +313,11 @@ export class DatabaseStorage implements IStorage {
           
           console.log(`📝 Creating admin user with ID: ${adminId}`);
           
-          if (isProduction) {
-            // PostgreSQL admin user creation
-            console.log("🐘 Using PostgreSQL for admin user creation");
-            await db.run(sql`
-              INSERT INTO users (id, username, password, role, email, password_change_required, theme, created_at, updated_at)
-              VALUES (${adminId}, 'admin', ${hashedPassword}, 'admin', 'admin@beatbazaar.com', true, 'original', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            `);
-          } else {
-            // SQLite admin user creation
-            console.log("🗃️ Using SQLite for admin user creation");
-            await db.run(sql`
-              INSERT INTO users (id, username, password, role, email, password_change_required, theme, created_at, updated_at)
-              VALUES (${adminId}, 'admin', ${hashedPassword}, 'admin', 'admin@beatbazaar.com', 1, 'original', datetime('now'), datetime('now'))
-            `);
-          }
+          // Create admin user (MySQL-compatible SQL)
+          await db.run(sql`
+            INSERT INTO users (id, username, password, role, email, password_change_required, theme, created_at, updated_at)
+            VALUES (${adminId}, 'admin', ${hashedPassword}, 'admin', 'admin@beatbazaar.com', 1, 'original', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
+          `);
           console.log("✅ Default admin user created: admin/admin123");
           
           // Verify the user was created
@@ -292,19 +341,11 @@ export class DatabaseStorage implements IStorage {
           try {
             const newHashedPassword = await bcrypt.hash(testPassword, 10);
             
-            if (isProduction) {
-              await db.run(sql`
-                UPDATE users 
-                SET password = ${newHashedPassword}, updated_at = CURRENT_TIMESTAMP 
-                WHERE username = 'admin'
-              `);
-            } else {
-              await db.run(sql`
-                UPDATE users 
-                SET password = ${newHashedPassword}, updated_at = datetime('now') 
-                WHERE username = 'admin'
-              `);
-            }
+            await db.run(sql`
+              UPDATE users 
+              SET password = ${newHashedPassword}, updated_at = CURRENT_TIMESTAMP 
+              WHERE username = 'admin'
+            `);
             console.log("✅ Admin password updated: admin/admin123");
           } catch (updateError) {
             console.error("❌ Failed to update admin password:", updateError);
@@ -343,305 +384,13 @@ export class DatabaseStorage implements IStorage {
 
   private async createTables() {
     try {
-      console.log("🏗️ Creating database tables...");
-      if (isProduction) {
-        // PostgreSQL table creation
-        console.log("🐘 Creating PostgreSQL tables");
-        await this.createPostgreSQLTables();
-      } else {
-        // SQLite table creation
-        console.log("🗃️ Creating SQLite tables");
-        await this.createSQLiteTables();
-      }
+      console.log("🏗️ Creating MySQL database tables (MySQL-only runtime)");
+      await this.createMySQLTables();
       console.log("✅ Database tables created/verified");
     } catch (error) {
       console.error("❌ Error creating tables:", error);
       throw error;
     }
-  }
-
-  private async createSQLiteTables() {
-    // Create users table
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS users (
-        id TEXT PRIMARY KEY,
-        username TEXT NOT NULL UNIQUE,
-        password TEXT NOT NULL,
-        role TEXT NOT NULL DEFAULT 'client',
-        email TEXT,
-        password_change_required INTEGER NOT NULL DEFAULT 1,
-        theme TEXT NOT NULL DEFAULT 'original',
-        created_at DATETIME,
-        updated_at DATETIME
-      )
-    `);
-
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS stripe_settings (
-        id TEXT PRIMARY KEY,
-        enabled INTEGER NOT NULL DEFAULT 0,
-        publishable_key TEXT NOT NULL DEFAULT '',
-        secret_key TEXT NOT NULL DEFAULT '',
-        webhook_secret TEXT NOT NULL DEFAULT '',
-        currency TEXT NOT NULL DEFAULT 'usd',
-        test_mode INTEGER NOT NULL DEFAULT 1,
-        created_at DATETIME,
-        updated_at DATETIME
-      )
-    `);
-
-    // Create stripe transactions table
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS stripe_transactions (
-        id TEXT PRIMARY KEY,
-        payment_id TEXT NOT NULL,
-        stripe_payment_intent_id TEXT NOT NULL UNIQUE,
-        stripe_customer_id TEXT,
-        amount REAL NOT NULL,
-        currency TEXT NOT NULL DEFAULT 'usd',
-        status TEXT NOT NULL DEFAULT 'pending',
-        payment_method TEXT,
-        receipt_url TEXT,
-        metadata TEXT,
-        created_at DATETIME,
-        updated_at DATETIME,
-        FOREIGN KEY (payment_id) REFERENCES payments(id)
-      )
-    `);
-
-    console.log("✅ Stripe tables created");
-
-    // Create beats table
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS beats (
-        id TEXT PRIMARY KEY,
-        title TEXT NOT NULL,
-        producer TEXT NOT NULL,
-        bpm INTEGER NOT NULL,
-        genre TEXT NOT NULL,
-        price REAL NOT NULL,
-        image_url TEXT NOT NULL,
-        audio_url TEXT,
-        created_at DATETIME
-      )
-    `);
-
-    // Create purchases table
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS purchases (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        beat_id TEXT NOT NULL,
-        price REAL NOT NULL,
-        purchased_at DATETIME,
-        FOREIGN KEY (user_id) REFERENCES users(id),
-        FOREIGN KEY (beat_id) REFERENCES beats(id)
-      )
-    `);
-
-    // Create analytics table
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS analytics (
-        id TEXT PRIMARY KEY,
-        site_visits INTEGER NOT NULL DEFAULT 0,
-        total_downloads INTEGER NOT NULL DEFAULT 0,
-        updated_at DATETIME
-      )
-    `);
-
-    // Create customers table
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS customers (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        first_name TEXT NOT NULL,
-        last_name TEXT NOT NULL,
-        email TEXT NOT NULL,
-        phone TEXT,
-        address TEXT,
-        city TEXT,
-        state TEXT,
-        zip_code TEXT,
-        country TEXT,
-        created_at DATETIME,
-        updated_at DATETIME,
-        FOREIGN KEY (user_id) REFERENCES users(id)
-      )
-    `);
-
-    // Create cart table
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS cart (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        beat_id TEXT NOT NULL,
-        added_at DATETIME,
-        FOREIGN KEY (user_id) REFERENCES users(id),
-        FOREIGN KEY (beat_id) REFERENCES beats(id)
-      )
-    `);
-
-    // Create payments table
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS payments (
-        id TEXT PRIMARY KEY,
-        purchase_id TEXT NOT NULL,
-        customer_id TEXT NOT NULL,
-        amount REAL NOT NULL,
-        payment_method TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'pending',
-        transaction_id TEXT,
-        bank_reference TEXT,
-        notes TEXT,
-        approved_by TEXT,
-        approved_at DATETIME,
-        created_at DATETIME,
-        updated_at DATETIME,
-        FOREIGN KEY (purchase_id) REFERENCES purchases(id),
-        FOREIGN KEY (customer_id) REFERENCES customers(id),
-        FOREIGN KEY (approved_by) REFERENCES users(id)
-      )
-    `);
-
-    // Create genres table
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS genres (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL UNIQUE,
-        description TEXT,
-        image_url TEXT NOT NULL,
-        color TEXT NOT NULL DEFAULT '#3b82f6',
-        is_active INTEGER NOT NULL DEFAULT 1,
-        created_at DATETIME,
-        updated_at DATETIME
-      )
-    `);
-
-    // Create verification codes table
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS verification_codes (
-        id TEXT PRIMARY KEY,
-        user_id TEXT NOT NULL,
-        code TEXT NOT NULL,
-        type TEXT NOT NULL DEFAULT 'password_reset',
-        expires_at DATETIME NOT NULL,
-        used INTEGER NOT NULL DEFAULT 0,
-        created_at DATETIME,
-        FOREIGN KEY (user_id) REFERENCES users(id)
-      )
-    `);
-
-    // Create email settings table
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS email_settings (
-        id TEXT PRIMARY KEY,
-        enabled INTEGER NOT NULL DEFAULT 0,
-        smtp_host TEXT NOT NULL DEFAULT 'smtp.gmail.com',
-        smtp_port INTEGER NOT NULL DEFAULT 587,
-        smtp_secure INTEGER NOT NULL DEFAULT 0,
-        smtp_user TEXT NOT NULL DEFAULT '',
-        smtp_pass TEXT NOT NULL DEFAULT '',
-        from_name TEXT NOT NULL DEFAULT 'BeatBazaar',
-        from_email TEXT NOT NULL DEFAULT '',
-        created_at DATETIME,
-        updated_at DATETIME
-      )
-    `);
-
-    // Create social media settings table
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS social_media_settings (
-        id TEXT PRIMARY KEY,
-        facebook_url TEXT NOT NULL DEFAULT '',
-        instagram_url TEXT NOT NULL DEFAULT '',
-        twitter_url TEXT NOT NULL DEFAULT '',
-        youtube_url TEXT NOT NULL DEFAULT '',
-        tiktok_url TEXT NOT NULL DEFAULT '',
-        created_at DATETIME,
-        updated_at DATETIME
-      )
-    `);
-
-    // Create contact settings table
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS contact_settings (
-        id TEXT PRIMARY KEY,
-        band_image_url TEXT NOT NULL DEFAULT '',
-        band_name TEXT NOT NULL DEFAULT 'BeatBazaar',
-        contact_email TEXT NOT NULL DEFAULT 'contact@beatbazaar.com',
-        contact_phone TEXT NOT NULL DEFAULT '+1 (555) 123-4567',
-        contact_address TEXT NOT NULL DEFAULT '123 Music Street',
-        contact_city TEXT NOT NULL DEFAULT 'Los Angeles',
-        contact_state TEXT NOT NULL DEFAULT 'CA',
-        contact_zip_code TEXT NOT NULL DEFAULT '90210',
-        contact_country TEXT NOT NULL DEFAULT 'USA',
-        message_enabled INTEGER NOT NULL DEFAULT 1,
-        message_subject TEXT NOT NULL DEFAULT 'New Contact Form Submission',
-        message_template TEXT NOT NULL DEFAULT 'You have received a new message from your contact form.',
-        facebook_url TEXT NOT NULL DEFAULT '',
-        instagram_url TEXT NOT NULL DEFAULT '',
-        twitter_url TEXT NOT NULL DEFAULT '',
-        youtube_url TEXT NOT NULL DEFAULT '',
-        tiktok_url TEXT NOT NULL DEFAULT '',
-        created_at DATETIME,
-        updated_at DATETIME
-      )
-    `);
-
-    // Create artist bios table
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS artist_bios (
-        id TEXT PRIMARY KEY,
-        name TEXT NOT NULL,
-        image_url TEXT NOT NULL DEFAULT '',
-        bio TEXT NOT NULL,
-        role TEXT NOT NULL DEFAULT 'Artist',
-        social_links TEXT NOT NULL DEFAULT '{}',
-        is_active BOOLEAN NOT NULL DEFAULT true,
-        sort_order INTEGER NOT NULL DEFAULT 0,
-        created_at DATETIME,
-        updated_at DATETIME
-      )
-    `);
-
-    // Create plans settings table
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS plans_settings (
-        id TEXT PRIMARY KEY,
-        page_title TEXT NOT NULL DEFAULT 'Beat Licensing Plans',
-        page_subtitle TEXT NOT NULL DEFAULT 'Choose the perfect licensing plan for your music project. From basic commercial use to exclusive ownership.',
-        basic_plan TEXT NOT NULL DEFAULT '{"name":"Basic License","price":29,"description":"Perfect for independent artists and small projects","features":["Commercial use rights","Up to 5,000 copies","Streaming on all platforms","Radio play up to 1M listeners","Music video rights","Social media promotion","1 year license term","Email support"],"isActive":true}',
-        premium_plan TEXT NOT NULL DEFAULT '{"name":"Premium License","price":99,"description":"Ideal for established artists and larger projects","features":["Everything in Basic License","Up to 50,000 copies","Radio play unlimited","TV and film synchronization","Live performance rights","Remix and adaptation rights","Priority support","3 year license term","Custom contract available"],"isActive":true,"isPopular":true}',
-        exclusive_plan TEXT NOT NULL DEFAULT '{"name":"Exclusive Rights","price":999,"description":"Complete ownership and exclusive rights to the beat","features":["Complete ownership of the beat","Unlimited commercial use","Unlimited copies and streams","Full publishing rights","Master recording ownership","Exclusive to you forever","No attribution required","Priority support","Custom contract","Beat removed from store","Stems and project files included"],"isActive":true}',
-        additional_features_title TEXT NOT NULL DEFAULT 'Why Choose BeatBazaar?',
-        additional_features TEXT NOT NULL DEFAULT '[{"title":"Legal Protection","description":"All licenses come with legal documentation and protection","icon":"Shield"},{"title":"Artist Support","description":"Dedicated support team to help with your music career","icon":"Users"},{"title":"Instant Download","description":"Get your beats immediately after purchase","icon":"Download"},{"title":"High Quality","description":"Professional studio quality beats and stems","icon":"Headphones"}]',
-        faq_section TEXT NOT NULL DEFAULT '{"title":"Frequently Asked Questions","questions":[{"question":"What''s the difference between Basic and Premium licenses?","answer":"Basic licenses are perfect for independent artists with limited distribution. Premium licenses offer higher copy limits, TV/film rights, and longer terms for established artists."},{"question":"What does "Exclusive Rights" mean?","answer":"With exclusive rights, you own the beat completely. It''s removed from our store, you get all stems and project files, and no one else can use it. You have full creative and commercial control."},{"question":"Do I need to credit the producer?","answer":"For Basic and Premium licenses, crediting is appreciated but not required. With Exclusive Rights, no attribution is needed as you own the beat completely."}]}',
-        trust_badges TEXT NOT NULL DEFAULT '[{"text":"Legal Protection Included","icon":"Shield"},{"text":"Instant Download","icon":"Zap"},{"text":"24/7 Support","icon":"Users"}]',
-        created_at DATETIME,
-        updated_at DATETIME
-      )
-    `);
-
-    // Create app branding settings table
-    console.log("🎨 Creating app branding settings table...");
-    await db.run(sql`
-      CREATE TABLE IF NOT EXISTS app_branding_settings (
-        id TEXT PRIMARY KEY,
-        app_name TEXT NOT NULL DEFAULT 'BeatBazaar',
-        app_logo TEXT NOT NULL DEFAULT '',
-        hero_title TEXT NOT NULL DEFAULT 'Discover Your Sound',
-        hero_subtitle TEXT NOT NULL DEFAULT 'Premium beats for every artist. Find your perfect sound and bring your music to life.',
-        hero_image TEXT NOT NULL DEFAULT '',
-        hero_button_text TEXT NOT NULL DEFAULT 'Start Creating',
-        hero_button_link TEXT NOT NULL DEFAULT '/beats',
-        login_title TEXT NOT NULL DEFAULT 'Welcome Back',
-        login_subtitle TEXT NOT NULL DEFAULT 'Sign in to your account to continue',
-        login_image TEXT NOT NULL DEFAULT '',
-        created_at DATETIME,
-        updated_at DATETIME
-      )
-    `);
-    console.log("✅ App branding settings table created");
   }
 
   private async createPostgreSQLTables() {
@@ -922,6 +671,295 @@ export class DatabaseStorage implements IStorage {
       console.log("✅ App branding settings table created");
     } catch (error) {
       console.error("❌ Error creating PostgreSQL tables:", error);
+      throw error;
+    }
+  }
+
+  private async createMySQLTables() {
+    try {
+      // MySQL-compatible CREATE TABLE statements
+      console.log("📋 Creating users table (MySQL)...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS users (
+          id VARCHAR(36) PRIMARY KEY,
+          username VARCHAR(255) NOT NULL UNIQUE,
+          password TEXT NOT NULL,
+          role VARCHAR(50) NOT NULL DEFAULT 'client',
+          email VARCHAR(255),
+          password_change_required TINYINT(1) NOT NULL DEFAULT 1,
+          theme VARCHAR(100) NOT NULL DEFAULT 'original',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB;
+      `);
+
+      console.log("📋 Creating beats table (MySQL)...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS beats (
+          id VARCHAR(36) PRIMARY KEY,
+          title TEXT NOT NULL,
+          producer TEXT NOT NULL,
+          bpm INT NOT NULL,
+          genre TEXT NOT NULL,
+          price DOUBLE NOT NULL,
+          image_url TEXT NOT NULL,
+          audio_url TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB;
+      `);
+
+      console.log("📋 Creating purchases table (MySQL)...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS purchases (
+          id VARCHAR(36) PRIMARY KEY,
+          user_id VARCHAR(36) NOT NULL,
+          beat_id VARCHAR(36) NOT NULL,
+          price DOUBLE NOT NULL,
+          purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id),
+          FOREIGN KEY (beat_id) REFERENCES beats(id)
+        ) ENGINE=InnoDB;
+      `);
+
+      console.log("📋 Creating analytics table (MySQL)...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS analytics (
+          id VARCHAR(36) PRIMARY KEY,
+          site_visits INT NOT NULL DEFAULT 0,
+          total_downloads INT NOT NULL DEFAULT 0,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB;
+      `);
+
+      console.log("📋 Creating customers table (MySQL)...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS customers (
+          id VARCHAR(36) PRIMARY KEY,
+          user_id VARCHAR(36) NOT NULL,
+          first_name TEXT NOT NULL,
+          last_name TEXT NOT NULL,
+          email VARCHAR(255) NOT NULL,
+          phone TEXT,
+          address TEXT,
+          city TEXT,
+          state TEXT,
+          zip_code TEXT,
+          country TEXT,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id)
+        ) ENGINE=InnoDB;
+      `);
+
+      console.log("📋 Creating cart table (MySQL)...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS cart (
+          id VARCHAR(36) PRIMARY KEY,
+          user_id VARCHAR(36) NOT NULL,
+          beat_id VARCHAR(36) NOT NULL,
+          added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id),
+          FOREIGN KEY (beat_id) REFERENCES beats(id)
+        ) ENGINE=InnoDB;
+      `);
+
+      console.log("📋 Creating payments table (MySQL)...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS payments (
+          id VARCHAR(36) PRIMARY KEY,
+          purchase_id VARCHAR(36) NOT NULL,
+          customer_id VARCHAR(36) NOT NULL,
+          amount DOUBLE NOT NULL,
+          payment_method TEXT NOT NULL,
+          status TEXT NOT NULL DEFAULT 'pending',
+          transaction_id TEXT,
+          bank_reference TEXT,
+          notes TEXT,
+          approved_by VARCHAR(36),
+          approved_at TIMESTAMP,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (purchase_id) REFERENCES purchases(id),
+          FOREIGN KEY (customer_id) REFERENCES customers(id),
+          FOREIGN KEY (approved_by) REFERENCES users(id)
+        ) ENGINE=InnoDB;
+      `);
+
+      console.log("📋 Creating genres table (MySQL)...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS genres (
+          id VARCHAR(36) PRIMARY KEY,
+          name VARCHAR(255) NOT NULL UNIQUE,
+          description TEXT,
+          image_url TEXT NOT NULL,
+          color VARCHAR(20) NOT NULL DEFAULT '#3b82f6',
+          is_active TINYINT(1) NOT NULL DEFAULT 1,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB;
+      `);
+
+      console.log("📋 Creating verification_codes table (MySQL)...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS verification_codes (
+          id VARCHAR(36) PRIMARY KEY,
+          user_id VARCHAR(36) NOT NULL,
+          code TEXT NOT NULL,
+          type TEXT NOT NULL DEFAULT 'password_reset',
+          expires_at TIMESTAMP NOT NULL,
+          used TINYINT(1) NOT NULL DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          FOREIGN KEY (user_id) REFERENCES users(id)
+        ) ENGINE=InnoDB;
+      `);
+
+      console.log("📋 Creating email_settings table (MySQL)...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS email_settings (
+          id VARCHAR(36) PRIMARY KEY,
+          enabled TINYINT(1) NOT NULL DEFAULT 0,
+          smtp_host TEXT NOT NULL DEFAULT 'smtp.gmail.com',
+          smtp_port INT NOT NULL DEFAULT 587,
+          smtp_secure TINYINT(1) NOT NULL DEFAULT 0,
+          smtp_user TEXT NOT NULL DEFAULT '',
+          smtp_pass TEXT NOT NULL DEFAULT '',
+          from_name TEXT NOT NULL DEFAULT 'BeatBazaar',
+          from_email TEXT NOT NULL DEFAULT '',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB;
+      `);
+
+      console.log("📋 Creating social_media_settings table (MySQL)...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS social_media_settings (
+          id VARCHAR(36) PRIMARY KEY,
+          facebook_url TEXT NOT NULL DEFAULT '',
+          instagram_url TEXT NOT NULL DEFAULT '',
+          twitter_url TEXT NOT NULL DEFAULT '',
+          youtube_url TEXT NOT NULL DEFAULT '',
+          tiktok_url TEXT NOT NULL DEFAULT '',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB;
+      `);
+
+      console.log("📋 Creating contact_settings table (MySQL)...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS contact_settings (
+          id VARCHAR(36) PRIMARY KEY,
+          band_image_url TEXT NOT NULL DEFAULT '',
+          band_name TEXT NOT NULL DEFAULT 'BeatBazaar',
+          contact_email TEXT NOT NULL DEFAULT 'contact@beatbazaar.com',
+          contact_phone TEXT NOT NULL DEFAULT '+1 (555) 123-4567',
+          contact_address TEXT NOT NULL DEFAULT '123 Music Street',
+          contact_city TEXT NOT NULL DEFAULT 'Los Angeles',
+          contact_state TEXT NOT NULL DEFAULT 'CA',
+          contact_zip_code TEXT NOT NULL DEFAULT '90210',
+          contact_country TEXT NOT NULL DEFAULT 'USA',
+          message_enabled TINYINT(1) NOT NULL DEFAULT 1,
+          message_subject TEXT NOT NULL DEFAULT 'New Contact Form Submission',
+          message_template TEXT NOT NULL DEFAULT 'You have received a new message from your contact form.',
+          facebook_url TEXT NOT NULL DEFAULT '',
+          instagram_url TEXT NOT NULL DEFAULT '',
+          twitter_url TEXT NOT NULL DEFAULT '',
+          youtube_url TEXT NOT NULL DEFAULT '',
+          tiktok_url TEXT NOT NULL DEFAULT '',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB;
+      `);
+
+      console.log("📋 Creating artist_bios table (MySQL)...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS artist_bios (
+          id VARCHAR(36) PRIMARY KEY,
+          name TEXT NOT NULL,
+          image_url TEXT NOT NULL DEFAULT '',
+          bio TEXT NOT NULL,
+          role TEXT NOT NULL DEFAULT 'Artist',
+          social_links JSON NOT NULL DEFAULT '{}',
+          is_active TINYINT(1) NOT NULL DEFAULT 1,
+          sort_order INT NOT NULL DEFAULT 0,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB;
+      `);
+
+      console.log("📋 Creating plans_settings table (MySQL)...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS plans_settings (
+          id VARCHAR(36) PRIMARY KEY,
+          page_title TEXT NOT NULL DEFAULT 'Beat Licensing Plans',
+          page_subtitle TEXT NOT NULL DEFAULT 'Choose the perfect licensing plan for your music project. From basic commercial use to exclusive ownership.',
+          basic_plan JSON NOT NULL DEFAULT '{"name":"Basic License","price":29}',
+          premium_plan JSON NOT NULL DEFAULT '{"name":"Premium License","price":99}',
+          exclusive_plan JSON NOT NULL DEFAULT '{"name":"Exclusive Rights","price":999}',
+          additional_features_title TEXT NOT NULL DEFAULT 'Why Choose BeatBazaar?',
+          additional_features JSON NOT NULL DEFAULT '[]',
+          faq_section JSON NOT NULL DEFAULT '{}',
+          trust_badges JSON NOT NULL DEFAULT '[]',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB;
+      `);
+
+      console.log("📋 Creating app_branding_settings table (MySQL)...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS app_branding_settings (
+          id VARCHAR(36) PRIMARY KEY,
+          app_name TEXT NOT NULL DEFAULT 'BeatBazaar',
+          app_logo TEXT NOT NULL DEFAULT '',
+          hero_title TEXT NOT NULL DEFAULT 'Discover Your Sound',
+          hero_subtitle TEXT NOT NULL DEFAULT 'Premium beats for every artist. Find your perfect sound and bring your music to life.',
+          hero_image TEXT NOT NULL DEFAULT '',
+          hero_button_text TEXT NOT NULL DEFAULT 'Start Creating',
+          hero_button_link TEXT NOT NULL DEFAULT '/beats',
+          login_title TEXT NOT NULL DEFAULT 'Welcome Back',
+          login_subtitle TEXT NOT NULL DEFAULT 'Sign in to your account to continue',
+          login_image TEXT NOT NULL DEFAULT '',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB;
+      `);
+
+      // Stripe tables
+      console.log("📋 Creating stripe settings and transactions tables (MySQL)...");
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS stripe_settings (
+          id VARCHAR(36) PRIMARY KEY,
+          enabled TINYINT(1) NOT NULL DEFAULT 0,
+          publishable_key TEXT NOT NULL DEFAULT '',
+          secret_key TEXT NOT NULL DEFAULT '',
+          webhook_secret TEXT NOT NULL DEFAULT '',
+          currency TEXT NOT NULL DEFAULT 'usd',
+          test_mode TINYINT(1) NOT NULL DEFAULT 1,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+        ) ENGINE=InnoDB;
+      `);
+
+      await db.run(sql`
+        CREATE TABLE IF NOT EXISTS stripe_transactions (
+          id VARCHAR(36) PRIMARY KEY,
+          payment_id VARCHAR(36) NOT NULL,
+          stripe_payment_intent_id TEXT NOT NULL UNIQUE,
+          stripe_customer_id TEXT,
+          amount DOUBLE NOT NULL,
+          currency TEXT NOT NULL DEFAULT 'usd',
+          status TEXT NOT NULL DEFAULT 'pending',
+          payment_method TEXT,
+          receipt_url TEXT,
+          metadata JSON,
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+          FOREIGN KEY (payment_id) REFERENCES payments(id)
+        ) ENGINE=InnoDB;
+      `);
+
+      console.log("✅ MySQL tables created");
+    } catch (error) {
+      console.error("❌ Error creating MySQL tables:", error);
       throw error;
     }
   }
@@ -1776,8 +1814,12 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log("Starting database reset...");
       
-      // Disable foreign key constraints temporarily
-      await db.run(sql`PRAGMA foreign_keys = OFF`);
+      // Disable foreign key constraints temporarily (SQLite uses PRAGMA, MySQL uses FOREIGN_KEY_CHECKS)
+      if (isMySQL) {
+        await db.run(sql`SET FOREIGN_KEY_CHECKS = 0`);
+      } else {
+        await db.run(sql`PRAGMA foreign_keys = OFF`);
+      }
       console.log("Disabled foreign key constraints");
       
       // Clear all tables (order doesn't matter with foreign keys disabled)
@@ -1838,7 +1880,11 @@ export class DatabaseStorage implements IStorage {
       }
       
       // Re-enable foreign key constraints
-      await db.run(sql`PRAGMA foreign_keys = ON`);
+      if (isMySQL) {
+        await db.run(sql`SET FOREIGN_KEY_CHECKS = 1`);
+      } else {
+        await db.run(sql`PRAGMA foreign_keys = ON`);
+      }
       console.log("✓ Re-enabled foreign key constraints");
       
       // Create default admin user after clearing all users
@@ -1875,7 +1921,11 @@ export class DatabaseStorage implements IStorage {
       console.error("❌ Database reset error:", error);
       // Try to re-enable foreign keys even if there was an error
       try {
-        await db.run(sql`PRAGMA foreign_keys = ON`);
+        if (isMySQL) {
+          await db.run(sql`SET FOREIGN_KEY_CHECKS = 1`);
+        } else {
+          await db.run(sql`PRAGMA foreign_keys = ON`);
+        }
         console.log("✓ Re-enabled foreign key constraints after error");
       } catch (e) {
         console.error("❌ Failed to re-enable foreign keys:", e);
@@ -1951,11 +2001,28 @@ export class DatabaseStorage implements IStorage {
   // Email settings operations
   async getEmailSettings(): Promise<EmailSettings | undefined> {
     try {
+      if (!isMySQL) {
+        // Return sensible defaults when DB not configured (setup mode)
+        return {
+          id: 'default',
+          enabled: 0,
+          smtpHost: 'smtp.gmail.com',
+          smtpPort: 587,
+          smtpSecure: 0,
+          smtpUser: '',
+          smtpPass: '',
+          fromName: 'BeatBazaar',
+          fromEmail: '',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } as EmailSettings;
+      }
+
       const result = await db
         .select()
         .from(emailSettings)
         .limit(1);
-      
+
       return result[0];
     } catch (error) {
       console.error("Get email settings error:", error);
@@ -2002,11 +2069,24 @@ export class DatabaseStorage implements IStorage {
   // Social media settings operations
   async getSocialMediaSettings(): Promise<SocialMediaSettings | undefined> {
     try {
+      if (!isMySQL) {
+        return {
+          id: 'default',
+          facebookUrl: '',
+          instagramUrl: '',
+          twitterUrl: '',
+          youtubeUrl: '',
+          tiktokUrl: '',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } as SocialMediaSettings;
+      }
+
       const result = await db
         .select()
         .from(socialMediaSettings)
         .limit(1);
-      
+
       return result[0];
     } catch (error) {
       console.error("Get social media settings error:", error);
@@ -2053,11 +2133,36 @@ export class DatabaseStorage implements IStorage {
   // Contact settings operations
   async getContactSettings(): Promise<ContactSettings | undefined> {
     try {
+      if (!isMySQL) {
+        return {
+          id: 'default',
+          bandImageUrl: '',
+          bandName: 'BeatBazaar',
+          contactEmail: 'contact@beatbazaar.com',
+          contactPhone: '+1 (555) 123-4567',
+          contactAddress: '123 Music Street',
+          contactCity: 'Los Angeles',
+          contactState: 'CA',
+          contactZipCode: '90210',
+          contactCountry: 'USA',
+          messageEnabled: 1,
+          messageSubject: 'New Contact Form Submission',
+          messageTemplate: 'You have received a new message from your contact form.',
+          facebookUrl: '',
+          instagramUrl: '',
+          twitterUrl: '',
+          youtubeUrl: '',
+          tiktokUrl: '',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } as ContactSettings;
+      }
+
       const result = await db
         .select()
         .from(contactSettings)
         .limit(1);
-      
+
       return result[0];
     } catch (error) {
       console.error("Get contact settings error:", error);
@@ -2104,11 +2209,29 @@ export class DatabaseStorage implements IStorage {
   // Plans settings operations
   async getPlansSettings(): Promise<PlansSettings | undefined> {
     try {
+      if (!isMySQL) {
+        // Provide a minimal default plans settings object
+        return {
+          id: 'default',
+          pageTitle: 'Beat Licensing Plans',
+          pageSubtitle: 'Choose the perfect licensing plan for your music project. From basic commercial use to exclusive ownership.',
+          basicPlan: { name: 'Basic License', price: 29, description: '', features: [], isActive: true },
+          premiumPlan: { name: 'Premium License', price: 99, description: '', features: [], isActive: true, isPopular: false },
+          exclusivePlan: { name: 'Exclusive Rights', price: 999, description: '', features: [], isActive: true },
+          additionalFeaturesTitle: 'Why Choose BeatBazaar?',
+          additionalFeatures: [],
+          faqSection: { title: '', questions: [] },
+          trustBadges: [],
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } as PlansSettings;
+      }
+
       const result = await db
         .select()
         .from(plansSettings)
         .limit(1);
-      
+
       return result[0];
     } catch (error) {
       console.error("Get plans settings error:", error);
@@ -2238,11 +2361,29 @@ export class DatabaseStorage implements IStorage {
   // App Branding Settings
   async getAppBrandingSettings(): Promise<AppBrandingSettings | null> {
     try {
+      if (!isMySQL) {
+        return {
+          id: `app-branding-default`,
+          appName: 'BeatBazaar',
+          appLogo: '',
+          heroTitle: 'Discover Your Sound',
+          heroSubtitle: 'Premium beats for every artist. Find your perfect sound and bring your music to life.',
+          heroImage: '',
+          heroButtonText: 'Start Creating',
+          heroButtonLink: '/beats',
+          loginTitle: 'Welcome Back',
+          loginSubtitle: 'Sign in to your account to continue',
+          loginImage: '',
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        } as AppBrandingSettings;
+      }
+
       const result = await db
         .select()
         .from(appBrandingSettings)
         .limit(1);
-      
+
       return result[0] || null;
     } catch (error) {
       console.error("Get app branding settings error:", error);
@@ -2355,6 +2496,20 @@ private async deleteAllUploadedFiles(): Promise<void> {
   // Stripe Settings Operations
   async getStripeSettings(): Promise<StripeSettings | undefined> {
     try {
+      if (!isMySQL) {
+        return {
+          id: 'default',
+          enabled: 0,
+          publishableKey: '',
+          secretKey: '',
+          webhookSecret: '',
+          currency: 'usd',
+          testMode: 1,
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString(),
+        } as StripeSettings;
+      }
+
       const result = await db.select().from(stripeSettings).limit(1);
       return result[0];
     } catch (error) {

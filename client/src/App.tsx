@@ -19,11 +19,13 @@ import Contact from "@/pages/Contact";
 import Bio from "@/pages/Bio";
 import Plans from "@/pages/Plans";
 import NotFound from "@/pages/not-found";
+import Setup from "@/pages/Setup";
 
 function Router() {
   return (
     <Switch>
       <Route path="/" component={Home} />
+        <Route path="/setup" component={Setup} />
       <Route path="/login" component={Login} />
       <Route path="/forgot-password" component={ForgotPassword} />
       <Route path="/verify-reset-code" component={VerifyResetCode} />

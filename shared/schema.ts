@@ -1,99 +1,99 @@
 import { sql } from "drizzle-orm";
 
-import { integer, sqliteTable, text, real, primaryKey, pgTable, boolean, timestamp,  } from "drizzle-orm/sqlite-core";
+import { int, mysqlTable, text, double, primaryKey, tinyint, timestamp, json } from "drizzle-orm/mysql-core";
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 
 // Stripe Settings Table
-export const stripeSettings = sqliteTable("stripe_settings", {
+export const stripeSettings = mysqlTable("stripe_settings", {
   id: text("id").primaryKey(),
-  enabled: integer("enabled").notNull().default(0), // 0 = disabled, 1 = enabled
+  enabled: tinyint("enabled").notNull().default(0), // 0 = disabled, 1 = enabled
   publishableKey: text("publishable_key").notNull().default(""),
   secretKey: text("secret_key").notNull().default(""),
   webhookSecret: text("webhook_secret").notNull().default(""),
   currency: text("currency").notNull().default("usd"),
-  testMode: integer("test_mode").notNull().default(1), // 0 = live, 1 = test
-  createdAt: text("created_at"),
-  updatedAt: text("updated_at"),
+  testMode: tinyint("test_mode").notNull().default(1), // 0 = live, 1 = test
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
 export type StripeSettings = typeof stripeSettings.$inferSelect;
 export type InsertStripeSettings = typeof stripeSettings.$inferInsert;
 
 // Stripe Transactions Table (for tracking Stripe payments)
-export const stripeTransactions = sqliteTable("stripe_transactions", {
+export const stripeTransactions = mysqlTable("stripe_transactions", {
   id: text("id").primaryKey(),
   paymentId: text("payment_id").notNull().references(() => payments.id),
   stripePaymentIntentId: text("stripe_payment_intent_id").notNull(),
   stripeCustomerId: text("stripe_customer_id"),
-  amount: real("amount").notNull(),
+  amount: double("amount").notNull(),
   currency: text("currency").notNull().default("usd"),
   status: text("status").notNull().default("pending"), // pending, succeeded, failed, canceled
   paymentMethod: text("payment_method"), // card, bank_transfer, etc.
   receiptUrl: text("receipt_url"),
-  metadata: text("metadata"), // JSON string for additional data
-  createdAt: text("created_at"),
-  updatedAt: text("updated_at"),
+  metadata: json("metadata"), // JSON for additional data
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`),
 });
 
 export type StripeTransaction = typeof stripeTransactions.$inferSelect;
 export type InsertStripeTransaction = typeof stripeTransactions.$inferInsert;
 
 
-export const genres = sqliteTable("genres", {
+export const genres = mysqlTable("genres", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull().unique(),
   description: text("description"),
   color: text("color").notNull().default("#3b82f6"),
   imageUrl: text("image_url"),
-  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
-  createdAt: text("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
-  updatedAt: text("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  isActive: tinyint("is_active", { mode: "boolean" }).notNull().default(1),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
 export const insertGenreSchema = createInsertSchema(genres);
 export const selectGenreSchema = createSelectSchema(genres);
 
-export const users = sqliteTable("users", {
+export const users = mysqlTable("users", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   username: text("username").notNull().unique(),
   password: text("password").notNull(),
   role: text("role").notNull().default("client"), // 'admin' or 'client'
   email: text("email"),
-  passwordChangeRequired: integer("password_change_required", { mode: "boolean" }).notNull().default(true),
+  passwordChangeRequired: tinyint("password_change_required", { mode: "boolean" }).notNull().default(1),
   theme: text("theme").notNull().default("original"),
-  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const beats = sqliteTable("beats", {
+export const beats = mysqlTable("beats", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   title: text("title").notNull(),
   producer: text("producer").notNull(),
-  bpm: integer("bpm").notNull(),
+  bpm: int("bpm").notNull(),
   genre: text("genre").notNull(),
-  price: real("price").notNull(),
+  price: double("price").notNull(),
   imageUrl: text("image_url").notNull(),
   audioUrl: text("audio_url"),
-  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const purchases = sqliteTable("purchases", {
+export const purchases = mysqlTable("purchases", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id").notNull(),
   beatId: text("beat_id").notNull(),
-  price: real("price").notNull(),
-  purchasedAt: integer("purchased_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  price: double("price").notNull(),
+  purchasedAt: timestamp("purchased_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const analytics = sqliteTable("analytics", {
+export const analytics = mysqlTable("analytics", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-  siteVisits: integer("site_visits").notNull().default(0),
-  totalDownloads: integer("total_downloads").notNull().default(0),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  siteVisits: int("site_visits").notNull().default(0),
+  totalDownloads: int("total_downloads").notNull().default(0),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const customers = sqliteTable("customers", {
+export const customers = mysqlTable("customers", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id").notNull().references(() => users.id),
   firstName: text("first_name").notNull(),
@@ -105,69 +105,69 @@ export const customers = sqliteTable("customers", {
   state: text("state"),
   zipCode: text("zip_code"),
   country: text("country"),
-  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const cart = sqliteTable("cart", {
+export const cart = mysqlTable("cart", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id").notNull().references(() => users.id),
   beatId: text("beat_id").notNull().references(() => beats.id),
-  addedAt: integer("added_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  addedAt: timestamp("added_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const payments = sqliteTable("payments", {
+export const payments = mysqlTable("payments", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   purchaseId: text("purchase_id").notNull().references(() => purchases.id),
   customerId: text("customer_id").notNull().references(() => customers.id),
-  amount: real("amount").notNull(),
+  amount: double("amount").notNull(),
   paymentMethod: text("payment_method").notNull(), // 'paypal', 'bank_transfer', 'credit_card'
   status: text("status").notNull().default("pending"), // 'pending', 'approved', 'rejected', 'completed'
   transactionId: text("transaction_id"),
   bankReference: text("bank_reference"),
   notes: text("notes"),
   approvedBy: text("approved_by").references(() => users.id),
-  approvedAt: integer("approved_at", { mode: "timestamp" }),
-  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  approvedAt: timestamp("approved_at"),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const verificationCodes = sqliteTable("verification_codes", {
+export const verificationCodes = mysqlTable("verification_codes", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   userId: text("user_id").notNull().references(() => users.id),
   code: text("code").notNull(),
   type: text("type").notNull().default("password_reset"), // 'password_reset', 'email_verification'
-  expiresAt: integer("expires_at", { mode: "timestamp" }).notNull(),
-  used: integer("used", { mode: "boolean" }).notNull().default(false),
-  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  expiresAt: timestamp("expires_at").notNull(),
+  used: tinyint("used", { mode: "boolean" }).notNull().default(0),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const emailSettings = sqliteTable("email_settings", {
+export const emailSettings = mysqlTable("email_settings", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
-  enabled: integer("enabled", { mode: "boolean" }).notNull().default(false),
+  enabled: tinyint("enabled", { mode: "boolean" }).notNull().default(0),
   smtpHost: text("smtp_host").notNull().default("smtp.gmail.com"),
-  smtpPort: integer("smtp_port").notNull().default(587),
-  smtpSecure: integer("smtp_secure", { mode: "boolean" }).notNull().default(false),
+  smtpPort: int("smtp_port").notNull().default(587),
+  smtpSecure: tinyint("smtp_secure", { mode: "boolean" }).notNull().default(0),
   smtpUser: text("smtp_user").notNull().default(""),
   smtpPass: text("smtp_pass").notNull().default(""),
   fromName: text("from_name").notNull().default("BeatBazaar"),
   fromEmail: text("from_email").notNull().default(""),
-  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const socialMediaSettings = sqliteTable("social_media_settings", {
+export const socialMediaSettings = mysqlTable("social_media_settings", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   facebookUrl: text("facebook_url").notNull().default(""),
   instagramUrl: text("instagram_url").notNull().default(""),
   twitterUrl: text("twitter_url").notNull().default(""),
   youtubeUrl: text("youtube_url").notNull().default(""),
   tiktokUrl: text("tiktok_url").notNull().default(""),
-  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const contactSettings = sqliteTable("contact_settings", {
+export const contactSettings = mysqlTable("contact_settings", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   bandImageUrl: text("band_image_url").notNull().default(""),
   bandName: text("band_name").notNull().default("BeatBazaar"),
@@ -178,7 +178,7 @@ export const contactSettings = sqliteTable("contact_settings", {
   contactState: text("contact_state").notNull().default("CA"),
   contactZipCode: text("contact_zip_code").notNull().default("90210"),
   contactCountry: text("contact_country").notNull().default("USA"),
-  messageEnabled: integer("message_enabled", { mode: "boolean" }).notNull().default(true),
+  messageEnabled: tinyint("message_enabled", { mode: "boolean" }).notNull().default(1),
   messageSubject: text("message_subject").notNull().default("New Contact Form Submission"),
   messageTemplate: text("message_template").notNull().default("You have received a new message from your contact form."),
   // Social Media Settings
@@ -187,33 +187,33 @@ export const contactSettings = sqliteTable("contact_settings", {
   twitterUrl: text("twitter_url").notNull().default(""),
   youtubeUrl: text("youtube_url").notNull().default(""),
   tiktokUrl: text("tiktok_url").notNull().default(""),
-  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const artistBios = sqliteTable("artist_bios", {
+export const artistBios = mysqlTable("artist_bios", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   name: text("name").notNull(),
   imageUrl: text("image_url").notNull().default(""),
   bio: text("bio").notNull(),
   role: text("role").notNull().default("Artist"), // e.g., "Producer", "Singer", "Rapper", etc.
-  socialLinks: text("social_links", { mode: "json" }).$type<{
+  socialLinks: json("social_links").$type<{
     instagram?: string;
     twitter?: string;
     youtube?: string;
     spotify?: string;
   }>().notNull().default({}),
-  isActive: integer("is_active", { mode: "boolean" }).notNull().default(true),
-  sortOrder: integer("sort_order").notNull().default(0),
-  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  isActive: tinyint("is_active", { mode: "boolean" }).notNull().default(1),
+  sortOrder: int("sort_order").notNull().default(0),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
-export const plansSettings = sqliteTable("plans_settings", {
+export const plansSettings = mysqlTable("plans_settings", {
   id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
   pageTitle: text("page_title").notNull().default("Beat Licensing Plans"),
   pageSubtitle: text("page_subtitle").notNull().default("Choose the perfect licensing plan for your music project. From basic commercial use to exclusive ownership."),
-  basicPlan: text("basic_plan", { mode: "json" }).$type<{
+  basicPlan: json("basic_plan").$type<{
     name: string;
     price: number;
     description: string;
@@ -235,7 +235,7 @@ export const plansSettings = sqliteTable("plans_settings", {
     ],
     isActive: true
   }),
-  premiumPlan: text("premium_plan", { mode: "json" }).$type<{
+  premiumPlan: json("premium_plan").$type<{
     name: string;
     price: number;
     description: string;
@@ -286,7 +286,7 @@ export const plansSettings = sqliteTable("plans_settings", {
     isActive: true
   }),
   additionalFeaturesTitle: text("additional_features_title").notNull().default("Why Choose BeatBazaar?"),
-  additionalFeatures: text("additional_features", { mode: "json" }).$type<{
+  additionalFeatures: json("additional_features").$type<{
     title: string;
     description: string;
     icon: string;
@@ -312,7 +312,7 @@ export const plansSettings = sqliteTable("plans_settings", {
       icon: "Headphones"
     }
   ]),
-  faqSection: text("faq_section", { mode: "json" }).$type<{
+  faqSection: json("faq_section").$type<{
     title: string;
     questions: {
       question: string;
@@ -335,7 +335,7 @@ export const plansSettings = sqliteTable("plans_settings", {
       }
     ]
   }),
-  trustBadges: text("trust_badges", { mode: "json" }).$type<{
+  trustBadges: json("trust_badges").$type<{
     text: string;
     icon: string;
   }[]>().notNull().default([
@@ -352,12 +352,12 @@ export const plansSettings = sqliteTable("plans_settings", {
       icon: "Users"
     }
   ]),
-  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
 });
 
 // App Branding Settings
-export const appBrandingSettings = sqliteTable("app_branding_settings", {
+export const appBrandingSettings = mysqlTable("app_branding_settings", {
   id: text("id").primaryKey().$defaultFn(() => `app-branding-${Date.now()}`),
   appName: text("app_name").notNull().default("BeatBazaar"),
   appLogo: text("app_logo").notNull().default(""),
@@ -369,8 +369,8 @@ export const appBrandingSettings = sqliteTable("app_branding_settings", {
   loginTitle: text("login_title").notNull().default("Welcome Back"),
   loginSubtitle: text("login_subtitle").notNull().default("Sign in to your account to continue"),
   loginImage: text("login_image").notNull().default(""),
-  createdAt: integer("created_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
-  updatedAt: integer("updated_at", { mode: "timestamp" }).$defaultFn(() => new Date()),
+  createdAt: timestamp("created_at").default(sql`CURRENT_TIMESTAMP`).notNull(),
+  updatedAt: timestamp("updated_at").default(sql`CURRENT_TIMESTAMP`).onUpdateNow().notNull(),
 });
 
 export const insertUserSchema = createInsertSchema(users).omit({

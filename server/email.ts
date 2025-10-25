@@ -12,16 +12,21 @@ const getDefaultEmailConfig = () => ({
 });
 
 // Create default transporter
-const defaultTransporter = nodemailer.createTransport(getDefaultEmailConfig());
+const defaultConfig = getDefaultEmailConfig();
+const defaultTransporter = nodemailer.createTransport(defaultConfig);
 
-// Verify connection configuration
-defaultTransporter.verify((error: any, success: any) => {
-  if (error) {
-    console.log('❌ Email configuration error:', error);
-  } else {
-    console.log('✅ Email server is ready to send messages');
-  }
-});
+// Only verify if auth credentials look provided; otherwise skip noisy verification
+if (defaultConfig.auth && defaultConfig.auth.user && defaultConfig.auth.pass) {
+  defaultTransporter.verify((error: any, success: any) => {
+    if (error) {
+      console.log('❌ Email configuration error:', error);
+    } else {
+      console.log('✅ Email server is ready to send messages');
+    }
+  });
+} else {
+  console.log('ℹ️ Email credentials not provided; skipping SMTP verification. Configure SMTP in Admin > Email or set SMTP_* env vars.');
+}
 
 export interface EmailOptions {
   to: string;
