@@ -18,7 +18,7 @@ export function isMysqlConfigured(): boolean {
   const dbUrl = process.env.DATABASE_URL;
   if (dbUrl && dbUrl.startsWith('mysql')) return true;
   if (process.env.RAILWAY_MYSQL_HOST) return true;
-  if (process.env.MYSQL_HOST && process.env.MYSQL_USER && (process.env.MYSQL_DATABASE || process.env.MYSQL_DB)) return true;
+  if (process.env.MYSQL_HOST && process.env.MYSQL_USER && process.env.MYSQL_DB) return true;
   return false;
 }
 
@@ -39,9 +39,9 @@ export async function checkDbAndAdmin(): Promise<{ configured: boolean; canConne
   // try connect using env
   try {
     const host = process.env.RAILWAY_MYSQL_HOST || process.env.MYSQL_HOST;
-    const user = process.env.RAILWAY_MYSQL_USERNAME || process.env.MYSQL_USER || '';
+    const user = process.env.RAILWAY_MYSQL_USERNAME || process.env.MYSQL_USER || process.env.MYSQL_USERNAME || '';
     const password = process.env.RAILWAY_MYSQL_PASSWORD || process.env.MYSQL_PASSWORD || '';
-    const database = process.env.RAILWAY_MYSQL_DB || process.env.MYSQL_DATABASE || process.env.MYSQL_DB || '';
+    const database = process.env.RAILWAY_MYSQL_DB || process.env.MYSQL_DB || process.env.MYSQL_DATABASE || '';
 
     if (!host || !user || !database) {
       // fall back to DATABASE_URL
@@ -114,25 +114,12 @@ export async function writeEnvAndCreateAdmin(dbCfg: DbConfig, admin: { username:
   set('MYSQL_PORT', String(port));
   set('MYSQL_USER', user);
   set('MYSQL_PASSWORD', pass);
-  set('MYSQL_DATABASE', database);
+  set('MYSQL_DB', database);
 
   try {
     fs.writeFileSync(envPath, envContents.trim() + '\n', 'utf-8');
   } catch (e) {
     throw new Error('Failed to write .env file: ' + String(e));
-  }
-
-  // Immediately populate process.env so runtime checks see the new config (server may be running in-place)
-  try {
-    process.env.DATABASE_URL = databaseUrl;
-    process.env.MYSQL_HOST = host;
-    process.env.MYSQL_PORT = String(port);
-    process.env.MYSQL_USER = user;
-    process.env.MYSQL_PASSWORD = pass;
-    process.env.MYSQL_DATABASE = database;
-  } catch (e) {
-    // Non-fatal; writing to .env succeeded which is the primary persistence step
-    console.warn('Warning: failed to set process.env values after writing .env:', e);
   }
 
   // try to connect using provided details and create users table + admin
@@ -146,10 +133,10 @@ export async function writeEnvAndCreateAdmin(dbCfg: DbConfig, admin: { username:
       password VARCHAR(255) NOT NULL,
       role VARCHAR(50) NOT NULL DEFAULT 'client',
       email VARCHAR(255),
-      password_change_required TINYINT(1) NOT NULL DEFAULT 1,
+      passwordChangeRequired TINYINT(1) NOT NULL DEFAULT 1,
       theme VARCHAR(100) NOT NULL DEFAULT 'original',
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB;
   `);
 

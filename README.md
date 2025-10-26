@@ -11,7 +11,7 @@ A full-stack music beat marketplace with authentication, database integration, a
 - **Protected Routes**: Role-based access control
 
 ### Database Integration
-- **PostgreSQL Database**: Full database integration with Drizzle ORM
+- **Msql Database**: Full database integration with Drizzle ORM
 - **User Management**: Store user accounts with roles (admin/client)
 - **Beat Catalog**: Store beat information, pricing, and metadata
 - **Purchase Tracking**: Track user purchases and analytics
@@ -39,11 +39,23 @@ A full-stack music beat marketplace with authentication, database integration, a
 - **Shopping Cart**: Add beats to cart and checkout
 - **Purchase History**: Track all purchases
 
+### ADDED FEATURES AND CHANGES
+- Append an Updates section summarizing:
+- MySQL-only runtime (no SQLite/Postgres)
+- Standardized env vars and .env auto-loading
+- No auto password resets at startup
+- 60-day rotation and HIBP breached-password checks
+- Drizzle/mysql2 insert-then-select pattern (no returning())
+- Stripe SDK requirement and envs
+- Optionally, minimally update existing sections:
+- Environment setup: explicitly document MySQL envs and remove any mention of SQLite/Postgres if present.
+- Setup instructions: clarify /api/setup/configure writes .env and requires restart.
+
 ## Setup Instructions
 
 ### Prerequisites
 - Node.js (v18 or higher)
-- PostgreSQL database
+- MYSQL database
 - npm or yarn
 
 ### Installation

@@ -3,7 +3,6 @@
 // so compilation isn't blocked if @types/stripe isn't installed.
 // We still import at runtime when needed.
 // @ts-ignore
-import Stripe from "stripe";
 import { storage } from "./storage";
 import type { Beat, Customer } from "@shared/schema";
 
@@ -27,9 +26,16 @@ export async function getStripeInstance(): Promise<any | null> {
   }
 
   if (!stripeInstance) {
-    stripeInstance = new Stripe(settings.secretKey, {
-      apiVersion: "2024-11-20.acacia",
-    });
+    try {
+      // Lazy import Stripe only when it's configured and needed
+      const { default: Stripe } = await import("stripe");
+      stripeInstance = new Stripe(settings.secretKey, {
+        apiVersion: "2024-06-20",
+      });
+    } catch (e) {
+      console.error("Failed to import or initialize Stripe. Is the 'stripe' package installed?", e);
+      return null;
+    }
   }
 
   return stripeInstance;
