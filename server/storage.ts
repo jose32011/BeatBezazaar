@@ -1,13 +1,11 @@
 import path from "path";
 import fs from "fs";
 import { 
-  type StripeSettings,
-  type InsertStripeSettings,
-  type StripeTransaction,
-  type InsertStripeTransaction,
   stripeSettings,
   stripeTransactions
 } from "@shared/schema";
+// import types from schema as needed below to avoid circular/type noise
+import type { StripeSettings, InsertStripeSettings, StripeTransaction, InsertStripeTransaction } from "@shared/schema";
 import { 
   type User, 
   type InsertUser,
@@ -25,6 +23,8 @@ import {
   type InsertPayment,
   type Genre,
   type InsertGenre,
+  // VerificationCode types (infer from schema types)
+  // Note: use generic any here to avoid type conflicts until schema is cleaned up
   type VerificationCode,
   type InsertVerificationCode,
   type EmailSettings,
@@ -68,6 +68,7 @@ import { randomUUID } from "crypto";
 // Database configuration based on environment
 const isProduction = process.env.NODE_ENV === 'production';
 let db: any;
+let mysqlPool: any = undefined;
 
 /**
  * Database selection logic
@@ -91,7 +92,7 @@ if (datasourceUrl && datasourceUrl.startsWith('mysql')) {
   const password = process.env.RAILWAY_MYSQL_PASSWORD;
   const database = process.env.RAILWAY_MYSQL_DB;
   const port = process.env.RAILWAY_MYSQL_PORT || '3306';
-  mysqlUri = `mysql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${encodeURIComponent(database)}`;
+  mysqlUri = `mysql://${encodeURIComponent(user || '')}:${encodeURIComponent(password || '')}@${host}:${port}/${encodeURIComponent(database || '')}`;
 } else if (process.env.MYSQL_HOST && process.env.MYSQL_USER && process.env.MYSQL_DB) {
   const host = process.env.MYSQL_HOST;
   const user = process.env.MYSQL_USER;
@@ -107,25 +108,35 @@ const mysqlConfigured = !!mysqlUri || railwayHasMySql || (!!process.env.MYSQL_HO
 if (mysqlConfigured) {
   try {
     const pool = mysql.createPool(mysqlUri!);
+      mysqlPool = pool;
     db = drizzleMysql(pool);
     console.log(`✓ Using MySQL database (${mysqlUri && mysqlUri.startsWith('mysql://') ? 'from env' : 'configured'})`);
   } catch (err) {
     console.error('Failed to create MySQL pool:', err);
-    // Fall back to an inert stub to allow the server to start and the setup page to run
+    // Fall back to a safe inert stub so the server can start and the setup UI can run.
     const notConfiguredError = new Error('Database initialization failed. See server logs.');
+    const noopAsync = async (..._args: any[]) => {
+      console.warn('Attempted DB operation while DB init failed:', notConfiguredError.message);
+      return null;
+    };
     db = new Proxy({}, {
-      get() { return () => { throw notConfiguredError; }; }
+      get() { return noopAsync; }
     });
   }
 } else {
   console.warn('MySQL is not configured. Server will start in setup mode. Use /api/setup to configure the database.');
   const notConfiguredError = new Error('MySQL is not configured. Use /api/setup to configure the database.');
+  const noopAsync = async (..._args: any[]) => {
+    // Log once to help debugging but avoid crashing the import phase
+    console.warn('DB operation attempted while MySQL is not configured. Use /api/setup to configure the DB.');
+    return null;
+  };
   db = new Proxy({}, {
-    get() { return () => { throw notConfiguredError; }; }
+    get() { return noopAsync; }
   });
 }
 
-const isMySQL = mysqlConfigured;
+let isMySQL = mysqlConfigured;
 
 // If running in production with a DATABASE_URL that points to Postgres, use it.
 if (isProduction && datasourceUrl && datasourceUrl.startsWith('postgres')) {
@@ -251,11 +262,34 @@ export interface IStorage {
 
 
 export class DatabaseStorage implements IStorage {
-  getStripeSettings() {
-    throw new Error("Method not implemented.");
-  }
   constructor() {
     this.initializeDatabase();
+  }
+
+  // Public helper to run when DB becomes available at runtime
+  public async onDatabaseReady() {
+    try {
+      if (!isMySQL) return;
+      // Ensure tables are created
+      await createMySQLTablesUsingDb(db);
+      // Initialize default genres and other bootstrapping
+      await this.initializeDefaultGenres();
+
+      // Ensure admin exists; use safe default if missing
+      try {
+        const adminUser = await this.getUserByUsername('admin');
+        if (!adminUser) {
+          const id = randomUUID();
+          // default password; caller should set a real password via setup
+          await this.createUser({ id, username: 'admin', password: 'admin123', role: 'admin', email: 'admin@beatbazaar.com' } as any);
+          console.log('✅ Default admin created during reinitialization');
+        }
+      } catch (e) {
+        console.error('Error ensuring admin user during reinitialization:', e);
+      }
+    } catch (e) {
+      console.error('onDatabaseReady error:', e);
+    }
   }
 
   private async initializeDatabase() {
@@ -269,36 +303,53 @@ export class DatabaseStorage implements IStorage {
       // Create tables if they don't exist
       await this.createTables();
 
-      // Check if passwordChangeRequired column exists, if not add it
-      try {
-        await db.run(sql`SELECT password_change_required FROM users LIMIT 1`);
-        console.log("✓ passwordChangeRequired column exists");
-      } catch (error) {
-        console.log("⚠️ passwordChangeRequired column missing, adding it...");
+      // Check if password_change_required column exists, if not add it
+      // Use the raw mysql pool for DDL checks/ALTERs to avoid adapter method mismatches
+      if (mysqlPool) {
         try {
-          if (isProduction) {
-            await db.run(sql`ALTER TABLE users ADD COLUMN password_change_required BOOLEAN DEFAULT true`);
+          const [rows]: any = await mysqlPool.execute("SHOW COLUMNS FROM users LIKE 'password_change_required'");
+          if (Array.isArray(rows) && rows.length > 0) {
+            console.log("✓ password_change_required column exists");
           } else {
-            await db.run(sql`ALTER TABLE users ADD COLUMN password_change_required INTEGER DEFAULT 1`);
+            console.log("⚠️ password_change_required column missing, adding it...");
+            try {
+              if (isProduction) {
+                await mysqlPool.execute("ALTER TABLE users ADD COLUMN password_change_required BOOLEAN DEFAULT true");
+              } else {
+                await mysqlPool.execute("ALTER TABLE users ADD COLUMN password_change_required TINYINT(1) DEFAULT 1");
+              }
+              console.log("✓ Added password_change_required column");
+            } catch (alterError) {
+              console.error("❌ Failed to add password_change_required column:", alterError);
+            }
           }
-          console.log("✓ Added passwordChangeRequired column");
-        } catch (alterError) {
-          console.error("❌ Failed to add passwordChangeRequired column:", alterError);
+        } catch (e) {
+          console.error('Error checking password_change_required column via mysqlPool:', e);
         }
+      } else {
+        console.log('mysqlPool not available — skipping password_change_required column existence check (will rely on DDL runner)');
       }
 
-      // Check if theme column exists, if not add it
-      try {
-        await db.run(sql`SELECT theme FROM users LIMIT 1`);
-        console.log("✓ theme column exists");
-      } catch (error) {
-        console.log("⚠️ theme column missing, adding it...");
+      // Check if theme column exists, if not add it (use mysqlPool for raw DDL)
+      if (mysqlPool) {
         try {
-          await db.run(sql`ALTER TABLE users ADD COLUMN theme TEXT DEFAULT 'original'`);
-          console.log("✓ Added theme column");
-        } catch (alterError) {
-          console.error("❌ Failed to add theme column:", alterError);
+          const [rows]: any = await mysqlPool.execute("SHOW COLUMNS FROM users LIKE 'theme'");
+          if (Array.isArray(rows) && rows.length > 0) {
+            console.log("✓ theme column exists");
+          } else {
+            console.log("⚠️ theme column missing, adding it...");
+            try {
+              await mysqlPool.execute("ALTER TABLE users ADD COLUMN theme VARCHAR(100) DEFAULT 'original'");
+              console.log("✓ Added theme column");
+            } catch (alterError) {
+              console.error("❌ Failed to add theme column:", alterError);
+            }
+          }
+        } catch (e) {
+          console.error('Error checking theme column via mysqlPool:', e);
         }
+      } else {
+        console.log('mysqlPool not available — skipping theme column existence check (will rely on DDL runner)');
       }
 
       // Check if admin user exists, if not create one
@@ -340,12 +391,11 @@ export class DatabaseStorage implements IStorage {
           console.log("⚠️ Admin password is incorrect, updating...");
           try {
             const newHashedPassword = await bcrypt.hash(testPassword, 10);
-            
-            await db.run(sql`
-              UPDATE users 
-              SET password = ${newHashedPassword}, updated_at = CURRENT_TIMESTAMP 
-              WHERE username = 'admin'
-            `);
+            if (mysqlPool) {
+              await mysqlPool.execute('UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE username = ?',[newHashedPassword, 'admin']);
+            } else {
+              await db.update(users).set({ password: newHashedPassword, updatedAt: new Date() }).where(eq(users.username, 'admin'));
+            }
             console.log("✅ Admin password updated: admin/admin123");
           } catch (updateError) {
             console.error("❌ Failed to update admin password:", updateError);
@@ -357,16 +407,23 @@ export class DatabaseStorage implements IStorage {
 
       // Check if social media columns exist in contact_settings table, if not add them
       try {
-        await db.run(sql`SELECT facebook_url FROM contact_settings LIMIT 1`);
+        if (mysqlPool) {
+          // Probe by attempting a simple select; if it fails, columns likely missing
+          await mysqlPool.execute('SELECT facebook_url FROM contact_settings LIMIT 1');
+        } else {
+          await db.select().from(contactSettings).limit(1);
+        }
         console.log("✓ Social media columns exist in contact_settings");
       } catch (error) {
         console.log("⚠️ Social media columns missing in contact_settings, adding them...");
         try {
-          await db.run(sql`ALTER TABLE contact_settings ADD COLUMN facebook_url TEXT NOT NULL DEFAULT ''`);
-          await db.run(sql`ALTER TABLE contact_settings ADD COLUMN instagram_url TEXT NOT NULL DEFAULT ''`);
-          await db.run(sql`ALTER TABLE contact_settings ADD COLUMN twitter_url TEXT NOT NULL DEFAULT ''`);
-          await db.run(sql`ALTER TABLE contact_settings ADD COLUMN youtube_url TEXT NOT NULL DEFAULT ''`);
-          await db.run(sql`ALTER TABLE contact_settings ADD COLUMN tiktok_url TEXT NOT NULL DEFAULT ''`);
+          if (mysqlPool) {
+            await mysqlPool.execute("ALTER TABLE contact_settings ADD COLUMN facebook_url TEXT NOT NULL DEFAULT ''");
+            await mysqlPool.execute("ALTER TABLE contact_settings ADD COLUMN instagram_url TEXT NOT NULL DEFAULT ''");
+            await mysqlPool.execute("ALTER TABLE contact_settings ADD COLUMN twitter_url TEXT NOT NULL DEFAULT ''");
+            await mysqlPool.execute("ALTER TABLE contact_settings ADD COLUMN youtube_url TEXT NOT NULL DEFAULT ''");
+            await mysqlPool.execute("ALTER TABLE contact_settings ADD COLUMN tiktok_url TEXT NOT NULL DEFAULT ''");
+          }
           console.log("✓ Added social media columns to contact_settings");
         } catch (alterError) {
           console.error("❌ Failed to add social media columns to contact_settings:", alterError);
@@ -676,293 +733,12 @@ export class DatabaseStorage implements IStorage {
   }
 
   private async createMySQLTables() {
-    try {
-      // MySQL-compatible CREATE TABLE statements
-      console.log("📋 Creating users table (MySQL)...");
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS users (
-          id VARCHAR(36) PRIMARY KEY,
-          username VARCHAR(255) NOT NULL UNIQUE,
-          password TEXT NOT NULL,
-          role VARCHAR(50) NOT NULL DEFAULT 'client',
-          email VARCHAR(255),
-          password_change_required TINYINT(1) NOT NULL DEFAULT 1,
-          theme VARCHAR(100) NOT NULL DEFAULT 'original',
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB;
-      `);
-
-      console.log("📋 Creating beats table (MySQL)...");
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS beats (
-          id VARCHAR(36) PRIMARY KEY,
-          title TEXT NOT NULL,
-          producer TEXT NOT NULL,
-          bpm INT NOT NULL,
-          genre TEXT NOT NULL,
-          price DOUBLE NOT NULL,
-          image_url TEXT NOT NULL,
-          audio_url TEXT,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB;
-      `);
-
-      console.log("📋 Creating purchases table (MySQL)...");
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS purchases (
-          id VARCHAR(36) PRIMARY KEY,
-          user_id VARCHAR(36) NOT NULL,
-          beat_id VARCHAR(36) NOT NULL,
-          price DOUBLE NOT NULL,
-          purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (user_id) REFERENCES users(id),
-          FOREIGN KEY (beat_id) REFERENCES beats(id)
-        ) ENGINE=InnoDB;
-      `);
-
-      console.log("📋 Creating analytics table (MySQL)...");
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS analytics (
-          id VARCHAR(36) PRIMARY KEY,
-          site_visits INT NOT NULL DEFAULT 0,
-          total_downloads INT NOT NULL DEFAULT 0,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB;
-      `);
-
-      console.log("📋 Creating customers table (MySQL)...");
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS customers (
-          id VARCHAR(36) PRIMARY KEY,
-          user_id VARCHAR(36) NOT NULL,
-          first_name TEXT NOT NULL,
-          last_name TEXT NOT NULL,
-          email VARCHAR(255) NOT NULL,
-          phone TEXT,
-          address TEXT,
-          city TEXT,
-          state TEXT,
-          zip_code TEXT,
-          country TEXT,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          FOREIGN KEY (user_id) REFERENCES users(id)
-        ) ENGINE=InnoDB;
-      `);
-
-      console.log("📋 Creating cart table (MySQL)...");
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS cart (
-          id VARCHAR(36) PRIMARY KEY,
-          user_id VARCHAR(36) NOT NULL,
-          beat_id VARCHAR(36) NOT NULL,
-          added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (user_id) REFERENCES users(id),
-          FOREIGN KEY (beat_id) REFERENCES beats(id)
-        ) ENGINE=InnoDB;
-      `);
-
-      console.log("📋 Creating payments table (MySQL)...");
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS payments (
-          id VARCHAR(36) PRIMARY KEY,
-          purchase_id VARCHAR(36) NOT NULL,
-          customer_id VARCHAR(36) NOT NULL,
-          amount DOUBLE NOT NULL,
-          payment_method TEXT NOT NULL,
-          status TEXT NOT NULL DEFAULT 'pending',
-          transaction_id TEXT,
-          bank_reference TEXT,
-          notes TEXT,
-          approved_by VARCHAR(36),
-          approved_at TIMESTAMP,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          FOREIGN KEY (purchase_id) REFERENCES purchases(id),
-          FOREIGN KEY (customer_id) REFERENCES customers(id),
-          FOREIGN KEY (approved_by) REFERENCES users(id)
-        ) ENGINE=InnoDB;
-      `);
-
-      console.log("📋 Creating genres table (MySQL)...");
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS genres (
-          id VARCHAR(36) PRIMARY KEY,
-          name VARCHAR(255) NOT NULL UNIQUE,
-          description TEXT,
-          image_url TEXT NOT NULL,
-          color VARCHAR(20) NOT NULL DEFAULT '#3b82f6',
-          is_active TINYINT(1) NOT NULL DEFAULT 1,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB;
-      `);
-
-      console.log("📋 Creating verification_codes table (MySQL)...");
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS verification_codes (
-          id VARCHAR(36) PRIMARY KEY,
-          user_id VARCHAR(36) NOT NULL,
-          code TEXT NOT NULL,
-          type TEXT NOT NULL DEFAULT 'password_reset',
-          expires_at TIMESTAMP NOT NULL,
-          used TINYINT(1) NOT NULL DEFAULT 0,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          FOREIGN KEY (user_id) REFERENCES users(id)
-        ) ENGINE=InnoDB;
-      `);
-
-      console.log("📋 Creating email_settings table (MySQL)...");
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS email_settings (
-          id VARCHAR(36) PRIMARY KEY,
-          enabled TINYINT(1) NOT NULL DEFAULT 0,
-          smtp_host TEXT NOT NULL DEFAULT 'smtp.gmail.com',
-          smtp_port INT NOT NULL DEFAULT 587,
-          smtp_secure TINYINT(1) NOT NULL DEFAULT 0,
-          smtp_user TEXT NOT NULL DEFAULT '',
-          smtp_pass TEXT NOT NULL DEFAULT '',
-          from_name TEXT NOT NULL DEFAULT 'BeatBazaar',
-          from_email TEXT NOT NULL DEFAULT '',
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB;
-      `);
-
-      console.log("📋 Creating social_media_settings table (MySQL)...");
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS social_media_settings (
-          id VARCHAR(36) PRIMARY KEY,
-          facebook_url TEXT NOT NULL DEFAULT '',
-          instagram_url TEXT NOT NULL DEFAULT '',
-          twitter_url TEXT NOT NULL DEFAULT '',
-          youtube_url TEXT NOT NULL DEFAULT '',
-          tiktok_url TEXT NOT NULL DEFAULT '',
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB;
-      `);
-
-      console.log("📋 Creating contact_settings table (MySQL)...");
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS contact_settings (
-          id VARCHAR(36) PRIMARY KEY,
-          band_image_url TEXT NOT NULL DEFAULT '',
-          band_name TEXT NOT NULL DEFAULT 'BeatBazaar',
-          contact_email TEXT NOT NULL DEFAULT 'contact@beatbazaar.com',
-          contact_phone TEXT NOT NULL DEFAULT '+1 (555) 123-4567',
-          contact_address TEXT NOT NULL DEFAULT '123 Music Street',
-          contact_city TEXT NOT NULL DEFAULT 'Los Angeles',
-          contact_state TEXT NOT NULL DEFAULT 'CA',
-          contact_zip_code TEXT NOT NULL DEFAULT '90210',
-          contact_country TEXT NOT NULL DEFAULT 'USA',
-          message_enabled TINYINT(1) NOT NULL DEFAULT 1,
-          message_subject TEXT NOT NULL DEFAULT 'New Contact Form Submission',
-          message_template TEXT NOT NULL DEFAULT 'You have received a new message from your contact form.',
-          facebook_url TEXT NOT NULL DEFAULT '',
-          instagram_url TEXT NOT NULL DEFAULT '',
-          twitter_url TEXT NOT NULL DEFAULT '',
-          youtube_url TEXT NOT NULL DEFAULT '',
-          tiktok_url TEXT NOT NULL DEFAULT '',
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB;
-      `);
-
-      console.log("📋 Creating artist_bios table (MySQL)...");
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS artist_bios (
-          id VARCHAR(36) PRIMARY KEY,
-          name TEXT NOT NULL,
-          image_url TEXT NOT NULL DEFAULT '',
-          bio TEXT NOT NULL,
-          role TEXT NOT NULL DEFAULT 'Artist',
-          social_links JSON NOT NULL DEFAULT '{}',
-          is_active TINYINT(1) NOT NULL DEFAULT 1,
-          sort_order INT NOT NULL DEFAULT 0,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB;
-      `);
-
-      console.log("📋 Creating plans_settings table (MySQL)...");
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS plans_settings (
-          id VARCHAR(36) PRIMARY KEY,
-          page_title TEXT NOT NULL DEFAULT 'Beat Licensing Plans',
-          page_subtitle TEXT NOT NULL DEFAULT 'Choose the perfect licensing plan for your music project. From basic commercial use to exclusive ownership.',
-          basic_plan JSON NOT NULL DEFAULT '{"name":"Basic License","price":29}',
-          premium_plan JSON NOT NULL DEFAULT '{"name":"Premium License","price":99}',
-          exclusive_plan JSON NOT NULL DEFAULT '{"name":"Exclusive Rights","price":999}',
-          additional_features_title TEXT NOT NULL DEFAULT 'Why Choose BeatBazaar?',
-          additional_features JSON NOT NULL DEFAULT '[]',
-          faq_section JSON NOT NULL DEFAULT '{}',
-          trust_badges JSON NOT NULL DEFAULT '[]',
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB;
-      `);
-
-      console.log("📋 Creating app_branding_settings table (MySQL)...");
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS app_branding_settings (
-          id VARCHAR(36) PRIMARY KEY,
-          app_name TEXT NOT NULL DEFAULT 'BeatBazaar',
-          app_logo TEXT NOT NULL DEFAULT '',
-          hero_title TEXT NOT NULL DEFAULT 'Discover Your Sound',
-          hero_subtitle TEXT NOT NULL DEFAULT 'Premium beats for every artist. Find your perfect sound and bring your music to life.',
-          hero_image TEXT NOT NULL DEFAULT '',
-          hero_button_text TEXT NOT NULL DEFAULT 'Start Creating',
-          hero_button_link TEXT NOT NULL DEFAULT '/beats',
-          login_title TEXT NOT NULL DEFAULT 'Welcome Back',
-          login_subtitle TEXT NOT NULL DEFAULT 'Sign in to your account to continue',
-          login_image TEXT NOT NULL DEFAULT '',
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB;
-      `);
-
-      // Stripe tables
-      console.log("📋 Creating stripe settings and transactions tables (MySQL)...");
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS stripe_settings (
-          id VARCHAR(36) PRIMARY KEY,
-          enabled TINYINT(1) NOT NULL DEFAULT 0,
-          publishable_key TEXT NOT NULL DEFAULT '',
-          secret_key TEXT NOT NULL DEFAULT '',
-          webhook_secret TEXT NOT NULL DEFAULT '',
-          currency TEXT NOT NULL DEFAULT 'usd',
-          test_mode TINYINT(1) NOT NULL DEFAULT 1,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-        ) ENGINE=InnoDB;
-      `);
-
-      await db.run(sql`
-        CREATE TABLE IF NOT EXISTS stripe_transactions (
-          id VARCHAR(36) PRIMARY KEY,
-          payment_id VARCHAR(36) NOT NULL,
-          stripe_payment_intent_id TEXT NOT NULL UNIQUE,
-          stripe_customer_id TEXT,
-          amount DOUBLE NOT NULL,
-          currency TEXT NOT NULL DEFAULT 'usd',
-          status TEXT NOT NULL DEFAULT 'pending',
-          payment_method TEXT,
-          receipt_url TEXT,
-          metadata JSON,
-          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-          FOREIGN KEY (payment_id) REFERENCES payments(id)
-        ) ENGINE=InnoDB;
-      `);
-
-      console.log("✅ MySQL tables created");
-    } catch (error) {
-      console.error("❌ Error creating MySQL tables:", error);
-      throw error;
-    }
+    // delegate to shared exported helper
+    // Prefer using the raw mysql pool when available (it supports execute/query reliably)
+    await createMySQLTablesUsingDb(mysqlPool || db);
   }
+
+
 
   private async initializeDefaultGenres() {
     try {
@@ -982,19 +758,19 @@ export class DatabaseStorage implements IStorage {
         for (const genre of defaultGenres) {
           const genreId = randomUUID();
           const imageUrl = `/attached_assets/generated_images/${genre.name.replace(/[^a-zA-Z0-9]/g, '_')}_beat_artwork.png`;
-          
-          if (isProduction) {
-            // PostgreSQL genre creation
-            await db.run(sql`
-              INSERT INTO genres (id, name, description, image_url, color, is_active, created_at, updated_at)
-              VALUES (${genreId}, ${genre.name}, ${genre.description}, ${imageUrl}, ${genre.color}, true, CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-            `);
-          } else {
-            // SQLite genre creation
-            await db.run(sql`
-              INSERT INTO genres (id, name, description, image_url, color, is_active, created_at, updated_at)
-              VALUES (${genreId}, ${genre.name}, ${genre.description}, ${imageUrl}, ${genre.color}, 1, datetime('now'), datetime('now'))
-            `);
+          try {
+            await db.insert(genres).values({
+              id: genreId,
+              name: genre.name,
+              description: genre.description,
+              imageUrl,
+              color: genre.color,
+              isActive: 1,
+              createdAt: new Date(),
+              updatedAt: new Date(),
+            } as any);
+          } catch (e) {
+            console.error('Failed to insert default genre', genre.name, e);
           }
         }
         console.log("✓ Default genres created");
@@ -1041,8 +817,12 @@ export class DatabaseStorage implements IStorage {
       email: insertUser.email || null,
     };
     
-    const result = await db.insert(users).values(userData).returning();
-    return result[0];
+    // MySQL adapter may not support .returning(); perform insert then select to return the created user
+    const id = (userData as any).id || randomUUID();
+    (userData as any).id = id;
+    await db.insert(users).values(userData as any);
+    const inserted = await db.select().from(users).where(eq(users.id, id)).limit(1);
+    return inserted[0];
   }
 
   async updateUser(id: string, userData: Partial<InsertUser>): Promise<User | undefined> {
@@ -1732,7 +1512,7 @@ export class DatabaseStorage implements IStorage {
       return await db
         .select()
         .from(genres)
-        .where(eq(genres.isActive, true))
+  .where(eq(genres.isActive, 1))
         .orderBy(genres.name);
     } catch (error) {
       console.error("Get active genres error:", error);
@@ -1816,9 +1596,9 @@ export class DatabaseStorage implements IStorage {
       
       // Disable foreign key constraints temporarily (SQLite uses PRAGMA, MySQL uses FOREIGN_KEY_CHECKS)
       if (isMySQL) {
-        await db.run(sql`SET FOREIGN_KEY_CHECKS = 0`);
+        if (mysqlPool) { await mysqlPool.execute('SET FOREIGN_KEY_CHECKS = 0'); }
       } else {
-        await db.run(sql`PRAGMA foreign_keys = OFF`);
+        // no-op for non-MySQL path in MySQL-only runtime
       }
       console.log("Disabled foreign key constraints");
       
@@ -1881,9 +1661,9 @@ export class DatabaseStorage implements IStorage {
       
       // Re-enable foreign key constraints
       if (isMySQL) {
-        await db.run(sql`SET FOREIGN_KEY_CHECKS = 1`);
+        if (mysqlPool) { await mysqlPool.execute('SET FOREIGN_KEY_CHECKS = 1'); }
       } else {
-        await db.run(sql`PRAGMA foreign_keys = ON`);
+        // no-op for non-MySQL path in MySQL-only runtime
       }
       console.log("✓ Re-enabled foreign key constraints");
       
@@ -1895,7 +1675,7 @@ export class DatabaseStorage implements IStorage {
           password: hashedPassword,
           role: 'admin',
           email: 'admin@beatbazaar.com',
-          passwordChangeRequired: true,
+          passwordChangeRequired: 1 as any,
           createdAt: new Date(),
           updatedAt: new Date(),
         });
@@ -1922,9 +1702,9 @@ export class DatabaseStorage implements IStorage {
       // Try to re-enable foreign keys even if there was an error
       try {
         if (isMySQL) {
-          await db.run(sql`SET FOREIGN_KEY_CHECKS = 1`);
+          if (mysqlPool) { await mysqlPool.execute('SET FOREIGN_KEY_CHECKS = 1'); }
         } else {
-          await db.run(sql`PRAGMA foreign_keys = ON`);
+          // no-op for non-MySQL path in MySQL-only runtime
         }
         console.log("✓ Re-enabled foreign key constraints after error");
       } catch (e) {
@@ -1959,7 +1739,7 @@ export class DatabaseStorage implements IStorage {
             eq(verificationCodes.userId, userId),
             eq(verificationCodes.code, code),
             eq(verificationCodes.type, type),
-            eq(verificationCodes.used, false),
+            eq(verificationCodes.used, 0),
             sql`${verificationCodes.expiresAt} > ${Date.now()}`
           )
         )
@@ -1975,8 +1755,8 @@ export class DatabaseStorage implements IStorage {
   async markVerificationCodeAsUsed(id: string): Promise<boolean> {
     try {
       const result = await db
-        .update(verificationCodes)
-        .set({ used: true })
+  .update(verificationCodes)
+  .set({ used: 1 })
         .where(eq(verificationCodes.id, id));
       
       return result.changes > 0;
@@ -2013,8 +1793,8 @@ export class DatabaseStorage implements IStorage {
           smtpPass: '',
           fromName: 'BeatBazaar',
           fromEmail: '',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         } as EmailSettings;
       }
 
@@ -2032,33 +1812,40 @@ export class DatabaseStorage implements IStorage {
 
   async updateEmailSettings(settings: Partial<InsertEmailSettings>): Promise<EmailSettings> {
     try {
-      // Check if email settings exist
       const existingSettings = await this.getEmailSettings();
-      
+      const now = new Date();
+
       if (existingSettings) {
-        // Update existing settings
-        const result = await db
+        await db
           .update(emailSettings)
           .set({
             ...settings,
-            updatedAt: new Date()
+            updatedAt: now
           })
+          .where(eq(emailSettings.id, existingSettings.id));
+
+        const updated = await db
+          .select()
+          .from(emailSettings)
           .where(eq(emailSettings.id, existingSettings.id))
-          .returning();
-        
-        return result[0];
+          .limit(1);
+        return updated[0];
       } else {
-        // Create new settings
-        const result = await db
+        const newId = `email-settings-${Date.now()}`;
+        await db
           .insert(emailSettings)
           .values({
+            id: newId as any,
             ...settings,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          })
-          .returning();
-        
-        return result[0];
+            createdAt: now,
+            updatedAt: now
+          });
+        const created = await db
+          .select()
+          .from(emailSettings)
+          .where(eq(emailSettings.id, newId as any))
+          .limit(1);
+        return created[0];
       }
     } catch (error) {
       console.error("Update email settings error:", error);
@@ -2077,8 +1864,8 @@ export class DatabaseStorage implements IStorage {
           twitterUrl: '',
           youtubeUrl: '',
           tiktokUrl: '',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         } as SocialMediaSettings;
       }
 
@@ -2096,33 +1883,40 @@ export class DatabaseStorage implements IStorage {
 
   async updateSocialMediaSettings(settings: Partial<InsertSocialMediaSettings>): Promise<SocialMediaSettings> {
     try {
-      // Check if social media settings exist
       const existingSettings = await this.getSocialMediaSettings();
-      
+      const now = new Date();
+
       if (existingSettings) {
-        // Update existing settings
-        const result = await db
+        await db
           .update(socialMediaSettings)
           .set({
             ...settings,
-            updatedAt: new Date()
+            updatedAt: now
           })
+          .where(eq(socialMediaSettings.id, existingSettings.id));
+
+        const updated = await db
+          .select()
+          .from(socialMediaSettings)
           .where(eq(socialMediaSettings.id, existingSettings.id))
-          .returning();
-        
-        return result[0];
+          .limit(1);
+        return updated[0];
       } else {
-        // Create new settings
-        const result = await db
+        const newId = `social-media-settings-${Date.now()}`;
+        await db
           .insert(socialMediaSettings)
           .values({
+            id: newId as any,
             ...settings,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          })
-          .returning();
-        
-        return result[0];
+            createdAt: now,
+            updatedAt: now
+          });
+        const created = await db
+          .select()
+          .from(socialMediaSettings)
+          .where(eq(socialMediaSettings.id, newId as any))
+          .limit(1);
+        return created[0];
       }
     } catch (error) {
       console.error("Update social media settings error:", error);
@@ -2153,8 +1947,8 @@ export class DatabaseStorage implements IStorage {
           twitterUrl: '',
           youtubeUrl: '',
           tiktokUrl: '',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         } as ContactSettings;
       }
 
@@ -2172,33 +1966,40 @@ export class DatabaseStorage implements IStorage {
 
   async updateContactSettings(settings: Partial<InsertContactSettings>): Promise<ContactSettings> {
     try {
-      // Check if contact settings exist
       const existingSettings = await this.getContactSettings();
-      
+      const now = new Date();
+
       if (existingSettings) {
-        // Update existing settings
-        const result = await db
+        await db
           .update(contactSettings)
           .set({
             ...settings,
-            updatedAt: new Date()
+            updatedAt: now
           })
+          .where(eq(contactSettings.id, existingSettings.id));
+
+        const updated = await db
+          .select()
+          .from(contactSettings)
           .where(eq(contactSettings.id, existingSettings.id))
-          .returning();
-        
-        return result[0];
+          .limit(1);
+        return updated[0];
       } else {
-        // Create new settings
-        const result = await db
+        const newId = `contact-settings-${Date.now()}`;
+        await db
           .insert(contactSettings)
           .values({
+            id: newId as any,
             ...settings,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          })
-          .returning();
-        
-        return result[0];
+            createdAt: now,
+            updatedAt: now
+          });
+        const created = await db
+          .select()
+          .from(contactSettings)
+          .where(eq(contactSettings.id, newId as any))
+          .limit(1);
+        return created[0];
       }
     } catch (error) {
       console.error("Update contact settings error:", error);
@@ -2222,8 +2023,8 @@ export class DatabaseStorage implements IStorage {
           additionalFeatures: [],
           faqSection: { title: '', questions: [] },
           trustBadges: [],
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+          createdAt: new Date(),
+          updatedAt: new Date(),
         } as PlansSettings;
       }
 
@@ -2282,7 +2083,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db
         .select()
         .from(artistBios)
-        .where(eq(artistBios.isActive, true))
+  .where(eq(artistBios.isActive, 1))
         .orderBy(artistBios.sortOrder, artistBios.createdAt);
       
       return result;
@@ -2374,8 +2175,8 @@ export class DatabaseStorage implements IStorage {
           loginTitle: 'Welcome Back',
           loginSubtitle: 'Sign in to your account to continue',
           loginImage: '',
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString()
+          createdAt: new Date(),
+          updatedAt: new Date()
         } as AppBrandingSettings;
       }
 
@@ -2394,30 +2195,39 @@ export class DatabaseStorage implements IStorage {
   async updateAppBrandingSettings(settings: Partial<AppBrandingSettings>): Promise<AppBrandingSettings> {
     try {
       const existing = await this.getAppBrandingSettings();
-      
+      const now = new Date();
+
       if (existing) {
-        const result = await db
+        await db
           .update(appBrandingSettings)
           .set({
             ...settings,
-            updatedAt: new Date()
+            updatedAt: now
           })
+          .where(eq(appBrandingSettings.id, existing.id));
+
+        const updated = await db
+          .select()
+          .from(appBrandingSettings)
           .where(eq(appBrandingSettings.id, existing.id))
-          .returning();
-        
-        return result[0];
+          .limit(1);
+        return updated[0];
       } else {
-        const result = await db
+        const newId = `app-branding-${Date.now()}`;
+        await db
           .insert(appBrandingSettings)
           .values({
+            id: newId as any,
             ...settings,
-            id: `app-branding-${Date.now()}`,
-            createdAt: new Date(),
-            updatedAt: new Date()
-          })
-          .returning();
-        
-        return result[0];
+            createdAt: now,
+            updatedAt: now
+          });
+        const created = await db
+          .select()
+          .from(appBrandingSettings)
+          .where(eq(appBrandingSettings.id, newId as any))
+          .limit(1);
+        return created[0];
       }
     } catch (error) {
       console.error("Update app branding settings error:", error);
@@ -2505,8 +2315,8 @@ private async deleteAllUploadedFiles(): Promise<void> {
           webhookSecret: '',
           currency: 'usd',
           testMode: 1,
-          createdAt: new Date().toISOString(),
-          updatedAt: new Date().toISOString(),
+           createdAt: new Date(),
+          updatedAt: new Date(),
         } as StripeSettings;
       }
 
@@ -2521,7 +2331,7 @@ private async deleteAllUploadedFiles(): Promise<void> {
   async updateStripeSettings(settings: Partial<InsertStripeSettings>): Promise<StripeSettings> {
     try {
       const existing = await this.getStripeSettings();
-      const now = new Date().toISOString();
+  const now = new Date();
 
       if (existing) {
         const updated = await db
@@ -2555,7 +2365,7 @@ private async deleteAllUploadedFiles(): Promise<void> {
   // Stripe Transaction Operations
   async createStripeTransaction(transaction: InsertStripeTransaction): Promise<StripeTransaction> {
     try {
-      const now = new Date().toISOString();
+  const now = new Date();
       const newTransaction: InsertStripeTransaction = {
         ...transaction,
         id: transaction.id || randomUUID(),
@@ -2603,7 +2413,7 @@ private async deleteAllUploadedFiles(): Promise<void> {
     transaction: Partial<InsertStripeTransaction>
   ): Promise<StripeTransaction | undefined> {
     try {
-      const now = new Date().toISOString();
+  const now = new Date();
       const updated = await db
         .update(stripeTransactions)
         .set({ ...transaction, updatedAt: now })
@@ -2633,3 +2443,385 @@ private async deleteAllUploadedFiles(): Promise<void> {
 
 
 export const storage = new DatabaseStorage();
+
+// Exported helper so other modules (setup) can run the full DDL against a provided drizzle db instance
+export async function createMySQLTablesUsingDb(dbInstance: any) {
+  const results: Array<{ table: string; ok: boolean; error?: string }> = [];
+  // helper to run a statement and record result
+  const run = async (tableName: string, fn: () => Promise<any>) => {
+    try {
+      await fn();
+      results.push({ table: tableName, ok: true });
+    } catch (err: any) {
+      const msg = err && err.message ? String(err.message) : String(err);
+      console.error(`Error creating table ${tableName}:`, msg);
+      results.push({ table: tableName, ok: false, error: msg });
+    }
+  };
+
+  // compatibility executor: Try common query methods depending on dbInstance type
+  const execSql = async (sqlText: string) => {
+    if (!dbInstance) throw new Error('No db instance provided');
+
+    // Try the most likely APIs in order. Wrap each call in try/catch so that if one
+    // method exists but behaves unexpectedly we still attempt the others.
+    const errors: string[] = [];
+
+    // 1) If the instance exposes a 'run' function (some wrappers), try it
+    try {
+      if (typeof (dbInstance as any).run === 'function') {
+        return await (dbInstance as any).run(sqlText);
+      }
+    } catch (e: any) {
+      errors.push(String(e?.message || e));
+    }
+
+    // 2) mysql2 pool / connection .execute(sql, params?) -> returns [rows, fields]
+    try {
+      if (typeof (dbInstance as any).execute === 'function') {
+        return await (dbInstance as any).execute(sqlText);
+      }
+    } catch (e: any) {
+      errors.push(String(e?.message || e));
+    }
+
+    // 3) mysql2 pool / connection .query(sql, params?)
+    try {
+      if (typeof (dbInstance as any).query === 'function') {
+        return await (dbInstance as any).query(sqlText);
+      }
+    } catch (e: any) {
+      errors.push(String(e?.message || e));
+    }
+
+    // 4) Drizzle-like adapters may expose a `raw`/`executeSql` or be callable
+    try {
+      if (typeof (dbInstance as any).raw === 'function') {
+        return await (dbInstance as any).raw(sqlText);
+      }
+    } catch (e: any) {
+      errors.push(String(e?.message || e));
+    }
+
+    try {
+      if (typeof dbInstance === 'function') {
+        return await (dbInstance as any)(sqlText);
+      }
+    } catch (e: any) {
+      errors.push(String(e?.message || e));
+    }
+
+    throw new Error('dbInstance does not support run/execute/query/raw/call — attempts: ' + errors.join(' | '));
+  };
+
+  console.log("🏗️ Running MySQL DDL (per-table results will be returned)");
+
+  await run('users', async () => {
+    await execSql(
+      `CREATE TABLE IF NOT EXISTS users (
+        id VARCHAR(36) PRIMARY KEY,
+        username VARCHAR(255) NOT NULL UNIQUE,
+        password TEXT NOT NULL,
+        role VARCHAR(50) NOT NULL DEFAULT 'client',
+        email VARCHAR(255),
+        password_change_required TINYINT(1) NOT NULL DEFAULT 1,
+        theme VARCHAR(100) NOT NULL DEFAULT 'original',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB;`
+    );
+  });
+
+  await run('beats', async () => {
+    await execSql(`CREATE TABLE IF NOT EXISTS beats (
+        id VARCHAR(36) PRIMARY KEY,
+        title TEXT NOT NULL,
+        producer TEXT NOT NULL,
+        bpm INT NOT NULL,
+        genre TEXT NOT NULL,
+        price DOUBLE NOT NULL,
+        image_url TEXT NOT NULL,
+        audio_url TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB;`);
+  });
+
+  await run('purchases', async () => {
+    await execSql(`CREATE TABLE IF NOT EXISTS purchases (
+        id VARCHAR(36) PRIMARY KEY,
+        user_id VARCHAR(36) NOT NULL,
+        beat_id VARCHAR(36) NOT NULL,
+        price DOUBLE NOT NULL,
+        purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        FOREIGN KEY (beat_id) REFERENCES beats(id)
+      ) ENGINE=InnoDB;`);
+  });
+
+  await run('analytics', async () => {
+    await execSql(`CREATE TABLE IF NOT EXISTS analytics (
+        id VARCHAR(36) PRIMARY KEY,
+        site_visits INT NOT NULL DEFAULT 0,
+        total_downloads INT NOT NULL DEFAULT 0,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB;`);
+  });
+
+  await run('customers', async () => {
+    await execSql(`CREATE TABLE IF NOT EXISTS customers (
+        id VARCHAR(36) PRIMARY KEY,
+        user_id VARCHAR(36) NOT NULL,
+        first_name TEXT NOT NULL,
+        last_name TEXT NOT NULL,
+        email VARCHAR(255) NOT NULL,
+        phone TEXT,
+        address TEXT,
+        city TEXT,
+        state TEXT,
+        zip_code TEXT,
+        country TEXT,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      ) ENGINE=InnoDB;`);
+  });
+
+  await run('cart', async () => {
+    await execSql(`CREATE TABLE IF NOT EXISTS cart (
+        id VARCHAR(36) PRIMARY KEY,
+        user_id VARCHAR(36) NOT NULL,
+        beat_id VARCHAR(36) NOT NULL,
+        added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id),
+        FOREIGN KEY (beat_id) REFERENCES beats(id)
+      ) ENGINE=InnoDB;`);
+  });
+
+  await run('payments', async () => {
+    await execSql(`CREATE TABLE IF NOT EXISTS payments (
+        id VARCHAR(36) PRIMARY KEY,
+        purchase_id VARCHAR(36) NOT NULL,
+        customer_id VARCHAR(36) NOT NULL,
+        amount DOUBLE NOT NULL,
+        payment_method TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        transaction_id TEXT,
+        bank_reference TEXT,
+        notes TEXT,
+        approved_by VARCHAR(36),
+        approved_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (purchase_id) REFERENCES purchases(id),
+        FOREIGN KEY (customer_id) REFERENCES customers(id),
+        FOREIGN KEY (approved_by) REFERENCES users(id)
+      ) ENGINE=InnoDB;`);
+  });
+
+  await run('genres', async () => {
+    await execSql(`CREATE TABLE IF NOT EXISTS genres (
+        id VARCHAR(36) PRIMARY KEY,
+        name VARCHAR(255) NOT NULL UNIQUE,
+        description TEXT,
+        image_url TEXT NOT NULL,
+        color VARCHAR(20) NOT NULL DEFAULT '#3b82f6',
+        is_active TINYINT(1) NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB;`);
+  });
+
+  await run('verification_codes', async () => {
+    await execSql(`CREATE TABLE IF NOT EXISTS verification_codes (
+        id VARCHAR(36) PRIMARY KEY,
+        user_id VARCHAR(36) NOT NULL,
+        code TEXT NOT NULL,
+        type TEXT NOT NULL DEFAULT 'password_reset',
+        expires_at TIMESTAMP NOT NULL,
+        used TINYINT(1) NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        FOREIGN KEY (user_id) REFERENCES users(id)
+      ) ENGINE=InnoDB;`);
+  });
+
+  await run('email_settings', async () => {
+    await execSql(`CREATE TABLE IF NOT EXISTS email_settings (
+        id VARCHAR(36) PRIMARY KEY,
+        enabled TINYINT(1) NOT NULL DEFAULT 0,
+        smtp_host TEXT NOT NULL DEFAULT 'smtp.gmail.com',
+        smtp_port INT NOT NULL DEFAULT 587,
+        smtp_secure TINYINT(1) NOT NULL DEFAULT 0,
+        smtp_user TEXT NOT NULL DEFAULT '',
+        smtp_pass TEXT NOT NULL DEFAULT '',
+        from_name TEXT NOT NULL DEFAULT 'BeatBazaar',
+        from_email TEXT NOT NULL DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB;`);
+  });
+
+  await run('social_media_settings', async () => {
+    await execSql(`CREATE TABLE IF NOT EXISTS social_media_settings (
+        id VARCHAR(36) PRIMARY KEY,
+        facebook_url TEXT NOT NULL DEFAULT '',
+        instagram_url TEXT NOT NULL DEFAULT '',
+        twitter_url TEXT NOT NULL DEFAULT '',
+        youtube_url TEXT NOT NULL DEFAULT '',
+        tiktok_url TEXT NOT NULL DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB;`);
+  });
+
+  await run('contact_settings', async () => {
+    await execSql(`CREATE TABLE IF NOT EXISTS contact_settings (
+        id VARCHAR(36) PRIMARY KEY,
+        band_image_url TEXT NOT NULL DEFAULT '',
+        band_name TEXT NOT NULL DEFAULT 'BeatBazaar',
+        contact_email TEXT NOT NULL DEFAULT 'contact@beatbazaar.com',
+        contact_phone TEXT NOT NULL DEFAULT '+1 (555) 123-4567',
+        contact_address TEXT NOT NULL DEFAULT '123 Music Street',
+        contact_city TEXT NOT NULL DEFAULT 'Los Angeles',
+        contact_state TEXT NOT NULL DEFAULT 'CA',
+        contact_zip_code TEXT NOT NULL DEFAULT '90210',
+        contact_country TEXT NOT NULL DEFAULT 'USA',
+        message_enabled TINYINT(1) NOT NULL DEFAULT 1,
+        message_subject TEXT NOT NULL DEFAULT 'New Contact Form Submission',
+        message_template TEXT NOT NULL DEFAULT 'You have received a new message from your contact form.',
+        facebook_url TEXT NOT NULL DEFAULT '',
+        instagram_url TEXT NOT NULL DEFAULT '',
+        twitter_url TEXT NOT NULL DEFAULT '',
+        youtube_url TEXT NOT NULL DEFAULT '',
+        tiktok_url TEXT NOT NULL DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB;`);
+  });
+
+  await run('artist_bios', async () => {
+    await execSql(`CREATE TABLE IF NOT EXISTS artist_bios (
+        id VARCHAR(36) PRIMARY KEY,
+        name TEXT NOT NULL,
+        image_url TEXT NOT NULL DEFAULT '',
+        bio TEXT NOT NULL,
+        role TEXT NOT NULL DEFAULT 'Artist',
+        social_links JSON NOT NULL DEFAULT '{}',
+        is_active TINYINT(1) NOT NULL DEFAULT 1,
+        sort_order INT NOT NULL DEFAULT 0,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB;`);
+  });
+
+  await run('plans_settings', async () => {
+    await execSql(`CREATE TABLE IF NOT EXISTS plans_settings (
+        id VARCHAR(36) PRIMARY KEY,
+        page_title TEXT NOT NULL DEFAULT 'Beat Licensing Plans',
+        page_subtitle TEXT NOT NULL DEFAULT 'Choose the perfect licensing plan for your music project. From basic commercial use to exclusive ownership.',
+        basic_plan JSON NOT NULL DEFAULT '{"name":"Basic License","price":29}',
+        premium_plan JSON NOT NULL DEFAULT '{"name":"Premium License","price":99}',
+        exclusive_plan JSON NOT NULL DEFAULT '{"name":"Exclusive Rights","price":999}',
+        additional_features_title TEXT NOT NULL DEFAULT 'Why Choose BeatBazaar?',
+        additional_features JSON NOT NULL DEFAULT '[]',
+        faq_section JSON NOT NULL DEFAULT '{}',
+        trust_badges JSON NOT NULL DEFAULT '[]',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB;`);
+  });
+
+  await run('app_branding_settings', async () => {
+    await execSql(`CREATE TABLE IF NOT EXISTS app_branding_settings (
+        id VARCHAR(36) PRIMARY KEY,
+        app_name TEXT NOT NULL DEFAULT 'BeatBazaar',
+        app_logo TEXT NOT NULL DEFAULT '',
+        hero_title TEXT NOT NULL DEFAULT 'Discover Your Sound',
+        hero_subtitle TEXT NOT NULL DEFAULT 'Premium beats for every artist. Find your perfect sound and bring your music to life.',
+        hero_image TEXT NOT NULL DEFAULT '',
+        hero_button_text TEXT NOT NULL DEFAULT 'Start Creating',
+        hero_button_link TEXT NOT NULL DEFAULT '/beats',
+        login_title TEXT NOT NULL DEFAULT 'Welcome Back',
+        login_subtitle TEXT NOT NULL DEFAULT 'Sign in to your account to continue',
+        login_image TEXT NOT NULL DEFAULT '',
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB;`);
+  });
+
+  // Stripe tables
+  await run('stripe_settings', async () => {
+    await execSql(`CREATE TABLE IF NOT EXISTS stripe_settings (
+        id VARCHAR(36) PRIMARY KEY,
+        enabled TINYINT(1) NOT NULL DEFAULT 0,
+        publishable_key TEXT NOT NULL DEFAULT '',
+        secret_key TEXT NOT NULL DEFAULT '',
+        webhook_secret TEXT NOT NULL DEFAULT '',
+        currency TEXT NOT NULL DEFAULT 'usd',
+        test_mode TINYINT(1) NOT NULL DEFAULT 1,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      ) ENGINE=InnoDB;`);
+  });
+
+  await run('stripe_transactions', async () => {
+    await execSql(`CREATE TABLE IF NOT EXISTS stripe_transactions (
+        id VARCHAR(36) PRIMARY KEY,
+        payment_id VARCHAR(36) NOT NULL,
+        stripe_payment_intent_id TEXT NOT NULL UNIQUE,
+        stripe_customer_id TEXT,
+        amount DOUBLE NOT NULL,
+        currency TEXT NOT NULL DEFAULT 'usd',
+        status TEXT NOT NULL DEFAULT 'pending',
+        payment_method TEXT,
+        receipt_url TEXT,
+        metadata JSON,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
+        FOREIGN KEY (payment_id) REFERENCES payments(id)
+      ) ENGINE=InnoDB;`);
+  });
+
+  console.log("✅ MySQL DDL executed (per-table results available)");
+
+  return results;
+}
+
+/**
+ * Reinitialize the module-level DB connection using provided config.
+ * This will replace the running `db` adapter and mark the runtime as MySQL.
+ * It also runs the full DDL and calls storage.onDatabaseReady() to finish bootstrapping.
+ */
+export async function reinitializeDatabase(cfg: { host: string; port?: number | string; user: string; password?: string; database: string }) {
+  try {
+    const pool = mysql.createPool({
+      host: cfg.host,
+      port: cfg.port ? Number(cfg.port) : 3306,
+      user: cfg.user,
+      password: cfg.password || '',
+      database: cfg.database,
+      waitForConnections: true,
+      connectionLimit: 5,
+    } as any);
+
+  // replace module-level db (Drizzle adapter) so the rest of the app can use it
+  db = drizzleMysql(pool as any);
+  isMySQL = true;
+
+  // create tables using the raw pool when possible — mysql2 pool has execute/query which
+  // will work reliably for DDL. Passing the pool avoids adapter-specific method differences.
+  const results = await createMySQLTablesUsingDb(pool as any);
+
+    // run storage-level bootstrapping
+    try {
+      await (storage as DatabaseStorage).onDatabaseReady();
+    } catch (e) {
+      console.error('Error running storage.onDatabaseReady:', e);
+    }
+
+    // do not end the pool: we want the server to keep using it
+    return { ok: true, results };
+  } catch (error) {
+    console.error('reinitializeDatabase error:', error);
+    throw error;
+  }
+}

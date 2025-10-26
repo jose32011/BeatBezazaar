@@ -1,6 +1,9 @@
 import fs from 'fs';
 import path from 'path';
 import { createConnection } from 'mysql2/promise';
+import mysql from 'mysql2/promise';
+import { drizzle as drizzleMysql } from 'drizzle-orm/mysql2';
+import { createMySQLTablesUsingDb } from './storage';
 import bcrypt from 'bcryptjs';
 
 type DbConfig = {
@@ -15,7 +18,7 @@ export function isMysqlConfigured(): boolean {
   const dbUrl = process.env.DATABASE_URL;
   if (dbUrl && dbUrl.startsWith('mysql')) return true;
   if (process.env.RAILWAY_MYSQL_HOST) return true;
-  if (process.env.MYSQL_HOST && process.env.MYSQL_USER && process.env.MYSQL_DB) return true;
+  if (process.env.MYSQL_HOST && process.env.MYSQL_USER && (process.env.MYSQL_DATABASE || process.env.MYSQL_DB)) return true;
   return false;
 }
 
@@ -36,9 +39,9 @@ export async function checkDbAndAdmin(): Promise<{ configured: boolean; canConne
   // try connect using env
   try {
     const host = process.env.RAILWAY_MYSQL_HOST || process.env.MYSQL_HOST;
-    const user = process.env.RAILWAY_MYSQL_USERNAME || process.env.MYSQL_USER || process.env.MYSQL_USERNAME || '';
+    const user = process.env.RAILWAY_MYSQL_USERNAME || process.env.MYSQL_USER || '';
     const password = process.env.RAILWAY_MYSQL_PASSWORD || process.env.MYSQL_PASSWORD || '';
-    const database = process.env.RAILWAY_MYSQL_DB || process.env.MYSQL_DB || process.env.MYSQL_DATABASE || '';
+    const database = process.env.RAILWAY_MYSQL_DB || process.env.MYSQL_DATABASE || process.env.MYSQL_DB || '';
 
     if (!host || !user || !database) {
       // fall back to DATABASE_URL
@@ -111,12 +114,25 @@ export async function writeEnvAndCreateAdmin(dbCfg: DbConfig, admin: { username:
   set('MYSQL_PORT', String(port));
   set('MYSQL_USER', user);
   set('MYSQL_PASSWORD', pass);
-  set('MYSQL_DB', database);
+  set('MYSQL_DATABASE', database);
 
   try {
     fs.writeFileSync(envPath, envContents.trim() + '\n', 'utf-8');
   } catch (e) {
     throw new Error('Failed to write .env file: ' + String(e));
+  }
+
+  // Immediately populate process.env so runtime checks see the new config (server may be running in-place)
+  try {
+    process.env.DATABASE_URL = databaseUrl;
+    process.env.MYSQL_HOST = host;
+    process.env.MYSQL_PORT = String(port);
+    process.env.MYSQL_USER = user;
+    process.env.MYSQL_PASSWORD = pass;
+    process.env.MYSQL_DATABASE = database;
+  } catch (e) {
+    // Non-fatal; writing to .env succeeded which is the primary persistence step
+    console.warn('Warning: failed to set process.env values after writing .env:', e);
   }
 
   // try to connect using provided details and create users table + admin
@@ -130,10 +146,10 @@ export async function writeEnvAndCreateAdmin(dbCfg: DbConfig, admin: { username:
       password VARCHAR(255) NOT NULL,
       role VARCHAR(50) NOT NULL DEFAULT 'client',
       email VARCHAR(255),
-      passwordChangeRequired TINYINT(1) NOT NULL DEFAULT 1,
+      password_change_required TINYINT(1) NOT NULL DEFAULT 1,
       theme VARCHAR(100) NOT NULL DEFAULT 'original',
-      createdAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-      updatedAt TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
     ) ENGINE=InnoDB;
   `);
 
@@ -147,8 +163,19 @@ export async function writeEnvAndCreateAdmin(dbCfg: DbConfig, admin: { username:
   }
 
   await conn.end();
+  // After creating the minimal users table and admin, reinitialize the server storage so it switches
+  // to the newly-configured MySQL connection and runs the full DDL/bootstrapping.
+  let tableResults: any[] = [];
+  try {
+    // call storage helper to reinitialize module-level DB and run DDL
+    const { reinitializeDatabase } = await import('./storage');
+    const reinit = await reinitializeDatabase({ host: dbCfg.host, port: dbCfg.port, user: dbCfg.user, password: dbCfg.password, database: dbCfg.database });
+    if (reinit && (reinit as any).results) tableResults = (reinit as any).results;
+  } catch (e) {
+    console.error('Failed to reinitialize storage after setup:', e);
+  }
 
-  return { wroteEnv: true, adminCreated: !adminExists };
+  return { wroteEnv: true, adminCreated: !adminExists, tables: tableResults };
 }
 
 function cryptoId() {

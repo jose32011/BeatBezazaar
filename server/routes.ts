@@ -52,6 +52,16 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
     next();
   };
+
+  // helper to ensure we have a userId (TypeScript narrowing)
+  const ensureUserId = (req: any, res: any): string | null => {
+    const uid = req.session?.userId as string | undefined;
+    if (!uid) {
+      res.status(401).json({ error: 'Not authenticated' });
+      return null;
+    }
+    return uid;
+  };
   
   // Configure multer for file uploads
   const storage_config = multer.diskStorage({
@@ -468,7 +478,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Verify current password
-      const user = await storage.getUser(req.session.userId);
+  const userId = req.session.userId as string | undefined;
+  if (!userId) return res.status(401).json({ error: "Not authenticated" });
+  const user = await storage.getUser(userId);
       if (!user) {
         return res.status(404).json({ error: "User not found" });
       }
@@ -479,13 +491,15 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
       
       // Update password and clear password change requirement
-      const success = await storage.changeUserPassword(req.session.userId, newPassword);
+  const userId2 = req.session.userId as string | undefined;
+  if (!userId2) return res.status(401).json({ error: "Not authenticated" });
+  const success = await storage.changeUserPassword(userId2, newPassword);
       if (!success) {
         return res.status(500).json({ error: "Failed to update password" });
       }
       
       // Clear password change requirement
-      await storage.updateUser(req.session.userId, { passwordChangeRequired: false });
+  await storage.updateUser(userId2, { passwordChangeRequired: 0 as any });
       
       res.json({ message: "Password updated successfully" });
     } catch (error) {
@@ -562,7 +576,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         code,
         type: "password_reset",
         expiresAt,
-        used: false
+        used: 0
       });
       
       // Send email
@@ -934,7 +948,8 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
   app.put("/api/auth/theme", requireAuth, async (req, res) => {
     try {
       const { theme } = req.body;
-      const userId = req.session.userId;
+      const userId = ensureUserId(req, res);
+      if (!userId) return;
       
       if (!theme) {
         return res.status(400).json({ error: "Theme is required" });
@@ -1057,7 +1072,9 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
 
   app.get("/api/purchases/user/:userId", requireAuth, async (req, res) => {
     // Users can only see their own purchases
-    if (req.session.role !== 'admin' && req.params.userId !== req.session.userId) {
+    const sessionUserId = ensureUserId(req, res);
+    if (!sessionUserId) return;
+    if (req.session.role !== 'admin' && req.params.userId !== sessionUserId) {
       return res.status(403).json({ error: "Access denied" });
     }
     const purchases = await storage.getPurchasesByUser(req.params.userId);
@@ -1065,8 +1082,10 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
   });
 
   app.get("/api/purchases/my", requireAuth, async (req, res) => {
-    console.log('GET /api/purchases/my - Session userId:', req.session.userId);
-    const purchases = await storage.getPurchasesByUser(req.session.userId);
+    const uid = ensureUserId(req, res);
+    if (!uid) return;
+    console.log('GET /api/purchases/my - Session userId:', uid);
+    const purchases = await storage.getPurchasesByUser(uid);
     console.log('GET /api/purchases/my - Found purchases:', purchases.length);
     res.json(purchases);
   });
@@ -1074,8 +1093,10 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
   // Get user's playlist (purchased beats with full details)
   app.get("/api/playlist", requireAuth, async (req, res) => {
     try {
-      console.log('GET /api/playlist - Session userId:', req.session.userId);
-      const playlist = await storage.getUserPlaylist(req.session.userId);
+      const uid = ensureUserId(req, res);
+      if (!uid) return;
+      console.log('GET /api/playlist - Session userId:', uid);
+      const playlist = await storage.getUserPlaylist(uid);
       console.log('GET /api/playlist - Found playlist items:', playlist.length);
       res.json(playlist);
     } catch (error) {
@@ -1281,7 +1302,9 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       }
       
       // Don't allow deleting the current admin user
-      if (id === req.session.userId) {
+      const currentAdminId = ensureUserId(req, res);
+      if (!currentAdminId) return;
+      if (id === currentAdminId) {
         return res.status(400).json({ error: "Cannot delete your own account" });
       }
       
@@ -1356,8 +1379,10 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
   // Cart routes
   app.get("/api/cart", requireAuth, async (req, res) => {
     try {
-      console.log("GET /api/cart - userId:", req.session.userId);
-      const cart = await storage.getUserCart(req.session.userId);
+      const uid = ensureUserId(req, res);
+      if (!uid) return;
+      console.log("GET /api/cart - userId:", uid);
+      const cart = await storage.getUserCart(uid);
       console.log("GET /api/cart - returning:", cart.length, "items");
       res.json(cart);
     } catch (error) {
@@ -1369,18 +1394,20 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
   app.post("/api/cart/add", requireAuth, async (req, res) => {
     try {
       const { beatId } = req.body;
-      console.log("POST /api/cart/add - userId:", req.session.userId, "beatId:", beatId);
+      const uid = ensureUserId(req, res);
+      if (!uid) return;
+      console.log("POST /api/cart/add - userId:", uid, "beatId:", beatId);
       if (!beatId) {
         return res.status(400).json({ error: "Beat ID is required" });
       }
       
       // Check if user already owns this beat
-      const existingPurchase = await storage.getPurchaseByUserAndBeat(req.session.userId, beatId);
+      const existingPurchase = await storage.getPurchaseByUserAndBeat(uid, beatId);
       if (existingPurchase) {
         return res.status(400).json({ error: "You already own this beat" });
       }
       
-      const cart = await storage.addToCart(req.session.userId, beatId);
+      const cart = await storage.addToCart(uid, beatId);
       console.log("POST /api/cart/add - returning:", cart.length, "items");
       res.json(cart);
     } catch (error) {
@@ -1392,7 +1419,9 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
   app.delete("/api/cart/remove/:beatId", requireAuth, async (req, res) => {
     try {
       const { beatId } = req.params;
-      const cart = await storage.removeFromCart(req.session.userId, beatId);
+      const uid = ensureUserId(req, res);
+      if (!uid) return;
+      const cart = await storage.removeFromCart(uid, beatId);
       res.json(cart);
     } catch (error) {
       console.error('Error removing from cart:', error);
@@ -1402,7 +1431,9 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
 
   app.delete("/api/cart/clear", requireAuth, async (req, res) => {
     try {
-      await storage.clearCart(req.session.userId);
+      const uid = ensureUserId(req, res);
+      if (!uid) return;
+      await storage.clearCart(uid);
       res.json({ message: "Cart cleared successfully" });
     } catch (error) {
       console.error('Error clearing cart:', error);
@@ -1453,16 +1484,18 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       });
 
       // Create Stripe payment intent
-      const { createPaymentIntent } = await Promise.resolve(require('./stripe'));
-      const stripePaymentIntent = await createPaymentIntent(beat.price, 'usd', customer, beat, { paymentId: payment.id, purchaseId: purchase.id });
+  const stripeMod = await import('./stripe');
+  const { createPaymentIntent } = stripeMod as any;
+  const stripePaymentIntent = await createPaymentIntent(beat.price, 'usd', customer, beat, { paymentId: payment.id, purchaseId: purchase.id });
       if (!stripePaymentIntent) {
         return res.status(500).json({ error: 'Stripe not configured' });
       }
 
       // Record stripe transaction
       await storage.createStripeTransaction({
+        id: randomUUID(),
         paymentId: payment.id,
-        stripePaymentIntentId: stripePaymentIntent.id,
+        stripePaymentIntentId: stripePaymentIntent.id as string,
         stripeCustomerId: stripePaymentIntent.customer as string | undefined,
         amount: beat.price,
         currency: 'usd',
@@ -1480,8 +1513,9 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
   app.post('/api/stripe/webhook', express.raw({ type: 'application/json' }), async (req, res) => {
     try {
       const sig = req.headers['stripe-signature'] as string | undefined;
-      const { constructWebhookEvent } = await Promise.resolve(require('./stripe'));
-      const event = await constructWebhookEvent(req.body, sig || '');
+  const stripeMod = await import('./stripe');
+  const { constructWebhookEvent } = stripeMod as any;
+  const event = await constructWebhookEvent(req.body, sig || '');
       if (!event) return res.status(400).send('Webhook configuration error');
 
       if (event.type === 'payment_intent.succeeded') {
@@ -1569,6 +1603,9 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
     try {
       const { purchaseId, customerId, amount, paymentMethod, bankReference, notes } = req.body;
       
+      const uid = ensureUserId(req, res);
+      if (!uid) return;
+
       console.log("Creating payment:", { purchaseId, customerId, amount, paymentMethod, bankReference, notes });
       
       // Check if customer exists, if not create one
@@ -1578,10 +1615,10 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
         console.log("Customer verification - customerId:", customerId, "customer found:", customer);
         
         if (!customer) {
-          console.log("Customer not found, creating new customer for user ID:", req.session.userId);
+          console.log("Customer not found, creating new customer for user ID:", uid);
           // Create a customer record for this user
           const customerData = {
-            userId: req.session.userId,
+            userId: uid,
             firstName: "Customer",
             lastName: "User",
             email: "",

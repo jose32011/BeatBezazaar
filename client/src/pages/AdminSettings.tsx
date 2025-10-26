@@ -1074,13 +1074,21 @@ function AdminSettingsContent() {
   };
 
   const updateStripeSetting = (key: keyof NonNullable<PaymentSettings['stripe']>, value: any) => {
-    setSettings(prev => ({
-      ...prev,
-      stripe: {
-        ...(prev.stripe || {}),
-        [key]: value
-      }
-    }));
+    const defaultStripe: NonNullable<PaymentSettings['stripe']> = {
+      enabled: false,
+      publishableKey: '',
+      secretKey: '',
+      webhookSecret: '',
+      currency: 'usd',
+      testMode: false
+    };
+
+    setSettings(prev => {
+      const stripe = prev.stripe ? { ...prev.stripe } : { ...defaultStripe };
+      // dynamic key assignment: narrow to any for assignment
+      (stripe as any)[key] = value;
+      return { ...prev, stripe };
+    });
   };
 
   const resetUserForm = () => {
