@@ -116,24 +116,35 @@ export default function Home() {
   });
 
   const handlePlayPause = (beat: Beat) => {
-    console.log('Home handlePlayPause called for:', beat.title);
-    console.log('Beat audio URL:', beat.audioUrl);
-    console.log('User playlist:', userPlaylist.map(b => b.title));
+    console.log('🎵 Home handlePlayPause called for:', beat.title);
+    console.log('🎵 Beat audio URL:', beat.audioUrl);
+    console.log('🎵 User playlist:', userPlaylist.map(b => b.title));
+    console.log('🎵 Currently playing:', currentlyPlaying);
+    
+    if (!beat.audioUrl) {
+      console.error('❌ No audio URL for beat:', beat.title);
+      toast({
+        title: "No Audio Available",
+        description: "This beat doesn't have an audio file",
+        variant: "destructive",
+      });
+      return;
+    }
     
     // Check if this beat is in the user's playlist (purchased)
     const isInPlaylist = userPlaylist.some(b => b.id === beat.id);
-    console.log('Is in playlist:', isInPlaylist);
+    console.log('🎵 Is in playlist:', isInPlaylist);
     
     if (currentlyPlaying === beat.id) {
       // If currently playing this beat, pause it
-      console.log('Pausing current beat');
+      console.log('⏸️ Pausing current beat');
       setCurrentlyPlaying(null);
       setPlayerBeat(null);
       setIsPlaylistMode(false);
     } else {
       // If this is a purchased song, play it in playlist mode
       if (isInPlaylist) {
-        console.log('Playing purchased song in playlist mode');
+        console.log('▶️ Playing purchased song in playlist mode');
         const playlistIndex = userPlaylist.findIndex(b => b.id === beat.id);
         setPlaylist(userPlaylist);
         setCurrentPlaylistIndex(playlistIndex);
@@ -142,7 +153,7 @@ export default function Home() {
         setPlayerBeat(beat);
       } else {
         // Regular preview mode for non-purchased songs
-        console.log('Playing non-purchased song in preview mode');
+        console.log('▶️ Playing non-purchased song in preview mode');
         setIsPlaylistMode(false);
         setCurrentlyPlaying(beat.id);
         setPlayerBeat(beat);
@@ -234,7 +245,12 @@ export default function Home() {
   };
 
   const handleAddToCart = (beat: Beat) => {
+    console.log('🛒 handleAddToCart called for:', beat.title);
+    console.log('🛒 Is authenticated:', isAuthenticated);
+    console.log('🛒 User cart:', userCart.map(b => b.title));
+    
     if (!isAuthenticated) {
+      console.log('❌ User not authenticated, redirecting to login');
       toast({
         title: "Sign In Required",
         description: "Please sign in to add beats to your cart",
@@ -246,7 +262,10 @@ export default function Home() {
 
     // Check if beat is already in user's playlist (already purchased)
     const isAlreadyOwned = userPlaylist.some(playlistBeat => playlistBeat.id === beat.id);
+    console.log('🛒 Is already owned:', isAlreadyOwned);
+    
     if (isAlreadyOwned) {
+      console.log('❌ Beat already owned');
       toast({
         title: "Already Owned",
         description: "You already own this beat in your playlist",
@@ -255,7 +274,22 @@ export default function Home() {
       return;
     }
 
+    // Check if already in cart
+    const isInCart = userCart.some(cartBeat => cartBeat.id === beat.id);
+    console.log('🛒 Is in cart:', isInCart);
+    
+    if (isInCart) {
+      console.log('❌ Beat already in cart');
+      toast({
+        title: "Already in Cart",
+        description: "This beat is already in your cart",
+        variant: "destructive",
+      });
+      return;
+    }
+
     // Use API for authenticated users
+    console.log('✅ Adding beat to cart via API');
     addToCartMutation.mutate(beat.id);
   };
 
@@ -517,99 +551,7 @@ export default function Home() {
         </section>
       )}
 
-      {/* Login Prompt Section - Only show if not authenticated */}
-      {!isAuthenticated && (
-        <section className="w-full px-6 py-8">
-          <Card 
-            style={{
-              background: `linear-gradient(to right, ${themeColors.primary}20, ${themeColors.secondary}20)`,
-              borderColor: `${themeColors.primary}30`
-            }}
-          >
-            <CardContent className="p-8 text-center">
-              <LogIn 
-                className="h-16 w-16 mx-auto mb-4" 
-                style={{ color: themeColors.textSecondary }}
-              />
-              <CardTitle 
-                className="text-2xl mb-2"
-                style={{ color: themeColors.text }}
-              >
-                Sign In to Build Your Playlist
-              </CardTitle>
-              <CardDescription 
-                className="mb-6"
-                style={{ color: themeColors.textSecondary }}
-              >
-                Create your personal music collection by signing in and purchasing beats
-              </CardDescription>
-              <div className="flex justify-center gap-4">
-                <Button 
-                  onClick={() => setLocation('/login')}
-                  className="bg-primary hover:bg-primary/90"
-                >
-                  <LogIn className="h-4 w-4 mr-2" />
-                  Sign In
-                </Button>
-                <Button 
-                  onClick={() => setLocation('/login')}
-                  variant="outline"
-                  style={{
-                    borderColor: `${themeColors.text}30`,
-                    color: themeColors.text
-                  }}
-                >
-                  Create Account
-                </Button>
-              </div>
-            </CardContent>
-          </Card>
-        </section>
-      )}
 
-      {/* Promotional Banner Section */}
-      <section className="w-full px-6 py-8">
-        <div 
-          className="rounded-2xl p-8 text-center border"
-          style={{
-            background: `linear-gradient(to right, ${themeColors.primary}20, ${themeColors.secondary}20)`,
-            borderColor: `${themeColors.primary}30`
-          }}
-        >
-          <h2 
-            className="text-4xl font-bold font-display mb-4"
-            style={{ color: themeColors.text }}
-          >
-            New Music Releases
-          </h2>
-          <p 
-            className="text-xl mb-6"
-            style={{ color: themeColors.textSecondary }}
-          >
-            Discover the latest beats from top producers
-          </p>
-          <div className="flex justify-center gap-4">
-            <button 
-              className="px-6 py-3 rounded-lg font-semibold transition-colors"
-              style={{
-                backgroundColor: themeColors.primary,
-                color: '#ffffff'
-              }}
-            >
-              Browse Latest
-            </button>
-            <button 
-              className="px-6 py-3 border rounded-lg font-semibold transition-colors"
-              style={{
-                borderColor: `${themeColors.text}30`,
-                color: themeColors.text
-              }}
-            >
-              Learn More
-            </button>
-          </div>
-        </div>
-      </section>
 
       {/* Generated Banners Display */}
       {beats.length > 0 && (
@@ -646,8 +588,9 @@ export default function Home() {
                           backgroundColor: `${themeColors.text}20`,
                           color: themeColors.text
                         }}
+                        onClick={() => handlePlayPause(beat)}
                       >
-                        Play Preview
+                        {currentlyPlaying === beat.id ? 'Pause' : 'Play Preview'}
                       </button>
                     </div>
                   </div>
@@ -695,8 +638,13 @@ export default function Home() {
                       backgroundColor: themeColors.primary,
                       color: '#ffffff'
                     }}
+                    onClick={() => handleAddToCart(beat)}
                   >
-                    Add to Cart
+                    {userPlaylist.some(playlistBeat => playlistBeat.id === beat.id) 
+                      ? 'Owned' 
+                      : userCart.some(cartBeat => cartBeat.id === beat.id)
+                      ? 'In Cart'
+                      : 'Add to Cart'}
                   </button>
                 </div>
               </div>

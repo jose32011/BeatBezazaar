@@ -1,4 +1,5 @@
 import { Switch, Route } from "wouter";
+import { lazy, Suspense } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -7,6 +8,7 @@ import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AudioProvider } from "@/contexts/AudioContext";
 import PasswordChangeModal from "@/components/PasswordChangeModal";
+import ErrorBoundary from "@/components/ErrorBoundary";
 import Home from "@/pages/Home";
 import Login from "@/pages/Login";
 import ForgotPassword from "@/pages/ForgotPassword";
@@ -20,6 +22,10 @@ import Bio from "@/pages/Bio";
 import Plans from "@/pages/Plans";
 import NotFound from "@/pages/not-found";
 import Setup from "@/pages/Setup";
+
+// Lazy load music pages for better performance
+const MusicPage = lazy(() => import("@/pages/MusicPage"));
+const GenreViewPage = lazy(() => import("@/pages/GenreViewPage"));
 
 function Router() {
   return (
@@ -36,6 +42,20 @@ function Router() {
       <Route path="/contact" component={Contact} />
       <Route path="/bio" component={Bio} />
       <Route path="/plans" component={Plans} />
+      <Route path="/music">
+        <ErrorBoundary>
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+            <MusicPage />
+          </Suspense>
+        </ErrorBoundary>
+      </Route>
+      <Route path="/music/genre/:genreId">
+        <ErrorBoundary>
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+            <GenreViewPage />
+          </Suspense>
+        </ErrorBoundary>
+      </Route>
       <Route component={NotFound} />
     </Switch>
   );

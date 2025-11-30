@@ -161,6 +161,7 @@ export interface IStorage {
   getBeat(id: string): Promise<Beat | undefined>;
   getAllBeats(): Promise<Beat[]>;
   getLatestBeats(limit: number): Promise<Beat[]>;
+  getBeatsByGenre(genreId: string, limit?: number): Promise<Beat[]>;
   createBeat(beat: InsertBeat): Promise<Beat>;
   updateBeat(id: string, beat: Partial<InsertBeat>): Promise<Beat | undefined>;
   deleteBeat(id: string): Promise<boolean>;
@@ -208,6 +209,7 @@ export interface IStorage {
   getGenre(id: string): Promise<Genre | undefined>;
   getAllGenres(): Promise<Genre[]>;
   getActiveGenres(): Promise<Genre[]>;
+  getActiveGenresWithBeats(limit?: number): Promise<Array<{ genre: Genre; beats: Beat[]; totalBeats: number }>>;
   createGenre(genre: InsertGenre): Promise<Genre>;
   updateGenre(id: string, genre: Partial<InsertGenre>): Promise<Genre | undefined>;
   deleteGenre(id: string): Promise<boolean>;
@@ -272,8 +274,6 @@ export class DatabaseStorage implements IStorage {
       if (!isMySQL) return;
       // Ensure tables are created
       await createMySQLTablesUsingDb(db);
-      // Initialize default genres and other bootstrapping
-      await this.initializeDefaultGenres();
 
       // Ensure admin exists; use safe default if missing
       try {
@@ -364,11 +364,19 @@ export class DatabaseStorage implements IStorage {
           
           console.log(`📝 Creating admin user with ID: ${adminId}`);
           
-          // Create admin user (MySQL-compatible SQL)
-          await db.run(sql`
-            INSERT INTO users (id, username, password, role, email, password_change_required, theme, created_at, updated_at)
-            VALUES (${adminId}, 'admin', ${hashedPassword}, 'admin', 'admin@beatbazaar.com', 1, 'original', CURRENT_TIMESTAMP, CURRENT_TIMESTAMP)
-          `);
+          // Create admin user using Drizzle ORM insert
+          await db.insert(users).values({
+            id: adminId,
+            username: 'admin',
+            password: hashedPassword,
+            role: 'admin',
+            email: 'admin@beatbazaar.com',
+            passwordChangeRequired: 1,
+            theme: 'original',
+            createdAt: new Date(),
+            updatedAt: new Date()
+          } as any);
+          
           console.log("✅ Default admin user created: admin/admin123");
           
           // Verify the user was created
@@ -429,9 +437,6 @@ export class DatabaseStorage implements IStorage {
           console.error("❌ Failed to add social media columns to contact_settings:", alterError);
         }
       }
-
-      // Initialize default genres if none exist
-      await this.initializeDefaultGenres();
 
       console.log("Database initialized");
     } catch (error) {
@@ -836,12 +841,13 @@ export class DatabaseStorage implements IStorage {
         updateData.password = await bcrypt.hash(userData.password, 10);
       }
       
-      const result = await db.update(users)
+      await db.update(users)
         .set(updateData)
-        .where(eq(users.id, id))
-        .returning();
+        .where(eq(users.id, id));
       
-      return result[0];
+      // Fetch and return the updated user
+      const updated = await db.select().from(users).where(eq(users.id, id)).limit(1);
+      return updated[0];
     } catch (error) {
       console.error("Update user error:", error);
       return undefined;
@@ -944,9 +950,23 @@ export class DatabaseStorage implements IStorage {
     return result;
   }
 
+  async getBeatsByGenre(genreId: string, limit?: number): Promise<Beat[]> {
+    let query = db.select().from(beats).where(eq(beats.genre, genreId)).orderBy(desc(beats.createdAt));
+    if (limit) {
+      query = query.limit(limit) as any;
+    }
+    const result = await query;
+    return result;
+  }
+
   async createBeat(insertBeat: InsertBeat): Promise<Beat> {
-    const result = await db.insert(beats).values(insertBeat).returning();
-    return result[0];
+    // MySQL adapter may not support .returning(); perform insert then select to return the created beat
+    const id = (insertBeat as any).id || randomUUID();
+    const beatData = { ...insertBeat, id } as any;
+    
+    await db.insert(beats).values(beatData);
+    const inserted = await db.select().from(beats).where(eq(beats.id, id)).limit(1);
+    return inserted[0];
   }
 
   async updateBeat(id: string, beatUpdate: Partial<InsertBeat>): Promise<Beat | undefined> {
@@ -957,16 +977,16 @@ export class DatabaseStorage implements IStorage {
         return undefined;
       }
 
-      const result = await db.update(beats)
+      await db.update(beats)
         .set(beatUpdate)
-        .where(eq(beats.id, id))
-        .returning();
+        .where(eq(beats.id, id));
       
-      if (result.length > 0) {
-        // Check if files were changed and clean up old files
-        await this.cleanupOldBeatFiles(currentBeat, beatUpdate);
-        return result[0];
-      }
+      // Check if files were changed and clean up old files
+      await this.cleanupOldBeatFiles(currentBeat, beatUpdate);
+      
+      // Fetch and return the updated beat
+      const updated = await db.select().from(beats).where(eq(beats.id, id)).limit(1);
+      return updated[0];
       
       return undefined;
     } catch (error) {
@@ -984,15 +1004,11 @@ export class DatabaseStorage implements IStorage {
       }
 
       // Delete the beat from database
-      const result = await db.delete(beats).where(eq(beats.id, id)).returning();
+      await db.delete(beats).where(eq(beats.id, id));
       
-      if (result.length > 0) {
-        // Delete associated files
-        await this.deleteBeatFiles(beat);
-        return true;
-      }
-      
-      return false;
+      // Delete associated files
+      await this.deleteBeatFiles(beat);
+      return true;
     } catch (error) {
       console.error("Delete beat error:", error);
       return false;
@@ -1065,18 +1081,48 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getPurchasesByUser(userId: string): Promise<Purchase[]> {
-    const result = await db.select().from(purchases).where(eq(purchases.userId, userId)).orderBy(desc(purchases.purchasedAt));
-    return result;
+    const result = await db
+      .select({
+        id: purchases.id,
+        userId: purchases.userId,
+        beatId: purchases.beatId,
+        price: purchases.price,
+        purchasedAt: purchases.purchasedAt,
+        beat: beats
+      })
+      .from(purchases)
+      .leftJoin(beats, eq(purchases.beatId, beats.id))
+      .where(eq(purchases.userId, userId))
+      .orderBy(desc(purchases.purchasedAt));
+    
+    return result as any;
   }
 
   async getAllPurchases(): Promise<Purchase[]> {
-    const result = await db.select().from(purchases).orderBy(desc(purchases.purchasedAt));
-    return result;
+    const result = await db
+      .select({
+        id: purchases.id,
+        userId: purchases.userId,
+        beatId: purchases.beatId,
+        price: purchases.price,
+        purchasedAt: purchases.purchasedAt,
+        beat: beats
+      })
+      .from(purchases)
+      .leftJoin(beats, eq(purchases.beatId, beats.id))
+      .orderBy(desc(purchases.purchasedAt));
+    
+    return result as any;
   }
 
   async createPurchase(insertPurchase: InsertPurchase): Promise<Purchase> {
-    const result = await db.insert(purchases).values(insertPurchase).returning();
-    return result[0];
+    // MySQL adapter may not support .returning(); perform insert then select to return the created purchase
+    const id = (insertPurchase as any).id || randomUUID();
+    const purchaseData = { ...insertPurchase, id } as any;
+    
+    await db.insert(purchases).values(purchaseData);
+    const inserted = await db.select().from(purchases).where(eq(purchases.id, id)).limit(1);
+    return inserted[0];
   }
 
   async getPurchaseByUserAndBeat(userId: string, beatId: string): Promise<Purchase | undefined> {
@@ -1123,18 +1169,25 @@ export class DatabaseStorage implements IStorage {
   async updateAnalytics(analyticsUpdate: Partial<InsertAnalytics>): Promise<Analytics> {
     const existing = await this.getAnalytics();
     if (existing) {
-      const result = await db.update(analytics)
+      await db.update(analytics)
         .set({ ...analyticsUpdate, updatedAt: new Date() })
-        .where(eq(analytics.id, existing.id))
-        .returning();
-      return result[0];
+        .where(eq(analytics.id, existing.id));
+      
+      // Fetch and return the updated analytics
+      const updated = await db.select().from(analytics).where(eq(analytics.id, existing.id)).limit(1);
+      return updated[0];
     } else {
-      const result = await db.insert(analytics).values({
+      const id = randomUUID();
+      const analyticsData = {
+        id,
         siteVisits: 0,
         totalDownloads: 0,
         ...analyticsUpdate,
-      }).returning();
-      return result[0];
+      } as any;
+      
+      await db.insert(analytics).values(analyticsData);
+      const inserted = await db.select().from(analytics).where(eq(analytics.id, id)).limit(1);
+      return inserted[0];
     }
   }
 
@@ -1233,8 +1286,13 @@ export class DatabaseStorage implements IStorage {
 
   async createCustomer(insertCustomer: InsertCustomer): Promise<Customer> {
     try {
-      const result = await db.insert(customers).values(insertCustomer).returning();
-      return result[0];
+      // MySQL adapter may not support .returning(); perform insert then select to return the created customer
+      const id = (insertCustomer as any).id || randomUUID();
+      const customerData = { ...insertCustomer, id } as any;
+      
+      await db.insert(customers).values(customerData);
+      const inserted = await db.select().from(customers).where(eq(customers.id, id)).limit(1);
+      return inserted[0];
     } catch (error) {
       console.error("Create customer error:", error);
       throw error;
@@ -1243,11 +1301,13 @@ export class DatabaseStorage implements IStorage {
 
   async updateCustomer(id: string, customerUpdate: Partial<InsertCustomer>): Promise<Customer | undefined> {
     try {
-      const result = await db.update(customers)
+      await db.update(customers)
         .set({ ...customerUpdate, updatedAt: new Date() })
-        .where(eq(customers.id, id))
-        .returning();
-      return result[0];
+        .where(eq(customers.id, id));
+      
+      // Fetch and return the updated customer
+      const updated = await db.select().from(customers).where(eq(customers.id, id)).limit(1);
+      return updated[0];
     } catch (error) {
       console.error("Update customer error:", error);
       return undefined;
@@ -1285,8 +1345,13 @@ export class DatabaseStorage implements IStorage {
 
   async createPayment(insertPayment: InsertPayment): Promise<Payment> {
     try {
-      const result = await db.insert(payments).values(insertPayment).returning();
-      return result[0];
+      // MySQL adapter may not support .returning(); perform insert then select to return the created payment
+      const id = (insertPayment as any).id || randomUUID();
+      const paymentData = { ...insertPayment, id } as any;
+      
+      await db.insert(payments).values(paymentData);
+      const inserted = await db.select().from(payments).where(eq(payments.id, id)).limit(1);
+      return inserted[0];
     } catch (error) {
       console.error("Create payment error:", error);
       throw error;
@@ -1520,13 +1585,46 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
+  async getActiveGenresWithBeats(limit: number = 10): Promise<Array<{ genre: Genre; beats: Beat[]; totalBeats: number }>> {
+    try {
+      // Get all active genres
+      const activeGenres = await this.getActiveGenres();
+      
+      // For each genre, fetch beats with limit and total count
+      const genresWithBeats = await Promise.all(
+        activeGenres.map(async (genre) => {
+          // Get all beats for this genre to count total
+          const allBeats = await this.getBeatsByGenre(genre.id);
+          const totalBeats = allBeats.length;
+          
+          // Get limited beats for preview
+          const beats = await this.getBeatsByGenre(genre.id, limit);
+          
+          return {
+            genre,
+            beats,
+            totalBeats
+          };
+        })
+      );
+      
+      // Filter out genres with no beats
+      return genresWithBeats.filter(item => item.totalBeats > 0);
+    } catch (error) {
+      console.error("Get active genres with beats error:", error);
+      throw error;
+    }
+  }
+
   async createGenre(genre: InsertGenre): Promise<Genre> {
     try {
-      const result = await db
-        .insert(genres)
-        .values(genre)
-        .returning();
-      return result[0];
+      // MySQL adapter may not support .returning(); perform insert then select to return the created genre
+      const id = (genre as any).id || randomUUID();
+      const genreData = { ...genre, id } as any;
+      
+      await db.insert(genres).values(genreData);
+      const inserted = await db.select().from(genres).where(eq(genres.id, id)).limit(1);
+      return inserted[0];
     } catch (error) {
       console.error("Create genre error:", error);
       throw error;
@@ -1535,12 +1633,14 @@ export class DatabaseStorage implements IStorage {
 
   async updateGenre(id: string, genre: Partial<InsertGenre>): Promise<Genre | undefined> {
     try {
-      const result = await db
+      await db
         .update(genres)
         .set({ ...genre, updatedAt: new Date() })
-        .where(eq(genres.id, id))
-        .returning();
-      return result[0];
+        .where(eq(genres.id, id));
+      
+      // Fetch and return the updated genre
+      const updated = await db.select().from(genres).where(eq(genres.id, id)).limit(1);
+      return updated[0];
     } catch (error) {
       console.error("Update genre error:", error);
       throw error;

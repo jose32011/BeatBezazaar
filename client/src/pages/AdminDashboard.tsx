@@ -271,14 +271,23 @@ function AdminDashboardContent() {
     genre: "",
     price: "",
   });
+  const [editImageFile, setEditImageFile] = useState<File | null>(null);
+  const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
+  const [editImageUrl, setEditImageUrl] = useState<string>("");
 
   // Audio player state
   const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
   const [playerBeat, setPlayerBeat] = useState<Beat | null>(null);
 
   const updateBeatMutation = useMutation({
-    mutationFn: async ({ id, data }: { id: string; data: any }) => {
-      return apiRequest('PUT', `/api/beats/${id}`, data);
+    mutationFn: async ({ id, formData }: { id: string; formData: FormData }) => {
+      const res = await fetch(`/api/beats/${id}`, {
+        method: 'PUT',
+        credentials: 'include',
+        body: formData,
+      });
+      if (!res.ok) throw new Error('Failed to update beat');
+      return res.json();
     },
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/beats'] });
@@ -306,19 +315,52 @@ function AdminDashboardContent() {
       genre: beat.genre,
       price: beat.price.toString(),
     });
+    setEditImageFile(null);
+    setEditImageUrl("");
+    setEditImagePreview(beat.imageUrl);
   };
 
   const handleUpdateBeat = () => {
     if (!editingBeat) return;
     
+    const formData = new FormData();
+    formData.append('title', editFormData.title);
+    formData.append('producer', editFormData.producer);
+    formData.append('bpm', editFormData.bpm);
+    formData.append('genre', editFormData.genre);
+    formData.append('price', editFormData.price);
+    
+    if (editImageFile) {
+      formData.append('image', editImageFile);
+    } else if (editImageUrl.trim()) {
+      formData.append('imageUrl', editImageUrl.trim());
+    }
+    
     updateBeatMutation.mutate({
       id: editingBeat.id,
-      data: {
-        ...editFormData,
-        bpm: parseInt(editFormData.bpm),
-        price: parseFloat(editFormData.price),
-      },
+      formData,
     });
+  };
+
+  const handleEditImageChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file) {
+      setEditImageFile(file);
+      setEditImageUrl(""); // Clear URL when file is selected
+      const reader = new FileReader();
+      reader.onloadend = () => {
+        setEditImagePreview(reader.result as string);
+      };
+      reader.readAsDataURL(file);
+    }
+  };
+
+  const handleEditImageUrlChange = (url: string) => {
+    setEditImageUrl(url);
+    if (url.trim()) {
+      setEditImageFile(null); // Clear file when URL is entered
+      setEditImagePreview(url);
+    }
   };
 
   // Site Pages mutations
@@ -1014,6 +1056,43 @@ function AdminDashboardContent() {
             </DialogDescription>
           </DialogHeader>
           <div className="grid gap-4 py-4">
+            <div className="grid grid-cols-4 items-center gap-4">
+              <Label className="text-right">
+                Image
+              </Label>
+              <div className="col-span-3 space-y-2">
+                <div className="space-y-2">
+                  <Label htmlFor="edit-image-url" className="text-sm text-muted-foreground">
+                    Image URL
+                  </Label>
+                  <Input
+                    id="edit-image-url"
+                    type="text"
+                    placeholder="https://example.com/image.jpg"
+                    value={editImageUrl}
+                    onChange={(e) => handleEditImageUrlChange(e.target.value)}
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label htmlFor="edit-image-file" className="text-sm text-muted-foreground">
+                    Or upload file
+                  </Label>
+                  <Input
+                    id="edit-image-file"
+                    type="file"
+                    accept="image/*"
+                    onChange={handleEditImageChange}
+                  />
+                </div>
+                {editImagePreview && (
+                  <img
+                    src={editImagePreview}
+                    alt="Preview"
+                    className="w-32 h-32 object-cover rounded-lg"
+                  />
+                )}
+              </div>
+            </div>
             <div className="grid grid-cols-4 items-center gap-4">
               <Label htmlFor="edit-title" className="text-right">
                 Title

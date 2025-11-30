@@ -121,7 +121,12 @@ function Plans() {
     );
   }
 
-  const plans = [
+  console.log('📋 Plans Settings:', plansSettings);
+  console.log('📋 Basic Plan isActive:', plansSettings.basicPlan.isActive, typeof plansSettings.basicPlan.isActive);
+  console.log('📋 Premium Plan isActive:', plansSettings.premiumPlan.isActive, typeof plansSettings.premiumPlan.isActive);
+  console.log('📋 Exclusive Plan isActive:', plansSettings.exclusivePlan.isActive, typeof plansSettings.exclusivePlan.isActive);
+
+  const allPlans = [
     {
       id: "basic",
       name: plansSettings.basicPlan.name,
@@ -155,7 +160,14 @@ function Plans() {
       color: "bg-gradient-to-r from-yellow-400 to-orange-500",
       isActive: plansSettings.exclusivePlan.isActive
     }
-  ].filter(plan => plan.isActive);
+  ];
+
+  console.log('📋 All plans before filter:', allPlans);
+  
+  const plans = allPlans.filter(plan => plan.isActive === true || plan.isActive === 1);
+  
+  console.log('📋 Filtered plans:', plans);
+  console.log('📋 Number of active plans:', plans.length);
 
   return (
     <div 

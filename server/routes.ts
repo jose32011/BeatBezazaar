@@ -997,8 +997,22 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
 
   // Beat routes
   app.get("/api/beats", async (req, res) => {
-    const beats = await storage.getAllBeats();
-    res.json(beats);
+    try {
+      const genreFilter = req.query.genre as string | undefined;
+      
+      if (genreFilter) {
+        // Filter by genre if provided
+        const beats = await storage.getBeatsByGenre(genreFilter);
+        res.json(beats);
+      } else {
+        // Return all beats if no filter
+        const beats = await storage.getAllBeats();
+        res.json(beats);
+      }
+    } catch (error) {
+      console.error("Get beats error:", error);
+      res.status(500).json({ error: "Failed to fetch beats" });
+    }
   });
 
   app.get("/api/beats/latest/:limit", async (req, res) => {
@@ -1044,14 +1058,31 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
     }
   });
 
-  app.put("/api/beats/:id", requireAdmin, async (req, res) => {
+  app.put("/api/beats/:id", requireAdmin, upload.single('image'), async (req, res) => {
     try {
-      const beat = await storage.updateBeat(req.params.id, req.body);
+      const updateData = { ...req.body };
+      
+      // Convert numeric fields from strings (FormData sends everything as strings)
+      if (updateData.bpm) updateData.bpm = parseInt(updateData.bpm);
+      if (updateData.price) updateData.price = parseFloat(updateData.price);
+      
+      // If a new image was uploaded, update the imageUrl
+      if (req.file) {
+        updateData.imageUrl = `/uploads/images/${req.file.filename}`;
+      } else if (req.body.imageUrl && req.body.imageUrl.trim()) {
+        // If an image URL was provided, use it
+        updateData.imageUrl = req.body.imageUrl.trim();
+      }
+      
+      console.log('Updating beat with data:', updateData);
+      
+      const beat = await storage.updateBeat(req.params.id, updateData);
       if (!beat) {
         return res.status(404).json({ error: "Beat not found" });
       }
       res.json(beat);
     } catch (error) {
+      console.error('Beat update error:', error);
       res.status(400).json({ error: "Invalid beat data" });
     }
   });
@@ -1660,6 +1691,47 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
   // should be performed directly on the server by a developer/ops person.
 
   // Genre management routes
+  
+  // Get beats by genre with optional limit (must come before /api/genres to avoid route conflict)
+  app.get("/api/genres/:genreId/beats", async (req, res) => {
+    try {
+      const { genreId } = req.params;
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : undefined;
+      const beats = await storage.getBeatsByGenre(genreId, limit);
+      res.json(beats);
+    } catch (error) {
+      console.error("Get beats by genre error:", error);
+      res.status(500).json({ error: "Failed to fetch beats" });
+    }
+  });
+
+  // Get single genre by ID (must come before /api/genres to avoid route conflict)
+  app.get("/api/genres/:genreId", async (req, res) => {
+    try {
+      const { genreId } = req.params;
+      const genre = await storage.getGenre(genreId);
+      if (!genre) {
+        return res.status(404).json({ error: "Genre not found" });
+      }
+      res.json(genre);
+    } catch (error) {
+      console.error("Get genre error:", error);
+      res.status(500).json({ error: "Failed to fetch genre" });
+    }
+  });
+
+  // Get all active genres with their beats (limited per genre)
+  app.get("/api/genres-with-beats", async (req, res) => {
+    try {
+      const limit = req.query.limit ? parseInt(req.query.limit as string) : 10;
+      const genresWithBeats = await storage.getActiveGenresWithBeats(limit);
+      res.json(genresWithBeats);
+    } catch (error) {
+      console.error("Get genres with beats error:", error);
+      res.status(500).json({ error: "Failed to fetch genres with beats" });
+    }
+  });
+
   app.get("/api/genres", async (req, res) => {
     try {
       const genres = await storage.getActiveGenres();
@@ -1738,6 +1810,43 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
   app.get("/api/plans-settings", async (req, res) => {
     try {
       const settings = await storage.getPlansSettings();
+      console.log('📋 Plans settings from DB:', settings);
+      
+      if (!settings) {
+        console.log('⚠️ No plans settings found in database, returning defaults');
+        // Return default settings if none exist
+        return res.json({
+          pageTitle: "Beat Licensing Plans",
+          pageSubtitle: "Choose the perfect licensing plan for your music project",
+          basicPlan: {
+            name: "Basic License",
+            price: 29,
+            description: "Perfect for independent artists",
+            features: ["Commercial use rights", "Up to 5,000 copies", "Streaming on all platforms"],
+            isActive: true
+          },
+          premiumPlan: {
+            name: "Premium License",
+            price: 99,
+            description: "Ideal for established artists",
+            features: ["Everything in Basic", "Up to 50,000 copies", "TV and film rights"],
+            isActive: true,
+            isPopular: true
+          },
+          exclusivePlan: {
+            name: "Exclusive Rights",
+            price: 999,
+            description: "Complete ownership",
+            features: ["Complete ownership", "Unlimited use", "Master recording ownership"],
+            isActive: true
+          },
+          additionalFeaturesTitle: "Why Choose Us?",
+          additionalFeatures: [],
+          faqSection: { title: "FAQ", questions: [] },
+          trustBadges: []
+        });
+      }
+      
       res.json(settings);
     } catch (error) {
       console.error("Get plans settings error:", error);

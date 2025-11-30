@@ -69,6 +69,11 @@ export default function Header({ cartCount = 0, onCartClick }: HeaderProps) {
                 Browse
               </Button>
             </Link>
+            <Link href="/music">
+              <Button variant="ghost" size="sm" className="text-sm xl:text-base" data-testid="button-music">
+                Music
+              </Button>
+            </Link>
             <Link href="/bio">
               <Button variant="ghost" size="sm" className="text-sm xl:text-base">
                 Bio
@@ -245,6 +250,11 @@ export default function Header({ cartCount = 0, onCartClick }: HeaderProps) {
               <Link href="/" onClick={() => setIsMobileMenuOpen(false)}>
                 <Button variant="ghost" size="sm" className="w-full justify-start text-sm sm:text-base h-8 sm:h-10" data-testid="button-browse-mobile">
                   Browse
+                </Button>
+              </Link>
+              <Link href="/music" onClick={() => setIsMobileMenuOpen(false)}>
+                <Button variant="ghost" size="sm" className="w-full justify-start text-sm sm:text-base h-8 sm:h-10" data-testid="button-music-mobile">
+                  Music
                 </Button>
               </Link>
               <Link href="/bio" onClick={() => setIsMobileMenuOpen(false)}>
