@@ -152,7 +152,7 @@ export default function SetupPage() {
         <div className="mb-6 flex items-center justify-between">
           <div>
             <h1 className="text-3xl font-bold font-display">Setup</h1>
-            <p className="text-sm text-muted-foreground">Quickly configure MySQL and create an initial admin account.</p>
+            <p className="text-sm text-muted-foreground">Quickly configure PostgreSQL and create an initial admin account.</p>
           </div>
         </div>
 
@@ -307,7 +307,7 @@ export default function SetupPage() {
                 {status ? (
                   <div className="space-y-3">
                     <div className="p-4 rounded bg-slate-50 dark:bg-slate-800/60">
-                      <div className="text-sm text-muted-foreground">MySQL configured</div>
+                      <div className="text-sm text-muted-foreground">PostgreSQL configured</div>
                       <div className="font-medium">{String(status.configured)}</div>
                     </div>
                     <div className="p-4 rounded bg-slate-50 dark:bg-slate-800/60">

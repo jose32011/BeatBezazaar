@@ -232,6 +232,11 @@ function AdminDashboardContent() {
     refetchOnWindowFocus: true, // Refetch when window gains focus
   });
 
+  const { data: genres = [] } = useQuery<Array<{ id: string; name: string }>>({
+    queryKey: ['/api/admin/genres'],
+    staleTime: 1000 * 60 * 5, // 5 minutes - genres don't change frequently
+  });
+
 
 
 
@@ -1139,14 +1144,15 @@ function AdminDashboardContent() {
                   <SelectValue placeholder="Select genre" />
                 </SelectTrigger>
                 <SelectContent>
-                  <SelectItem value="Hip-Hop">Hip-Hop</SelectItem>
-                  <SelectItem value="Trap">Trap</SelectItem>
-                  <SelectItem value="R&B">R&B</SelectItem>
-                  <SelectItem value="Pop">Pop</SelectItem>
-                  <SelectItem value="Lo-fi">Lo-fi</SelectItem>
-                  <SelectItem value="Drill">Drill</SelectItem>
-                  <SelectItem value="Electronic">Electronic</SelectItem>
-                  <SelectItem value="Jazz">Jazz</SelectItem>
+                  {genres.length === 0 ? (
+                    <SelectItem value="no-genres" disabled>No genres available</SelectItem>
+                  ) : (
+                    genres.map((genre: any) => (
+                      <SelectItem key={genre.id} value={genre.id}>
+                        {genre.name}
+                      </SelectItem>
+                    ))
+                  )}
                 </SelectContent>
               </Select>
             </div>

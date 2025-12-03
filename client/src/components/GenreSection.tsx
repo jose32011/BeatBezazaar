@@ -32,9 +32,9 @@ export default function GenreSection({
   const { getThemeColors } = useTheme();
   const themeColors = getThemeColors();
 
-  // Limit to 10 beats for preview
-  const previewBeats = beats.slice(0, 10);
-  const showViewAll = totalBeats > 10;
+  // Limit to 6 beats for preview
+  const previewBeats = beats.slice(0, 6);
+  const showViewAll = totalBeats > 6;
 
   return (
     <section 
@@ -51,7 +51,7 @@ export default function GenreSection({
           <div>
             <h2 
               id={`genre-heading-${genre.id}`}
-              className="text-3xl font-bold font-display mb-2"
+              className="text-2xl font-bold font-display mb-2"
               style={{ color: genre.color }}
               data-testid={`heading-genre-${genre.id}`}
             >
@@ -102,6 +102,7 @@ export default function GenreSection({
           <BeatCard
             key={beat.id}
             beat={beat}
+            genreName={genre.name}
             isPlaying={isPlaying(beat.id)}
             hasAudioError={hasAudioError(beat.id)}
             isInCart={isInCart(beat.id)}

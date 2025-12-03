@@ -32,19 +32,17 @@ DialogOverlay.displayName = DialogPrimitive.Overlay.displayName
 
 const DialogContent = React.forwardRef<
   React.ElementRef<typeof DialogPrimitive.Content>,
-  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content>
->(({ className, children, ...props }, ref) => {
+  React.ComponentPropsWithoutRef<typeof DialogPrimitive.Content> & { hideCloseButton?: boolean }
+>(({ className, children, hideCloseButton, ...props }, ref) => {
   const { theme } = useTheme();
   
   // Get theme background style
   const getThemeBackground = () => {
     switch (theme) {
-      case 'dark':
-        return { background: '#1f2937', backgroundImage: 'none' };
       case 'original':
         return { background: '#363C48', backgroundImage: 'none' };
-             case 'default':
-               return { background: 'linear-gradient(135deg, #4c63d2 0%, #5a4fcf 100%)', backgroundImage: 'linear-gradient(135deg, #4c63d2 0%, #5a4fcf 100%)' };
+      case 'default':
+        return { background: 'linear-gradient(135deg, #4c63d2 0%, #5a4fcf 100%)', backgroundImage: 'linear-gradient(135deg, #4c63d2 0%, #5a4fcf 100%)' };
       case 'card-match':
         return { background: '#0a0f1a', backgroundImage: 'none' };
       case 'black-white':
@@ -86,10 +84,12 @@ const DialogContent = React.forwardRef<
         {...props}
       >
         {children}
-        <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
-          <X className="h-4 w-4" />
-          <span className="sr-only">Close</span>
-        </DialogPrimitive.Close>
+        {!hideCloseButton && (
+          <DialogPrimitive.Close className="absolute right-4 top-4 rounded-sm opacity-70 ring-offset-background transition-opacity hover:opacity-100 focus:outline-none focus:ring-2 focus:ring-ring focus:ring-offset-2 disabled:pointer-events-none data-[state=open]:bg-accent data-[state=open]:text-muted-foreground">
+            <X className="h-4 w-4" />
+            <span className="sr-only">Close</span>
+          </DialogPrimitive.Close>
+        )}
       </DialogPrimitive.Content>
     </DialogPortal>
   );

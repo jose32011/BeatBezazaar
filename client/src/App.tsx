@@ -7,6 +7,7 @@ import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AudioProvider } from "@/contexts/AudioContext";
+import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
 import PasswordChangeModal from "@/components/PasswordChangeModal";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Home from "@/pages/Home";
@@ -26,6 +27,7 @@ import Setup from "@/pages/Setup";
 // Lazy load music pages for better performance
 const MusicPage = lazy(() => import("@/pages/MusicPage"));
 const GenreViewPage = lazy(() => import("@/pages/GenreViewPage"));
+const Library = lazy(() => import("@/pages/Library"));
 
 function Router() {
   return (
@@ -53,6 +55,13 @@ function Router() {
         <ErrorBoundary>
           <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
             <GenreViewPage />
+          </Suspense>
+        </ErrorBoundary>
+      </Route>
+      <Route path="/library">
+        <ErrorBoundary>
+          <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
+            <Library />
           </Suspense>
         </ErrorBoundary>
       </Route>
@@ -89,12 +98,14 @@ function App() {
       <ThemeProvider>
         <AuthProvider>
           <AudioProvider>
-            <TooltipProvider>
-              <div className="dark">
-                <Toaster />
-                <AppContent />
-              </div>
-            </TooltipProvider>
+            <AudioPlayerProvider>
+              <TooltipProvider>
+                <div className="dark">
+                  <Toaster />
+                  <AppContent />
+                </div>
+              </TooltipProvider>
+            </AudioPlayerProvider>
           </AudioProvider>
         </AuthProvider>
       </ThemeProvider>

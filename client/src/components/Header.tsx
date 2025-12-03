@@ -65,8 +65,8 @@ export default function Header({ cartCount = 0, onCartClick }: HeaderProps) {
           {/* Desktop Navigation */}
           <nav className="hidden lg:flex items-center gap-4 xl:gap-6">
             <Link href="/">
-              <Button variant="ghost" size="sm" className="text-sm xl:text-base" data-testid="button-browse">
-                Browse
+              <Button variant="ghost" size="sm" className="text-sm xl:text-base" data-testid="button-home">
+                Home
               </Button>
             </Link>
             <Link href="/music">
@@ -74,6 +74,13 @@ export default function Header({ cartCount = 0, onCartClick }: HeaderProps) {
                 Music
               </Button>
             </Link>
+            {user && (
+              <Link href="/library">
+                <Button variant="ghost" size="sm" className="text-sm xl:text-base" data-testid="button-library">
+                  Library
+                </Button>
+              </Link>
+            )}
             <Link href="/bio">
               <Button variant="ghost" size="sm" className="text-sm xl:text-base">
                 Bio
@@ -248,8 +255,8 @@ export default function Header({ cartCount = 0, onCartClick }: HeaderProps) {
           >
             <nav className="flex flex-col space-y-1 sm:space-y-2">
               <Link href="/" onClick={() => setIsMobileMenuOpen(false)}>
-                <Button variant="ghost" size="sm" className="w-full justify-start text-sm sm:text-base h-8 sm:h-10" data-testid="button-browse-mobile">
-                  Browse
+                <Button variant="ghost" size="sm" className="w-full justify-start text-sm sm:text-base h-8 sm:h-10" data-testid="button-home-mobile">
+                  Home
                 </Button>
               </Link>
               <Link href="/music" onClick={() => setIsMobileMenuOpen(false)}>
@@ -257,6 +264,13 @@ export default function Header({ cartCount = 0, onCartClick }: HeaderProps) {
                   Music
                 </Button>
               </Link>
+              {user && (
+                <Link href="/library" onClick={() => setIsMobileMenuOpen(false)}>
+                  <Button variant="ghost" size="sm" className="w-full justify-start text-sm sm:text-base h-8 sm:h-10" data-testid="button-library-mobile">
+                    Library
+                  </Button>
+                </Link>
+              )}
               <Link href="/bio" onClick={() => setIsMobileMenuOpen(false)}>
                 <Button variant="ghost" size="sm" className="w-full justify-start text-sm sm:text-base h-8 sm:h-10">
                   Bio

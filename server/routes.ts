@@ -1,7 +1,7 @@
 import express, { type Express } from "express";
 import { createServer, type Server } from "http";
 import { storage } from "./storage";
-import { isMysqlConfigured, checkDbAndAdmin, writeEnvAndCreateAdmin } from "./setup";
+import { isPostgresConfigured, checkDbAndAdmin, writeEnvAndCreateAdmin } from "./setup";
 import { insertBeatSchema, insertPurchaseSchema, insertUserSchema } from "@shared/schema";
 import session from "express-session";
 import MemoryStore from "memorystore";
@@ -266,7 +266,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
       }
 
       // If currently configured, require admin authentication to update settings
-      if (isMysqlConfigured()) {
+      if (isPostgresConfigured()) {
         if (!existingAdminUsername || !existingAdminPassword) {
           return res.status(401).json({ error: 'Admin authentication required to update settings' });
         }
@@ -294,7 +294,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
-  // Check MySQL connection using provided credentials (does not persist)
+  // Check PostgreSQL connection using provided credentials (does not persist)
   app.post('/api/setup/check-connection', async (req, res) => {
     try {
       const { dbHost, dbPort, dbUser, dbPassword, dbName } = req.body || {};
@@ -302,35 +302,25 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ error: 'Missing required fields (host, user, database)' });
       }
 
-  const mysql = await import('mysql2/promise');
+      const postgres = (await import('postgres')).default;
 
       // Try connecting to the provided database
-      let connection;
       try {
-        connection = await mysql.createConnection({
-          host: dbHost,
-          port: Number(dbPort) || 3306,
-          user: dbUser,
-          password: dbPassword || '',
-          database: dbName,
-          connectTimeout: 5000
-        });
+        const connectionString = `postgresql://${encodeURIComponent(dbUser)}:${encodeURIComponent(dbPassword || '')}@${dbHost}:${Number(dbPort) || 5432}/${encodeURIComponent(dbName)}`;
+        const client = postgres(connectionString, { connect_timeout: 5 });
+        
         // run a simple query
-        await connection.query('SELECT 1');
-        await connection.end();
+        await client`SELECT 1`;
+        await client.end();
         return res.json({ ok: true, canConnect: true, databaseExists: true });
       } catch (err: any) {
-        // If database doesn't exist, try connecting without database to check server/credentials
-        if (err && err.code === 'ER_BAD_DB_ERROR') {
+        // If database doesn't exist, try connecting to postgres database to check server/credentials
+        if (err && (err.code === '3D000' || err.message?.includes('does not exist'))) {
           try {
-            connection = await mysql.createConnection({
-              host: dbHost,
-              port: Number(dbPort) || 3306,
-              user: dbUser,
-              password: dbPassword || '',
-              connectTimeout: 5000
-            });
-            await connection.end();
+            const connectionString = `postgresql://${encodeURIComponent(dbUser)}:${encodeURIComponent(dbPassword || '')}@${dbHost}:${Number(dbPort) || 5432}/postgres`;
+            const client = postgres(connectionString, { connect_timeout: 5 });
+            await client`SELECT 1`;
+            await client.end();
             return res.json({ ok: true, canConnect: true, databaseExists: false });
           } catch (err2: any) {
             return res.status(400).json({ ok: false, error: String(err2.message || err2) });
@@ -576,7 +566,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         code,
         type: "password_reset",
         expiresAt,
-        used: 0
+        used: false
       });
       
       // Send email
@@ -1348,8 +1338,22 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
     }
   });
 
-  // Database reset endpoint removed for safety. Manual reset operations
-  // should be performed directly on the server by a developer/ops person.
+  // Database reset endpoint - requires admin authentication
+  app.post("/api/admin/reset-database", requireAdmin, async (req, res) => {
+    try {
+      console.log("Admin initiated database reset");
+      await storage.resetDatabase();
+      console.log("Database reset completed successfully");
+      res.json({ message: "Database reset successfully. All data and uploaded files have been cleared." });
+    } catch (error: any) {
+      console.error("Database reset error:", error);
+      console.error("Error stack:", error?.stack);
+      res.status(500).json({ 
+        error: "Failed to reset database", 
+        details: error?.message || String(error)
+      });
+    }
+  });
 
   // Migration endpoint to create customer records for users without them
   app.post("/api/admin/migrate-customers", requireAdmin, async (req, res) => {
@@ -1882,6 +1886,35 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
     } catch (error) {
       console.error("Update app branding settings error:", error);
       res.status(500).json({ error: "Failed to update app branding settings" });
+    }
+  });
+
+  // Home Settings routes
+  app.get("/api/home-settings", async (req, res) => {
+    try {
+      const settings = await storage.getHomeSettings();
+      res.json(settings);
+    } catch (error) {
+      console.error("Get home settings error:", error);
+      res.status(500).json({ error: "Failed to fetch home settings" });
+    }
+  });
+
+  app.put("/api/home-settings", requireAuth, requireAdmin, async (req, res) => {
+    try {
+      const { title, description, feature1, feature2, feature3, imageUrl } = req.body;
+      const settings = await storage.updateHomeSettings({
+        title,
+        description,
+        feature1,
+        feature2,
+        feature3,
+        imageUrl,
+      });
+      res.json(settings);
+    } catch (error) {
+      console.error("Update home settings error:", error);
+      res.status(500).json({ error: "Failed to update home settings" });
     }
   });
 

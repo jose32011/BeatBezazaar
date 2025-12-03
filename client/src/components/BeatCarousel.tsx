@@ -1,5 +1,5 @@
-import { useCallback, useEffect } from "react";
-import { Play, ShoppingCart, Plus, Check } from "lucide-react";
+import { useCallback } from "react";
+import { Play, ShoppingCart, Check } from "lucide-react";
 import useEmblaCarousel from "embla-carousel-react";
 import Autoplay from "embla-carousel-autoplay";
 import { Button } from "@/components/ui/button";
@@ -44,15 +44,35 @@ export default function BeatCarousel({ beats, userPlaylist = [], onPlayBeat, onA
               data-testid={`carousel-slide-${beat.id}`}
             >
               <div className="relative h-[400px] lg:h-[500px] overflow-hidden rounded-lg">
-                <img
-                  src={beat.imageUrl}
-                  alt={beat.title}
-                  className="w-full h-full object-cover"
+                {/* Blurred background image */}
+                <div 
+                  className="absolute inset-0"
+                  style={{
+                    backgroundImage: `url(${beat.imageUrl})`,
+                    backgroundSize: 'cover',
+                    backgroundPosition: 'center',
+                    filter: 'blur(40px)',
+                    transform: 'scale(1.1)',
+                  }}
                 />
-                <div className="absolute inset-0 bg-gradient-to-t from-background via-background/70 to-transparent" />
+                
+                {/* Dark overlay */}
+                <div className="absolute inset-0 bg-black/40" />
+                
+                {/* Album art on the left - not stretched */}
+                <div className="absolute left-0 top-0 bottom-0 w-[400px] lg:w-[500px] flex items-center justify-center p-8">
+                  <img
+                    src={beat.imageUrl}
+                    alt={beat.title}
+                    className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
+                  />
+                </div>
+                
+                {/* Gradient overlay for text readability */}
+                <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent" />
                 
                 <div className="absolute bottom-0 left-0 right-0 p-8 lg:p-12">
-                  <div className="max-w-4xl">
+                  <div className="max-w-4xl ml-[420px] lg:ml-[520px]">
                     <div className="flex gap-3 mb-4">
                       <Badge variant="secondary" data-testid={`badge-genre-${beat.id}`}>
                         {beat.genre}
@@ -124,21 +144,23 @@ export default function BeatCarousel({ beats, userPlaylist = [], onPlayBeat, onA
         </div>
       </div>
 
+      {/* Left Navigation Arrow */}
       <Button
         variant="outline"
         size="icon"
-        className="absolute left-4 top-1/2 -translate-y-1/2 rounded-full backdrop-blur-sm bg-background/20"
+        className="absolute left-8 top-1/2 -translate-y-1/2 z-50 rounded-full backdrop-blur-sm bg-black/60 hover:bg-black/80 border-2 border-white/40 text-white w-14 h-14 shadow-xl"
         onClick={scrollPrev}
         data-testid="button-carousel-prev"
+        style={{ left: '2rem' }}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
+          width="32"
+          height="32"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="2"
+          strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
         >
@@ -146,21 +168,23 @@ export default function BeatCarousel({ beats, userPlaylist = [], onPlayBeat, onA
         </svg>
       </Button>
 
+      {/* Right Navigation Arrow */}
       <Button
         variant="outline"
         size="icon"
-        className="absolute right-4 top-1/2 -translate-y-1/2 rounded-full backdrop-blur-sm bg-background/20"
+        className="absolute right-8 top-1/2 -translate-y-1/2 z-50 rounded-full backdrop-blur-sm bg-black/60 hover:bg-black/80 border-2 border-white/40 text-white w-14 h-14 shadow-xl"
         onClick={scrollNext}
         data-testid="button-carousel-next"
+        style={{ right: '2rem' }}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
-          width="24"
-          height="24"
+          width="32"
+          height="32"
           viewBox="0 0 24 24"
           fill="none"
           stroke="currentColor"
-          strokeWidth="2"
+          strokeWidth="2.5"
           strokeLinecap="round"
           strokeLinejoin="round"
         >

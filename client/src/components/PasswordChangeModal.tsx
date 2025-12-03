@@ -107,8 +107,13 @@ export default function PasswordChangeModal({
   };
 
   return (
-    <Dialog open={isOpen} onOpenChange={handleClose}>
-      <DialogContent className="sm:max-w-md" onPointerDownOutside={isRequired ? (e) => e.preventDefault() : undefined}>
+    <Dialog open={isOpen} onOpenChange={isRequired ? undefined : handleClose}>
+      <DialogContent 
+        className="sm:max-w-md" 
+        onPointerDownOutside={isRequired ? (e) => e.preventDefault() : undefined}
+        onEscapeKeyDown={isRequired ? (e) => e.preventDefault() : undefined}
+        hideCloseButton={isRequired}
+      >
         <DialogHeader>
           <DialogTitle className="flex items-center gap-2">
             <Lock className="h-5 w-5" />

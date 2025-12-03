@@ -1,0 +1,102 @@
+[
+  {
+    "id": "72d81cf2-7a27-46e4-9efb-f12c4e6aaca3",
+    "title": "Hip-Hop Beat 1",
+    "producer": "DJ Shadow",
+    "bpm": 120,
+    "genre": "Hip-Hop",
+    "price": 29.99,
+    "imageUrl": "https://source.unsplash.com/800x800/?music,hip-hop",
+    "audioUrl": "/audio/sample1.mp3"
+  },
+  {
+    "id": "783e02e3-7b28-4099-af73-328fd1d00029",
+    "title": "Electronic Beat 2",
+    "producer": "Daft Punk",
+    "bpm": 125,
+    "genre": "Electronic",
+    "price": 34.989999999999995,
+    "imageUrl": "https://source.unsplash.com/800x800/?music,electronic",
+    "audioUrl": "/audio/sample2.mp3"
+  },
+  {
+    "id": "6ef63227-604d-451e-b9d7-eff922f191a8",
+    "title": "Hip-Hop Beat 3",
+    "producer": "Kendrick Lamar",
+    "bpm": 130,
+    "genre": "Hip-Hop",
+    "price": 39.989999999999995,
+    "imageUrl": "https://source.unsplash.com/800x800/?music,hip-hop",
+    "audioUrl": "/audio/sample3.mp3"
+  },
+  {
+    "id": "7e7a4551-8477-4ed0-ad92-8b1511f64bdb",
+    "title": "Electronic Beat 4",
+    "producer": "Flume",
+    "bpm": 135,
+    "genre": "Electronic",
+    "price": 44.989999999999995,
+    "imageUrl": "https://source.unsplash.com/800x800/?music,electronic",
+    "audioUrl": "/audio/sample4.mp3"
+  },
+  {
+    "id": "3f429ceb-0b27-434f-a33c-20c1b99f7792",
+    "title": "Trap Beat 5",
+    "producer": "Travis Scott",
+    "bpm": 140,
+    "genre": "Trap",
+    "price": 49.989999999999995,
+    "imageUrl": "https://source.unsplash.com/800x800/?music,trap",
+    "audioUrl": "/audio/sample5.mp3"
+  },
+  {
+    "id": "d1627e98-aae5-4a88-9774-a928691c830e",
+    "title": "Dubstep Beat 6",
+    "producer": "Skrillex",
+    "bpm": 145,
+    "genre": "Dubstep",
+    "price": 54.989999999999995,
+    "imageUrl": "https://source.unsplash.com/800x800/?music,dubstep",
+    "audioUrl": "/audio/sample6.mp3"
+  },
+  {
+    "id": "4b72c36b-4eac-4c7c-b6f3-16a2e3fad6b1",
+    "title": "EDM Beat 7",
+    "producer": "Marshmello",
+    "bpm": 150,
+    "genre": "EDM",
+    "price": 59.989999999999995,
+    "imageUrl": "https://source.unsplash.com/800x800/?music,edm",
+    "audioUrl": "/audio/sample7.mp3"
+  },
+  {
+    "id": "fcda352c-c7f7-41e2-acba-98b3c9e9e792",
+    "title": "Trap Beat 8",
+    "producer": "Metro Boomin",
+    "bpm": 155,
+    "genre": "Trap",
+    "price": 64.99,
+    "imageUrl": "https://source.unsplash.com/800x800/?music,trap",
+    "audioUrl": "/audio/sample8.mp3"
+  },
+  {
+    "id": "6c0b9553-a060-480d-8899-4e182070113d",
+    "title": "Electronic Beat 9",
+    "producer": "Diplo",
+    "bpm": 160,
+    "genre": "Electronic",
+    "price": 69.99,
+    "imageUrl": "https://source.unsplash.com/800x800/?music,electronic",
+    "audioUrl": "/audio/sample9.mp3"
+  },
+  {
+    "id": "553e28fc-726f-4126-b061-6a4a7641f28c",
+    "title": "EDM Beat 10",
+    "producer": "Zedd",
+    "bpm": 165,
+    "genre": "EDM",
+    "price": 74.99,
+    "imageUrl": "https://source.unsplash.com/800x800/?music,edm",
+    "audioUrl": "/audio/sample10.mp3"
+  }
+]

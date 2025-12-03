@@ -1,4 +1,4 @@
-import { Play, Pause, ShoppingCart, Check, AlertCircle } from "lucide-react";
+import { Play, Pause, ShoppingCart, Check, AlertCircle, Download } from "lucide-react";
 import { Card } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Badge } from "@/components/ui/badge";
@@ -16,6 +16,11 @@ interface BeatCardProps {
   hasAudioError?: boolean;
   onPlayPause?: () => void;
   onAddToCart?: () => void;
+  onDownload?: () => void;
+  genreName?: string; // Optional genre name to display instead of beat.genre
+  showDownload?: boolean; // Show download button
+  disableNavigation?: boolean; // Disable navigation on card click
+  alwaysShowPlayer?: boolean; // Always show the play button (not just on hover)
 }
 
 export default function BeatCard({ 
@@ -25,7 +30,12 @@ export default function BeatCard({
   isInCart = false,
   hasAudioError = false,
   onPlayPause,
-  onAddToCart
+  onAddToCart,
+  onDownload,
+  genreName,
+  showDownload = false,
+  disableNavigation = false,
+  alwaysShowPlayer = false
 }: BeatCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -47,11 +57,13 @@ export default function BeatCard({
   };
 
   const handleCardClick = () => {
-    setLocation(`/beats/${beat.id}`);
+    if (!disableNavigation) {
+      setLocation(`/beats/${beat.id}`);
+    }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (e.key === 'Enter' || e.key === ' ') {
+    if (!disableNavigation && (e.key === 'Enter' || e.key === ' ')) {
       e.preventDefault();
       handleCardClick();
     }
@@ -59,7 +71,7 @@ export default function BeatCard({
 
   return (
     <Card 
-      className="group overflow-hidden transition-all duration-300 theme-card cursor-pointer hover:shadow-lg hover:-translate-y-1 focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2"
+      className={`group overflow-hidden transition-all duration-300 theme-card ${!disableNavigation ? 'cursor-pointer hover:shadow-lg hover:-translate-y-1' : ''} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2`}
       style={{ 
         backgroundColor: themeColors.surface,
         borderColor: themeColors.border,
@@ -68,9 +80,9 @@ export default function BeatCard({
       }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={() => setIsHovered(false)}
-      onClick={handleCardClick}
-      onKeyDown={handleKeyDown}
-      tabIndex={0}
+      onClick={disableNavigation ? undefined : handleCardClick}
+      onKeyDown={disableNavigation ? undefined : handleKeyDown}
+      tabIndex={disableNavigation ? -1 : 0}
       role="article"
       aria-label={`${beat.title} by ${beat.producer}, ${beat.bpm} BPM, ${isOwned ? 'Owned' : `$${beat.price.toFixed(2)}`}`}
       data-testid={`card-beat-${beat.id}`}
@@ -85,7 +97,7 @@ export default function BeatCard({
           data-testid={`img-beat-${beat.id}`}
         />
         <div 
-          className={`absolute inset-0 backdrop-blur-sm flex items-center justify-center transition-opacity duration-300 ${isHovered || isPlaying ? 'opacity-100' : 'opacity-0'}`}
+          className={`absolute inset-0 backdrop-blur-sm flex items-center justify-center transition-opacity duration-300 ${alwaysShowPlayer || isHovered || isPlaying ? 'opacity-100' : 'opacity-0'}`}
           style={{ backgroundColor: `${themeColors.background}80` }}
         >
           <Button
@@ -147,7 +159,7 @@ export default function BeatCard({
             }}
             data-testid={`badge-genre-${beat.id}`}
           >
-            {beat.genre}
+            {genreName || beat.genre}
           </Badge>
           <Badge 
             variant="secondary" 
@@ -162,6 +174,26 @@ export default function BeatCard({
             {beat.bpm} BPM
           </Badge>
         </div>
+        {showDownload && onDownload && (
+          <Button
+            size="icon"
+            variant="outline"
+            className="absolute top-3 right-3 h-10 w-10 rounded-full opacity-0 group-hover:opacity-100 transition-opacity shadow-lg"
+            style={{
+              backgroundColor: themeColors.surface,
+              color: themeColors.text,
+              borderColor: themeColors.border,
+            }}
+            onClick={(e) => {
+              e.stopPropagation();
+              onDownload();
+            }}
+            aria-label={`Download ${beat.title}`}
+            data-testid={`button-download-${beat.id}`}
+          >
+            <Download className="h-5 w-5" />
+          </Button>
+        )}
       </div>
       
       <div className="p-4">

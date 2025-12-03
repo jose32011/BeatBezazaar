@@ -974,6 +974,34 @@ function AdminSettingsContent() {
     },
   });
 
+  const resetDatabaseMutation = useMutation({
+    mutationFn: async () => {
+      const response = await fetch('/api/admin/reset-database', {
+        method: 'POST',
+        credentials: 'include',
+      });
+      if (!response.ok) {
+        throw new Error('Failed to reset database');
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      toast({
+        title: "Database Reset Complete",
+        description: data.message,
+      });
+      // Reload the page after reset
+      setTimeout(() => window.location.reload(), 2000);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to reset database",
+        variant: "destructive",
+      });
+    },
+  });
+
   // User Management Mutations
   const createUserMutation = useMutation({
     mutationFn: async (userData: UserFormData) => {
@@ -3616,10 +3644,24 @@ function AdminSettingsContent() {
                 variant="destructive"
                 size="lg"
                 className="gap-2 w-full sm:w-auto"
-                disabled
+                onClick={() => {
+                  if (window.confirm('Are you sure you want to reset the database? This will delete ALL data including beats, purchases, customers, and uploaded files. This action cannot be undone!')) {
+                    resetDatabaseMutation.mutate();
+                  }
+                }}
+                disabled={resetDatabaseMutation.isPending}
               >
-                <Trash2 className="h-5 w-5" />
-                Clear All Data (disabled)
+                {resetDatabaseMutation.isPending ? (
+                  <>
+                    <Trash2 className="h-5 w-5 animate-spin" />
+                    Clearing All Data...
+                  </>
+                ) : (
+                  <>
+                    <Trash2 className="h-5 w-5" />
+                    Clear All Data
+                  </>
+                )}
               </Button>
             </div>
                 </div>

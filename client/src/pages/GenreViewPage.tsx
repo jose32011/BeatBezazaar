@@ -5,6 +5,7 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useLocation, useParams } from "wouter";
 import { ArrowLeft, Search } from "lucide-react";
 import { useState, useEffect } from "react";
+import Header from "@/components/Header";
 import BeatCard from "@/components/BeatCard";
 import BeatCardSkeleton from "@/components/BeatCardSkeleton";
 import { Button } from "@/components/ui/button";
@@ -156,8 +157,12 @@ export default function GenreViewPage() {
     setLocation("/music");
   };
 
-  // Filter beats based on search query
+  // Filter beats based on search query and exclude purchased beats
   const filteredBeats = beats.filter((beat) => {
+    // Exclude purchased beats from browse page
+    const isPurchased = purchases.some((p) => p.beatId === beat.id);
+    if (isPurchased) return false;
+    
     if (!searchQuery) return true;
     const query = searchQuery.toLowerCase();
     return (
@@ -170,74 +175,85 @@ export default function GenreViewPage() {
 
   if (isLoading) {
     return (
-      <div
-        className="min-h-screen py-8 px-4"
-        style={{ backgroundColor: themeColors.background }}
-      >
-        <div className="max-w-7xl mx-auto">
-          {/* Back Button Skeleton */}
-          <Skeleton className="h-10 w-32 mb-6" />
+      <>
+        <Header />
+        <div
+          className="min-h-screen py-8 px-4"
+          style={{ backgroundColor: themeColors.background }}
+        >
+          <div className="w-full px-4">
+            {/* Back Button Skeleton */}
+            <Skeleton className="h-10 w-32 mb-6" />
 
-          {/* Genre Header Skeleton */}
-          <div className="mb-8 space-y-2">
-            <Skeleton className="h-10 w-64" />
-            <Skeleton className="h-6 w-96" />
-          </div>
+            {/* Genre Header Skeleton */}
+            <div className="mb-8 space-y-2">
+              <Skeleton className="h-10 w-64" />
+              <Skeleton className="h-6 w-96" />
+            </div>
 
-          {/* Search Bar Skeleton */}
-          <div className="mb-6 max-w-md">
-            <Skeleton className="h-10 w-full" />
-          </div>
+            {/* Search Bar Skeleton */}
+            <div className="mb-6 max-w-md">
+              <Skeleton className="h-10 w-full" />
+            </div>
 
-          {/* Beats Grid Skeleton */}
-          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-            {Array.from({ length: 8 }).map((_, i) => (
-              <BeatCardSkeleton key={i} />
-            ))}
+            {/* Beats Grid Skeleton */}
+            <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
+              {Array.from({ length: 8 }).map((_, i) => (
+                <BeatCardSkeleton key={i} />
+              ))}
+            </div>
           </div>
         </div>
-      </div>
+      </>
     );
   }
 
   if (error) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: themeColors.background }}
-      >
-        <div className="text-center">
-          <p className="text-lg mb-4" style={{ color: themeColors.text }}>
-            Failed to load beats
-          </p>
-          <Button onClick={() => window.location.reload()}>Retry</Button>
+      <>
+        <Header />
+        <div
+          className="min-h-screen flex items-center justify-center"
+          style={{ backgroundColor: themeColors.background }}
+        >
+          <div className="text-center">
+            <p className="text-lg mb-4" style={{ color: themeColors.text }}>
+              Failed to load beats
+            </p>
+            <Button onClick={() => window.location.reload()}>Retry</Button>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   if (!genre) {
     return (
-      <div
-        className="min-h-screen flex items-center justify-center"
-        style={{ backgroundColor: themeColors.background }}
-      >
-        <div className="text-center">
-          <p className="text-lg mb-4" style={{ color: themeColors.text }}>
-            Genre not found
-          </p>
-          <Button onClick={handleBack}>Back to Music</Button>
+      <>
+        <Header />
+        <div
+          className="min-h-screen flex items-center justify-center"
+          style={{ backgroundColor: themeColors.background }}
+        >
+          <div className="text-center">
+            <p className="text-lg mb-4" style={{ color: themeColors.text }}>
+              Genre not found
+            </p>
+            <Button onClick={handleBack}>Back to Music</Button>
+          </div>
         </div>
-      </div>
+      </>
     );
   }
 
   return (
-    <div
-      className="min-h-screen py-8 px-4"
-      style={{ backgroundColor: themeColors.background }}
-    >
-      <div className="max-w-7xl mx-auto">
+    <>
+      <Header />
+      <div
+        className="min-h-screen py-8 px-4"
+        style={{ backgroundColor: themeColors.background }}
+      >
+        <div className="w-full px-4">
         {/* Back Button */}
         <Button
           variant="ghost"
@@ -332,6 +348,7 @@ export default function GenreViewPage() {
                 <BeatCard
                   key={beat.id}
                   beat={beat}
+                  genreName={genre?.name}
                   isPlaying={isPlaying}
                   hasAudioError={audioPlayer.hasError(beat.id)}
                   isInCart={isInCart}
@@ -363,5 +380,6 @@ export default function GenreViewPage() {
         )}
       </div>
     </div>
+    </>
   );
 }

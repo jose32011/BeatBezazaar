@@ -83,7 +83,7 @@ function AdminUploadContent() {
   const [useManualUpload, setUseManualUpload] = useState(false);
 
   // Fetch genres for dropdown
-  const { data: genres = [], isLoading: genresLoading, error: genresError } = useQuery({
+  const { data: genres = [], isLoading: genresLoading, error: genresError } = useQuery<Array<{ id: string; name: string }>>({
     queryKey: ['/api/genres'],
   });
 
@@ -1164,7 +1164,7 @@ function AdminUploadContent() {
                         <SelectItem value="no-genres" disabled>No genres available</SelectItem>
                       ) : (
                         genres.map((genre: any) => (
-                          <SelectItem key={genre.id} value={genre.name}>
+                          <SelectItem key={genre.id} value={genre.id}>
                             {genre.name}
                           </SelectItem>
                         ))

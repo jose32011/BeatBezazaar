@@ -3,21 +3,15 @@ import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import Header from "@/components/Header";
 import Hero from "@/components/Hero";
-import BeatCard from "@/components/BeatCard";
 import type { Beat } from "@shared/schema";
 import BeatCarousel from "@/components/BeatCarousel";
 import AudioPlayer from "@/components/AudioPlayer";
-import PlaylistCard from "@/components/PlaylistCard";
 import Cart, { type CartItem } from "@/components/Cart";
-import FilterSidebar from "@/components/FilterSidebar";
-import GenreCard from "@/components/GenreCard";
-import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import GenreSection from "@/components/GenreSection";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
-import { Music, Plus, LogIn, User } from "lucide-react";
 
 
 export default function Home() {
@@ -30,8 +24,7 @@ export default function Home() {
   const [isPlaylistMode, setIsPlaylistMode] = useState(false);
   const [playerCurrentTime, setPlayerCurrentTime] = useState<number>(0);
   const [playerDuration, setPlayerDuration] = useState<number>(0);
-  const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
-  const [location, setLocation] = useLocation();
+  const [, setLocation] = useLocation();
   const { user, isAuthenticated } = useAuth();
   const { getThemeColors } = useTheme();
   const { toast } = useToast();
@@ -51,7 +44,7 @@ export default function Home() {
   });
 
   // Fetch genres from API
-  const { data: genres = [], isLoading: genresLoading } = useQuery<any[]>({
+  const { data: genres = [] } = useQuery<any[]>({
     queryKey: ['/api/genres'],
   });
 
@@ -67,7 +60,7 @@ export default function Home() {
   }, [userPlaylist]);
 
   // Fetch user's cart
-  const { data: userCart = [], isLoading: cartLoading } = useQuery<Beat[]>({
+  const { data: userCart = [] } = useQuery<Beat[]>({
     queryKey: ['/api/cart'],
     enabled: isAuthenticated,
   });
@@ -200,47 +193,29 @@ export default function Home() {
   };
 
   // Helper function to normalize genre names for comparison
-  const normalizeGenreName = (name: string) => {
+  const normalizeGenreName = (name: string | null | undefined) => {
+    if (!name) return '';
     return name.toLowerCase().replace(/[-\s]/g, '');
   };
 
-  // All beats are shown (no genre filtering from sidebar)
-  const filteredBeats = beats;
+  // Get beats for each genre (latest 6)
+  const getBeatsForGenre = (genreName: string) => {
+    return beats
+      .filter(beat => normalizeGenreName(beat.genre) === normalizeGenreName(genreName))
+      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
+      .slice(0, 6);
+  };
 
-  // Filter beats for a specific genre (when genre card is clicked)
-  const genreFilteredBeats = selectedGenre 
-    ? beats.filter(beat => normalizeGenreName(beat.genre) === normalizeGenreName(selectedGenre))
-    : filteredBeats;
+  // Get total beat count for a genre
+  const getBeatCountForGenre = (genreName: string) => {
+    return beats.filter(beat => normalizeGenreName(beat.genre) === normalizeGenreName(genreName)).length;
+  };
 
-  // Calculate beat counts for each genre
-  const genresWithCounts = genres.map(genre => {
-    const matchingBeats = beats.filter(beat => normalizeGenreName(beat.genre) === normalizeGenreName(genre.name));
-    console.log(`Genre: ${genre.name} -> Normalized: ${normalizeGenreName(genre.name)}`);
-    console.log(`Matching beats:`, matchingBeats.map(b => ({ title: b.title, genre: b.genre, normalized: normalizeGenreName(b.genre) })));
-    return {
-      ...genre,
-      beatCount: matchingBeats.length,
-      imageUrl: genre.imageUrl  || 'https://via.placeholder.com/300x300/1a1a1a/ffffff?text=No+Image'
-    };
-  });
-
-  // Handle genre card click
-  const handleGenreClick = (genreName: string) => {
-    console.log(`Genre clicked: ${genreName}`);
-    console.log(`Current selectedGenre: ${selectedGenre}`);
-    
-    if (selectedGenre === genreName) {
-      // If same genre clicked, deselect it
-      console.log('Deselecting genre');
-      setSelectedGenre(null);
-    } else {
-      // Select the genre
-      console.log('Selecting genre:', genreName);
-      setSelectedGenre(genreName);
-      
-      // Debug: Show what beats will be filtered
-      const filteredBeats = beats.filter(beat => normalizeGenreName(beat.genre) === normalizeGenreName(genreName));
-      console.log(`Beats filtered for ${genreName}:`, filteredBeats.map(b => ({ title: b.title, genre: b.genre })));
+  // Handle view all click - navigate to music page with genre filter
+  const handleViewAllGenre = (genreId: string) => {
+    const genre = genres.find(g => g.id === genreId);
+    if (genre) {
+      setLocation(`/music?genre=${encodeURIComponent(genre.name)}`);
     }
   };
 
@@ -477,182 +452,6 @@ export default function Home() {
       
       <Hero />
 
-      {/* User Playlist Section - Only show if authenticated */}
-      {isAuthenticated && (
-        <section className="w-full px-6 py-8">
-          <div className="flex items-center justify-between mb-6">
-            <h2 
-              className="text-3xl font-bold font-display flex items-center gap-2"
-              style={{ color: themeColors.text }}
-            >
-              <User className="h-8 w-8" />
-              My Purchased Music
-            </h2>
-            <span style={{ color: themeColors.textSecondary }}>
-              {userPlaylist.length} {userPlaylist.length === 1 ? 'purchase' : 'purchases'}
-            </span>
-          </div>
-          
-          {playlistLoading ? (
-            <div className="text-center py-8">
-              <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-              <p style={{ color: themeColors.textSecondary }}>Loading your playlist...</p>
-            </div>
-          ) : userPlaylist.length === 0 ? (
-            <Card 
-              style={{
-                background: `linear-gradient(to right, ${themeColors.primary}20, ${themeColors.secondary}20)`,
-                borderColor: `${themeColors.primary}30`
-              }}
-            >
-              <CardContent className="p-8 text-center">
-                <Music 
-                  className="h-16 w-16 mx-auto mb-4" 
-                  style={{ color: themeColors.textSecondary }}
-                />
-                <CardTitle 
-                  className="text-2xl mb-2"
-                  style={{ color: themeColors.text }}
-                >
-                  Your Playlist is Empty
-                </CardTitle>
-                <CardDescription 
-                  className="mb-6"
-                  style={{ color: themeColors.textSecondary }}
-                >
-                  Start building your collection by purchasing beats from our catalog
-                </CardDescription>
-                <Button 
-                  onClick={() => document.getElementById('featured-beats')?.scrollIntoView({ behavior: 'smooth' })}
-                  className="bg-primary hover:bg-primary/90"
-                >
-                  <Plus className="h-4 w-4 mr-2" />
-                  Browse Beats
-                </Button>
-              </CardContent>
-            </Card>
-          ) : (
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-              {userPlaylist.map((beat) => (
-                <PlaylistCard
-                  key={beat.id}
-                  beat={beat}
-                  isPlaying={currentlyPlaying === beat.id}
-                  onPlayPause={() => handlePlayPause(beat)}
-                  onDownload={() => handleDownload(beat)}
-                  autoPlay={isPlaylistMode && currentlyPlaying === beat.id}
-                  isPlaylistMode={isPlaylistMode}
-                  currentTime={playerCurrentTime}
-                  duration={playerDuration}
-                />
-              ))}
-            </div>
-          )}
-        </section>
-      )}
-
-
-
-      {/* Generated Banners Display */}
-      {beats.length > 0 && (
-        <section className="w-full px-6 py-8">
-          <h2 
-            className="text-3xl font-bold font-display mb-8"
-            style={{ color: themeColors.text }}
-          >
-            Featured Releases
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-            {beats.slice(0, 3).map((beat) => (
-              <div key={beat.id} className="relative group">
-                <div 
-                  className="rounded-2xl p-6 text-center border transition-all duration-300"
-                  style={{
-                    background: `linear-gradient(to right, ${themeColors.primary}20, ${themeColors.secondary}20)`,
-                    borderColor: `${themeColors.primary}30`
-                  }}
-                >
-                  <div className="relative w-full h-48 mb-4 rounded-lg overflow-hidden">
-                    <img
-                      src={beat.imageUrl}
-                      alt={beat.title}
-                      className="w-full h-full object-cover"
-                    />
-                    <div 
-                      className="absolute inset-0 flex items-center justify-center opacity-0 group-hover:opacity-100 transition-opacity duration-300"
-                      style={{ backgroundColor: `${themeColors.background}20` }}
-                    >
-                      <button 
-                        className="px-4 py-2 backdrop-blur-sm rounded-lg font-semibold transition-colors"
-                        style={{
-                          backgroundColor: `${themeColors.text}20`,
-                          color: themeColors.text
-                        }}
-                        onClick={() => handlePlayPause(beat)}
-                      >
-                        {currentlyPlaying === beat.id ? 'Pause' : 'Play Preview'}
-                      </button>
-                    </div>
-                  </div>
-                  <h3 
-                    className="text-xl font-bold mb-2"
-                    style={{ color: themeColors.text }}
-                  >
-                    {beat.title}
-                  </h3>
-                  <p 
-                    className="mb-2"
-                    style={{ color: themeColors.textSecondary }}
-                  >
-                    by {beat.producer}
-                  </p>
-                  <div className="flex justify-center gap-2 mb-4">
-                    <span 
-                      className="px-3 py-1 rounded-full text-sm"
-                      style={{
-                        backgroundColor: `${themeColors.text}20`,
-                        color: themeColors.text
-                      }}
-                    >
-                      {beat.genre}
-                    </span>
-                    <span 
-                      className="px-3 py-1 rounded-full text-sm"
-                      style={{
-                        backgroundColor: `${themeColors.text}20`,
-                        color: themeColors.text
-                      }}
-                    >
-                      {beat.bpm} BPM
-                    </span>
-                  </div>
-                  <div 
-                    className="text-2xl font-bold mb-4"
-                    style={{ color: themeColors.text }}
-                  >
-                    ${beat.price}
-                  </div>
-                  <button 
-                    className="w-full px-4 py-2 rounded-lg font-semibold transition-colors"
-                    style={{
-                      backgroundColor: themeColors.primary,
-                      color: '#ffffff'
-                    }}
-                    onClick={() => handleAddToCart(beat)}
-                  >
-                    {userPlaylist.some(playlistBeat => playlistBeat.id === beat.id) 
-                      ? 'Owned' 
-                      : userCart.some(cartBeat => cartBeat.id === beat.id)
-                      ? 'In Cart'
-                      : 'Add to Cart'}
-                  </button>
-                </div>
-              </div>
-            ))}
-          </div>
-        </section>
-      )}
-
       <section className="w-full px-6 py-16">
         <h2 
           className="text-3xl font-bold font-display mb-8" 
@@ -672,7 +471,7 @@ export default function Home() {
           </div>
         ) : (
           <BeatCarousel
-            beats={beats.slice(0, 6) as Beat[]}
+            beats={beats.slice(0, 4) as Beat[]}
             userPlaylist={userPlaylist}
             onPlayBeat={(beat) => handlePlayPause(beat)}
             onAddToCart={(beat) => handleAddToCart(beat)}
@@ -680,82 +479,93 @@ export default function Home() {
         )}
       </section>
 
+      {/* Info Section */}
       <section className="w-full px-6 py-16">
-        <div className="flex items-center justify-between mb-8">
-          <h2 
-            className="text-3xl font-bold font-display" 
-            data-testid="text-genres-title"
-            style={{ color: themeColors.text }}
-          >
-            Browse by Genre
-          </h2>
-          {selectedGenre && (
-            <div className="text-sm" style={{ color: themeColors.textSecondary }}>
-              Showing {genreFilteredBeats.length} beats in "{selectedGenre}"
-              <button 
-                onClick={() => setSelectedGenre(null)}
-                className="ml-2 underline hover:no-underline"
-                style={{ color: themeColors.primary }}
-              >
-                Clear filter
-              </button>
-            </div>
-          )}
-        </div>
-        <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
-          {genresWithCounts.map((genre) => (
-            <GenreCard
-              key={genre.name}
-              name={genre.name}
-              beatCount={genre.beatCount}
-              imageUrl={genre.imageUrl}
-              onClick={() => handleGenreClick(genre.name)}
-              isSelected={selectedGenre === genre.name}
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+          <div>
+            <h2 
+              className="text-3xl font-bold font-display mb-4"
+              style={{ color: themeColors.text }}
+            >
+              Premium Beats for Your Next Hit
+            </h2>
+            <p 
+              className="text-lg mb-6"
+              style={{ color: themeColors.textSecondary }}
+            >
+              Discover high-quality beats crafted by professional producers. 
+              Whether you're working on your next album, mixtape, or single, 
+              we have the perfect sound for you.
+            </p>
+            <ul className="space-y-3">
+              <li className="flex items-start gap-3">
+                <span style={{ color: themeColors.primary }}>✓</span>
+                <span style={{ color: themeColors.text }}>Instant download after purchase</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span style={{ color: themeColors.primary }}>✓</span>
+                <span style={{ color: themeColors.text }}>High-quality WAV & MP3 files</span>
+              </li>
+              <li className="flex items-start gap-3">
+                <span style={{ color: themeColors.primary }}>✓</span>
+                <span style={{ color: themeColors.text }}>Professional mixing and mastering</span>
+              </li>
+            </ul>
+          </div>
+          <div className="relative">
+            <img
+              src="https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=600&h=400&fit=crop"
+              alt="Music Production"
+              className="rounded-lg shadow-2xl w-full h-auto"
             />
-          ))}
+          </div>
         </div>
       </section>
 
-      <section id="featured-beats" className="w-full px-6 py-16">
-        <h2 
-          className="text-3xl font-bold font-display mb-8" 
-          data-testid="text-featured-title"
-          style={{ color: themeColors.text }}
-        >
-          Featured Beats
-        </h2>
-        <div className="flex gap-8">
-          <div className="hidden lg:block flex-shrink-0">
-            <FilterSidebar />
+      {/* Genre Sections */}
+      <div className="w-full px-6 py-8">
+        {beatsLoading ? (
+          <div className="text-center py-8">
+            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
+            <p style={{ color: themeColors.textSecondary }}>Loading genres...</p>
           </div>
-          
-          <div className="flex-1">
-            {beatsLoading ? (
-              <div className="text-center py-8">
-                <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-                <p style={{ color: themeColors.textSecondary }}>Loading beats...</p>
-              </div>
-            ) : beats.length === 0 ? (
-              <div className="text-center py-8">
-                <p style={{ color: themeColors.textSecondary }}>No beats available yet. Upload some beats to get started!</p>
-              </div>
-            ) : (
-        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-          {genreFilteredBeats.map((beat) => (
-            <BeatCard
-              key={beat.id}
-              beat={beat}
-              isPlaying={currentlyPlaying === beat.id}
-              isOwned={userPlaylist.some(playlistBeat => playlistBeat.id === beat.id)}
-              onPlayPause={() => handlePlayPause(beat)}
-              onAddToCart={() => handleAddToCart(beat)}
-            />
-          ))}
-        </div>
-            )}
+        ) : genres.length === 0 ? (
+          <div className="text-center py-8">
+            <p style={{ color: themeColors.textSecondary }}>No genres available yet.</p>
           </div>
-        </div>
-      </section>
+        ) : (
+          genres.map((genre) => {
+            const genreBeats = getBeatsForGenre(genre.name);
+            const totalBeats = getBeatCountForGenre(genre.name);
+            
+            // Only show genres that have beats
+            if (genreBeats.length === 0) return null;
+            
+            return (
+              <GenreSection
+                key={genre.id}
+                genre={genre}
+                beats={genreBeats}
+                totalBeats={totalBeats}
+                onViewAll={handleViewAllGenre}
+                isPlaying={(beatId) => currentlyPlaying === beatId}
+                onPlayPause={(beatId, audioUrl) => {
+                  const beat = beats.find(b => b.id === beatId);
+                  if (beat) handlePlayPause(beat);
+                }}
+                onAddToCart={(beatId) => {
+                  const beat = beats.find(b => b.id === beatId);
+                  if (beat) handleAddToCart(beat);
+                }}
+                isInCart={(beatId) => userCart.some(b => b.id === beatId)}
+                isOwned={(beatId) => userPlaylist.some(b => b.id === beatId)}
+              />
+            );
+          })
+        )}
+      </div>
+
+
 
       {playerBeat && (
         <AudioPlayer

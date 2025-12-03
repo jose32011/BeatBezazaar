@@ -12,7 +12,48 @@ interface GenreCardProps {
 export default function GenreCard({ name, beatCount, imageUrl, onClick, isSelected = false }: GenreCardProps) {
   const { getThemeColors } = useTheme();
   const themeColors = getThemeColors();
+  
+  const hasImage = imageUrl && !imageUrl.includes('placeholder');
 
+  if (!hasImage) {
+    // Text-based card when no image
+    return (
+      <Card
+        className={`group cursor-pointer hover:shadow-lg transition-all duration-300 ${
+          isSelected ? 'ring-2 ring-primary' : ''
+        }`}
+        onClick={onClick}
+        data-testid={`card-genre-${name.toLowerCase()}`}
+        style={{
+          backgroundColor: isSelected ? themeColors.primary + '20' : themeColors.surface,
+          borderColor: isSelected ? themeColors.primary : themeColors.border,
+          color: themeColors.text
+        }}
+      >
+        <div className="p-3 flex items-center justify-between">
+          <h3 
+            className="text-sm font-bold font-display" 
+            data-testid={`text-genre-name-${name.toLowerCase()}`}
+            style={{ color: themeColors.text }}
+          >
+            {name}
+          </h3>
+          <span 
+            className="text-xs px-2 py-1 rounded"
+            data-testid={`text-genre-count-${name.toLowerCase()}`}
+            style={{ 
+              backgroundColor: themeColors.primary + '20',
+              color: themeColors.primary
+            }}
+          >
+            {beatCount}
+          </span>
+        </div>
+      </Card>
+    );
+  }
+
+  // Image-based card when image exists
   return (
     <Card
       className={`group relative overflow-hidden cursor-pointer hover-elevate transition-all duration-300 ${

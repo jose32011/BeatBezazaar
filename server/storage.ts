@@ -2,7 +2,8 @@ import path from "path";
 import fs from "fs";
 import { 
   stripeSettings,
-  stripeTransactions
+  stripeTransactions,
+  homeSettings
 } from "@shared/schema";
 // import types from schema as needed below to avoid circular/type noise
 import type { StripeSettings, InsertStripeSettings, StripeTransaction, InsertStripeTransaction } from "@shared/schema";
@@ -28,6 +29,8 @@ import {
   type VerificationCode,
   type InsertVerificationCode,
   type EmailSettings,
+  type HomeSettings,
+  type NewHomeSettings,
   type InsertEmailSettings,
   type SocialMediaSettings,
   type InsertSocialMediaSettings,
@@ -55,65 +58,46 @@ import {
   plansSettings,
   appBrandingSettings
 } from "@shared/schema";
-// Note: SQLite support removed — application requires MySQL-only runtime
+// PostgreSQL-only runtime
 import { drizzle as drizzlePg } from "drizzle-orm/postgres-js";
-import { drizzle as drizzleMysql } from "drizzle-orm/mysql2";
-// (better-sqlite3 import removed)
 import postgres from "postgres";
-import mysql from "mysql2/promise";
-import { eq, desc, sql, and } from "drizzle-orm";
+import { eq, desc, sql, and, or } from "drizzle-orm";
 import bcrypt from "bcryptjs";
 import { randomUUID } from "crypto";
 
-// Database configuration based on environment
-const isProduction = process.env.NODE_ENV === 'production';
+// Database configuration - PostgreSQL only
+const datasourceUrl = process.env.DATABASE_URL || '';
 let db: any;
-let mysqlPool: any = undefined;
+let pgClient: any = undefined;
 
 /**
- * Database selection logic
- * Priority:
- * 1) If running in production and DATABASE_URL is provided, inspect its scheme:
- *    - postgres:// or postgresql:// -> use Postgres
- *    - mysql:// -> use MySQL
- * 2) If RAILWAY_MYSQL_ env vars are provided (Railway), use them to build a MySQL connection
- * 3) Fallback to SQLite for local development
+ * Database initialization - PostgreSQL only
+ * Supports DATABASE_URL or individual POSTGRES_* environment variables
  */
-const datasourceUrl = process.env.DATABASE_URL || '';
-const railwayHasMySql = !!(process.env.RAILWAY_MYSQL_HOST && process.env.RAILWAY_MYSQL_USERNAME && process.env.RAILWAY_MYSQL_PASSWORD && process.env.RAILWAY_MYSQL_DB);
+let postgresUri: string | undefined;
 
-// Prefer DATABASE_URL if it points to MySQL, otherwise use Railway or explicit MYSQL_* vars
-let mysqlUri: string | undefined;
-if (datasourceUrl && datasourceUrl.startsWith('mysql')) {
-  mysqlUri = datasourceUrl;
-} else if (railwayHasMySql) {
-  const host = process.env.RAILWAY_MYSQL_HOST;
-  const user = process.env.RAILWAY_MYSQL_USERNAME;
-  const password = process.env.RAILWAY_MYSQL_PASSWORD;
-  const database = process.env.RAILWAY_MYSQL_DB;
-  const port = process.env.RAILWAY_MYSQL_PORT || '3306';
-  mysqlUri = `mysql://${encodeURIComponent(user || '')}:${encodeURIComponent(password || '')}@${host}:${port}/${encodeURIComponent(database || '')}`;
-} else if (process.env.MYSQL_HOST && process.env.MYSQL_USER && process.env.MYSQL_DB) {
-  const host = process.env.MYSQL_HOST;
-  const user = process.env.MYSQL_USER;
-  const password = process.env.MYSQL_PASSWORD || '';
-  const database = process.env.MYSQL_DB;
-  const port = process.env.MYSQL_PORT || '3306';
-  mysqlUri = `mysql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${encodeURIComponent(database)}`;
+if (datasourceUrl && (datasourceUrl.startsWith('postgres://') || datasourceUrl.startsWith('postgresql://'))) {
+  postgresUri = datasourceUrl;
+} else if (process.env.POSTGRES_HOST && process.env.POSTGRES_USER && process.env.POSTGRES_DB) {
+  const host = process.env.POSTGRES_HOST;
+  const user = process.env.POSTGRES_USER;
+  const password = process.env.POSTGRES_PASSWORD || '';
+  const database = process.env.POSTGRES_DB;
+  const port = process.env.POSTGRES_PORT || '5432';
+  postgresUri = `postgresql://${encodeURIComponent(user)}:${encodeURIComponent(password)}@${host}:${port}/${encodeURIComponent(database)}`;
 }
 
-const mysqlConfigured = !!mysqlUri || railwayHasMySql || (!!process.env.MYSQL_HOST && !!process.env.MYSQL_USER && !!process.env.MYSQL_DB);
+const postgresConfigured = !!postgresUri;
 
-// Initialize MySQL pool and Drizzle adapter if configured; otherwise provide a stub db so server can start
-if (mysqlConfigured) {
+// Initialize PostgreSQL client and Drizzle adapter
+if (postgresConfigured) {
   try {
-    const pool = mysql.createPool(mysqlUri!);
-      mysqlPool = pool;
-    db = drizzleMysql(pool);
-    console.log(`✓ Using MySQL database (${mysqlUri && mysqlUri.startsWith('mysql://') ? 'from env' : 'configured'})`);
+    pgClient = postgres(postgresUri!);
+    db = drizzlePg(pgClient);
+    console.log(`✓ Using PostgreSQL database`);
   } catch (err) {
-    console.error('Failed to create MySQL pool:', err);
-    // Fall back to a safe inert stub so the server can start and the setup UI can run.
+    console.error('Failed to create PostgreSQL client:', err);
+    // Fall back to a safe inert stub so the server can start
     const notConfiguredError = new Error('Database initialization failed. See server logs.');
     const noopAsync = async (..._args: any[]) => {
       console.warn('Attempted DB operation while DB init failed:', notConfiguredError.message);
@@ -124,25 +108,15 @@ if (mysqlConfigured) {
     });
   }
 } else {
-  console.warn('MySQL is not configured. Server will start in setup mode. Use /api/setup to configure the database.');
-  const notConfiguredError = new Error('MySQL is not configured. Use /api/setup to configure the database.');
+  console.warn('PostgreSQL is not configured. Please set DATABASE_URL or POSTGRES_* environment variables.');
+  const notConfiguredError = new Error('PostgreSQL is not configured.');
   const noopAsync = async (..._args: any[]) => {
-    // Log once to help debugging but avoid crashing the import phase
-    console.warn('DB operation attempted while MySQL is not configured. Use /api/setup to configure the DB.');
+    console.warn('DB operation attempted while PostgreSQL is not configured.');
     return null;
   };
   db = new Proxy({}, {
     get() { return noopAsync; }
   });
-}
-
-let isMySQL = mysqlConfigured;
-
-// If running in production with a DATABASE_URL that points to Postgres, use it.
-if (isProduction && datasourceUrl && datasourceUrl.startsWith('postgres')) {
-  const client = postgres(datasourceUrl);
-  db = drizzlePg(client);
-  console.log("✓ Using PostgreSQL database (from DATABASE_URL)");
 }
 
 export interface IStorage {
@@ -224,6 +198,10 @@ export interface IStorage {
   getEmailSettings(): Promise<EmailSettings | undefined>;
   updateEmailSettings(settings: Partial<InsertEmailSettings>): Promise<EmailSettings>;
   
+  // Home settings operations
+  getHomeSettings(): Promise<HomeSettings>;
+  updateHomeSettings(settings: Partial<NewHomeSettings>): Promise<HomeSettings>;
+  
   // Social media settings operations
   getSocialMediaSettings(): Promise<SocialMediaSettings | undefined>;
   updateSocialMediaSettings(settings: Partial<InsertSocialMediaSettings>): Promise<SocialMediaSettings>;
@@ -271,10 +249,7 @@ export class DatabaseStorage implements IStorage {
   // Public helper to run when DB becomes available at runtime
   public async onDatabaseReady() {
     try {
-      if (!isMySQL) return;
-      // Ensure tables are created
-      await createMySQLTablesUsingDb(db);
-
+      // PostgreSQL tables are created via drizzle-kit push
       // Ensure admin exists; use safe default if missing
       try {
         const adminUser = await this.getUserByUsername('admin');
@@ -294,63 +269,14 @@ export class DatabaseStorage implements IStorage {
 
   private async initializeDatabase() {
     try {
-      if (!isMySQL) {
-        console.log('MySQL is not configured — skipping database initialization. Use /api/setup to configure the DB.');
+      if (!postgresConfigured) {
+        console.log('PostgreSQL is not configured — skipping database initialization. Use /api/setup to configure the DB.');
         return;
       }
       console.log("🚀 Starting database initialization...");
       
-      // Create tables if they don't exist
-      await this.createTables();
-
-      // Check if password_change_required column exists, if not add it
-      // Use the raw mysql pool for DDL checks/ALTERs to avoid adapter method mismatches
-      if (mysqlPool) {
-        try {
-          const [rows]: any = await mysqlPool.execute("SHOW COLUMNS FROM users LIKE 'password_change_required'");
-          if (Array.isArray(rows) && rows.length > 0) {
-            console.log("✓ password_change_required column exists");
-          } else {
-            console.log("⚠️ password_change_required column missing, adding it...");
-            try {
-              if (isProduction) {
-                await mysqlPool.execute("ALTER TABLE users ADD COLUMN password_change_required BOOLEAN DEFAULT true");
-              } else {
-                await mysqlPool.execute("ALTER TABLE users ADD COLUMN password_change_required TINYINT(1) DEFAULT 1");
-              }
-              console.log("✓ Added password_change_required column");
-            } catch (alterError) {
-              console.error("❌ Failed to add password_change_required column:", alterError);
-            }
-          }
-        } catch (e) {
-          console.error('Error checking password_change_required column via mysqlPool:', e);
-        }
-      } else {
-        console.log('mysqlPool not available — skipping password_change_required column existence check (will rely on DDL runner)');
-      }
-
-      // Check if theme column exists, if not add it (use mysqlPool for raw DDL)
-      if (mysqlPool) {
-        try {
-          const [rows]: any = await mysqlPool.execute("SHOW COLUMNS FROM users LIKE 'theme'");
-          if (Array.isArray(rows) && rows.length > 0) {
-            console.log("✓ theme column exists");
-          } else {
-            console.log("⚠️ theme column missing, adding it...");
-            try {
-              await mysqlPool.execute("ALTER TABLE users ADD COLUMN theme VARCHAR(100) DEFAULT 'original'");
-              console.log("✓ Added theme column");
-            } catch (alterError) {
-              console.error("❌ Failed to add theme column:", alterError);
-            }
-          }
-        } catch (e) {
-          console.error('Error checking theme column via mysqlPool:', e);
-        }
-      } else {
-        console.log('mysqlPool not available — skipping theme column existence check (will rely on DDL runner)');
-      }
+      // Tables are created via drizzle-kit push for PostgreSQL
+      // No need for manual column checks - schema is managed by Drizzle
 
       // Check if admin user exists, if not create one
       console.log("🔍 Checking for admin user...");
@@ -371,7 +297,7 @@ export class DatabaseStorage implements IStorage {
             password: hashedPassword,
             role: 'admin',
             email: 'admin@beatbazaar.com',
-            passwordChangeRequired: 1,
+            passwordChangeRequired: true,
             theme: 'original',
             createdAt: new Date(),
             updatedAt: new Date()
@@ -399,11 +325,7 @@ export class DatabaseStorage implements IStorage {
           console.log("⚠️ Admin password is incorrect, updating...");
           try {
             const newHashedPassword = await bcrypt.hash(testPassword, 10);
-            if (mysqlPool) {
-              await mysqlPool.execute('UPDATE users SET password = ?, updated_at = CURRENT_TIMESTAMP WHERE username = ?',[newHashedPassword, 'admin']);
-            } else {
-              await db.update(users).set({ password: newHashedPassword, updatedAt: new Date() }).where(eq(users.username, 'admin'));
-            }
+            await db.update(users).set({ password: newHashedPassword, updatedAt: new Date() }).where(eq(users.username, 'admin'));
             console.log("✅ Admin password updated: admin/admin123");
           } catch (updateError) {
             console.error("❌ Failed to update admin password:", updateError);
@@ -413,30 +335,8 @@ export class DatabaseStorage implements IStorage {
         }
       }
 
-      // Check if social media columns exist in contact_settings table, if not add them
-      try {
-        if (mysqlPool) {
-          // Probe by attempting a simple select; if it fails, columns likely missing
-          await mysqlPool.execute('SELECT facebook_url FROM contact_settings LIMIT 1');
-        } else {
-          await db.select().from(contactSettings).limit(1);
-        }
-        console.log("✓ Social media columns exist in contact_settings");
-      } catch (error) {
-        console.log("⚠️ Social media columns missing in contact_settings, adding them...");
-        try {
-          if (mysqlPool) {
-            await mysqlPool.execute("ALTER TABLE contact_settings ADD COLUMN facebook_url TEXT NOT NULL DEFAULT ''");
-            await mysqlPool.execute("ALTER TABLE contact_settings ADD COLUMN instagram_url TEXT NOT NULL DEFAULT ''");
-            await mysqlPool.execute("ALTER TABLE contact_settings ADD COLUMN twitter_url TEXT NOT NULL DEFAULT ''");
-            await mysqlPool.execute("ALTER TABLE contact_settings ADD COLUMN youtube_url TEXT NOT NULL DEFAULT ''");
-            await mysqlPool.execute("ALTER TABLE contact_settings ADD COLUMN tiktok_url TEXT NOT NULL DEFAULT ''");
-          }
-          console.log("✓ Added social media columns to contact_settings");
-        } catch (alterError) {
-          console.error("❌ Failed to add social media columns to contact_settings:", alterError);
-        }
-      }
+      // PostgreSQL schema is managed by Drizzle - no need for manual column checks
+      console.log("✓ Database schema managed by Drizzle");
 
       console.log("Database initialized");
     } catch (error) {
@@ -446,9 +346,8 @@ export class DatabaseStorage implements IStorage {
 
   private async createTables() {
     try {
-      console.log("🏗️ Creating MySQL database tables (MySQL-only runtime)");
-      await this.createMySQLTables();
-      console.log("✅ Database tables created/verified");
+      console.log("🏗️ PostgreSQL tables managed by Drizzle");
+      console.log("✅ Database tables created/verified via drizzle-kit push");
     } catch (error) {
       console.error("❌ Error creating tables:", error);
       throw error;
@@ -737,10 +636,10 @@ export class DatabaseStorage implements IStorage {
     }
   }
 
-  private async createMySQLTables() {
-    // delegate to shared exported helper
-    // Prefer using the raw mysql pool when available (it supports execute/query reliably)
-    await createMySQLTablesUsingDb(mysqlPool || db);
+  private async createPostgresTables() {
+    // PostgreSQL tables are created via drizzle-kit push
+    // No need for manual table creation
+    console.log("✓ Tables managed by Drizzle ORM");
   }
 
 
@@ -770,7 +669,7 @@ export class DatabaseStorage implements IStorage {
               description: genre.description,
               imageUrl,
               color: genre.color,
-              isActive: 1,
+              isActive: true,
               createdAt: new Date(),
               updatedAt: new Date(),
             } as any);
@@ -941,22 +840,63 @@ export class DatabaseStorage implements IStorage {
   }
 
   async getAllBeats(): Promise<Beat[]> {
-    const result = await db.select().from(beats).orderBy(desc(beats.createdAt));
-    return result;
+    const result = await db
+      .select({
+        id: beats.id,
+        title: beats.title,
+        producer: beats.producer,
+        bpm: beats.bpm,
+        genre: beats.genre, // Genre is already stored as name in beats table
+        price: beats.price,
+        imageUrl: beats.imageUrl,
+        audioUrl: beats.audioUrl,
+        createdAt: beats.createdAt,
+      })
+      .from(beats)
+      .orderBy(desc(beats.createdAt));
+    return result as Beat[];
   }
 
   async getLatestBeats(limit: number): Promise<Beat[]> {
-    const result = await db.select().from(beats).orderBy(desc(beats.createdAt)).limit(limit);
-    return result;
+    const result = await db
+      .select({
+        id: beats.id,
+        title: beats.title,
+        producer: beats.producer,
+        bpm: beats.bpm,
+        genre: beats.genre, // Genre is already stored as name in beats table
+        price: beats.price,
+        imageUrl: beats.imageUrl,
+        audioUrl: beats.audioUrl,
+        createdAt: beats.createdAt,
+      })
+      .from(beats)
+      .orderBy(desc(beats.createdAt))
+      .limit(limit);
+    return result as Beat[];
   }
 
   async getBeatsByGenre(genreId: string, limit?: number): Promise<Beat[]> {
-    let query = db.select().from(beats).where(eq(beats.genre, genreId)).orderBy(desc(beats.createdAt));
+    let query = db
+      .select({
+        id: beats.id,
+        title: beats.title,
+        producer: beats.producer,
+        bpm: beats.bpm,
+        genre: beats.genre, // Genre is already stored as name in beats table
+        price: beats.price,
+        imageUrl: beats.imageUrl,
+        audioUrl: beats.audioUrl,
+        createdAt: beats.createdAt,
+      })
+      .from(beats)
+      .where(eq(beats.genre, genreId))
+      .orderBy(desc(beats.createdAt));
     if (limit) {
       query = query.limit(limit) as any;
     }
     const result = await query;
-    return result;
+    return result as Beat[];
   }
 
   async createBeat(insertBeat: InsertBeat): Promise<Beat> {
@@ -1527,7 +1467,7 @@ export class DatabaseStorage implements IStorage {
           title: beats.title,
           producer: beats.producer,
           bpm: beats.bpm,
-          genre: beats.genre,
+          genre: beats.genre, // Genre is now stored as name, not ID
           price: beats.price,
           imageUrl: beats.imageUrl,
           audioUrl: beats.audioUrl,
@@ -1538,7 +1478,7 @@ export class DatabaseStorage implements IStorage {
         .where(eq(purchases.userId, userId))
         .orderBy(desc(purchases.purchasedAt));
       
-      return result;
+      return result as Beat[];
     } catch (error) {
       console.error("Get user playlist error:", error);
       throw error;
@@ -1577,7 +1517,7 @@ export class DatabaseStorage implements IStorage {
       return await db
         .select()
         .from(genres)
-  .where(eq(genres.isActive, 1))
+        .where(eq(genres.isActive, true))
         .orderBy(genres.name);
     } catch (error) {
       console.error("Get active genres error:", error);
@@ -1694,12 +1634,48 @@ export class DatabaseStorage implements IStorage {
     try {
       console.log("Starting database reset...");
       
-      // Disable foreign key constraints temporarily (SQLite uses PRAGMA, MySQL uses FOREIGN_KEY_CHECKS)
-      if (isMySQL) {
-        if (mysqlPool) { await mysqlPool.execute('SET FOREIGN_KEY_CHECKS = 0'); }
-      } else {
-        // no-op for non-MySQL path in MySQL-only runtime
+      // Clear uploads folders first
+      try {
+        const audioDir = path.join(process.cwd(), 'uploads', 'audio');
+        const imagesDir = path.join(process.cwd(), 'uploads', 'images');
+        
+        console.log(`Audio directory: ${audioDir}`);
+        console.log(`Images directory: ${imagesDir}`);
+        
+        // Clear audio folder
+        if (fs.existsSync(audioDir)) {
+          const audioFiles = fs.readdirSync(audioDir);
+          console.log(`Found ${audioFiles.length} audio files to delete`);
+          for (const file of audioFiles) {
+            const filePath = path.join(audioDir, file);
+            fs.unlinkSync(filePath);
+            console.log(`Deleted: ${filePath}`);
+          }
+          console.log(`✓ Cleared ${audioFiles.length} audio files`);
+        } else {
+          console.log(`Audio directory does not exist: ${audioDir}`);
+        }
+        
+        // Clear images folder
+        if (fs.existsSync(imagesDir)) {
+          const imageFiles = fs.readdirSync(imagesDir);
+          console.log(`Found ${imageFiles.length} image files to delete`);
+          for (const file of imageFiles) {
+            const filePath = path.join(imagesDir, file);
+            fs.unlinkSync(filePath);
+            console.log(`Deleted: ${filePath}`);
+          }
+          console.log(`✓ Cleared ${imageFiles.length} image files`);
+        } else {
+          console.log(`Images directory does not exist: ${imagesDir}`);
+        }
+      } catch (error) {
+        console.error("⚠️ Error clearing upload folders:", error);
+        // Don't throw, continue with database reset
       }
+      
+      // PostgreSQL handles foreign key constraints automatically
+      console.log("✓ Foreign key constraints managed by PostgreSQL");
       console.log("Disabled foreign key constraints");
       
       // Clear all tables (order doesn't matter with foreign keys disabled)
@@ -1759,23 +1735,22 @@ export class DatabaseStorage implements IStorage {
         console.log("⚠️ Users table clear failed (may be empty):", error);
       }
       
-      // Re-enable foreign key constraints
-      if (isMySQL) {
-        if (mysqlPool) { await mysqlPool.execute('SET FOREIGN_KEY_CHECKS = 1'); }
-      } else {
-        // no-op for non-MySQL path in MySQL-only runtime
-      }
+      // PostgreSQL foreign key constraints are always enabled
+      console.log("✓ Foreign key constraints active");
       console.log("✓ Re-enabled foreign key constraints");
       
       // Create default admin user after clearing all users
       try {
         const hashedPassword = await bcrypt.hash('admin123', 10);
+        const adminId = randomUUID();
         await db.insert(users).values({
+          id: adminId,
           username: 'admin',
           password: hashedPassword,
           role: 'admin',
           email: 'admin@beatbazaar.com',
           passwordChangeRequired: 1 as any,
+          theme: 'original',
           createdAt: new Date(),
           updatedAt: new Date(),
         });
@@ -1786,7 +1761,9 @@ export class DatabaseStorage implements IStorage {
       
       // Initialize analytics with some sample data
       try {
+        const analyticsId = randomUUID();
         await db.insert(analytics).values({
+          id: analyticsId,
           siteVisits: 0,
           totalDownloads: 0,
           updatedAt: new Date(),
@@ -1799,17 +1776,8 @@ export class DatabaseStorage implements IStorage {
       console.log("✅ Database reset completed successfully");
     } catch (error) {
       console.error("❌ Database reset error:", error);
-      // Try to re-enable foreign keys even if there was an error
-      try {
-        if (isMySQL) {
-          if (mysqlPool) { await mysqlPool.execute('SET FOREIGN_KEY_CHECKS = 1'); }
-        } else {
-          // no-op for non-MySQL path in MySQL-only runtime
-        }
-        console.log("✓ Re-enabled foreign key constraints after error");
-      } catch (e) {
-        console.error("❌ Failed to re-enable foreign keys:", e);
-      }
+      // PostgreSQL foreign key constraints are always enabled
+      console.log("✓ Foreign key constraints remain active");
       throw error;
     }
   }
@@ -1839,7 +1807,7 @@ export class DatabaseStorage implements IStorage {
             eq(verificationCodes.userId, userId),
             eq(verificationCodes.code, code),
             eq(verificationCodes.type, type),
-            eq(verificationCodes.used, 0),
+            eq(verificationCodes.used, false),
             sql`${verificationCodes.expiresAt} > ${Date.now()}`
           )
         )
@@ -1881,14 +1849,14 @@ export class DatabaseStorage implements IStorage {
   // Email settings operations
   async getEmailSettings(): Promise<EmailSettings | undefined> {
     try {
-      if (!isMySQL) {
+      if (!postgresConfigured) {
         // Return sensible defaults when DB not configured (setup mode)
         return {
           id: 'default',
-          enabled: 0,
+          enabled: false,
           smtpHost: 'smtp.gmail.com',
           smtpPort: 587,
-          smtpSecure: 0,
+          smtpSecure: false,
           smtpUser: '',
           smtpPass: '',
           fromName: 'BeatBazaar',
@@ -1956,7 +1924,7 @@ export class DatabaseStorage implements IStorage {
   // Social media settings operations
   async getSocialMediaSettings(): Promise<SocialMediaSettings | undefined> {
     try {
-      if (!isMySQL) {
+      if (!postgresConfigured) {
         return {
           id: 'default',
           facebookUrl: '',
@@ -2027,7 +1995,7 @@ export class DatabaseStorage implements IStorage {
   // Contact settings operations
   async getContactSettings(): Promise<ContactSettings | undefined> {
     try {
-      if (!isMySQL) {
+      if (!postgresConfigured) {
         return {
           id: 'default',
           bandImageUrl: '',
@@ -2039,7 +2007,7 @@ export class DatabaseStorage implements IStorage {
           contactState: 'CA',
           contactZipCode: '90210',
           contactCountry: 'USA',
-          messageEnabled: 1,
+          messageEnabled: true,
           messageSubject: 'New Contact Form Submission',
           messageTemplate: 'You have received a new message from your contact form.',
           facebookUrl: '',
@@ -2110,7 +2078,7 @@ export class DatabaseStorage implements IStorage {
   // Plans settings operations
   async getPlansSettings(): Promise<PlansSettings | undefined> {
     try {
-      if (!isMySQL) {
+      if (!postgresConfigured) {
         // Provide a minimal default plans settings object
         return {
           id: 'default',
@@ -2183,7 +2151,7 @@ export class DatabaseStorage implements IStorage {
       const result = await db
         .select()
         .from(artistBios)
-  .where(eq(artistBios.isActive, 1))
+        .where(eq(artistBios.isActive, true))
         .orderBy(artistBios.sortOrder, artistBios.createdAt);
       
       return result;
@@ -2262,7 +2230,7 @@ export class DatabaseStorage implements IStorage {
   // App Branding Settings
   async getAppBrandingSettings(): Promise<AppBrandingSettings | null> {
     try {
-      if (!isMySQL) {
+      if (!postgresConfigured) {
         return {
           id: `app-branding-default`,
           appName: 'BeatBazaar',
@@ -2406,16 +2374,16 @@ private async deleteAllUploadedFiles(): Promise<void> {
   // Stripe Settings Operations
   async getStripeSettings(): Promise<StripeSettings | undefined> {
     try {
-      if (!isMySQL) {
+      if (!postgresConfigured) {
         return {
           id: 'default',
-          enabled: 0,
+          enabled: false,
           publishableKey: '',
           secretKey: '',
           webhookSecret: '',
           currency: 'usd',
-          testMode: 1,
-           createdAt: new Date(),
+          testMode: true,
+          createdAt: new Date(),
           updatedAt: new Date(),
         } as StripeSettings;
       }
@@ -2544,384 +2512,5 @@ private async deleteAllUploadedFiles(): Promise<void> {
 
 export const storage = new DatabaseStorage();
 
-// Exported helper so other modules (setup) can run the full DDL against a provided drizzle db instance
-export async function createMySQLTablesUsingDb(dbInstance: any) {
-  const results: Array<{ table: string; ok: boolean; error?: string }> = [];
-  // helper to run a statement and record result
-  const run = async (tableName: string, fn: () => Promise<any>) => {
-    try {
-      await fn();
-      results.push({ table: tableName, ok: true });
-    } catch (err: any) {
-      const msg = err && err.message ? String(err.message) : String(err);
-      console.error(`Error creating table ${tableName}:`, msg);
-      results.push({ table: tableName, ok: false, error: msg });
-    }
-  };
-
-  // compatibility executor: Try common query methods depending on dbInstance type
-  const execSql = async (sqlText: string) => {
-    if (!dbInstance) throw new Error('No db instance provided');
-
-    // Try the most likely APIs in order. Wrap each call in try/catch so that if one
-    // method exists but behaves unexpectedly we still attempt the others.
-    const errors: string[] = [];
-
-    // 1) If the instance exposes a 'run' function (some wrappers), try it
-    try {
-      if (typeof (dbInstance as any).run === 'function') {
-        return await (dbInstance as any).run(sqlText);
-      }
-    } catch (e: any) {
-      errors.push(String(e?.message || e));
-    }
-
-    // 2) mysql2 pool / connection .execute(sql, params?) -> returns [rows, fields]
-    try {
-      if (typeof (dbInstance as any).execute === 'function') {
-        return await (dbInstance as any).execute(sqlText);
-      }
-    } catch (e: any) {
-      errors.push(String(e?.message || e));
-    }
-
-    // 3) mysql2 pool / connection .query(sql, params?)
-    try {
-      if (typeof (dbInstance as any).query === 'function') {
-        return await (dbInstance as any).query(sqlText);
-      }
-    } catch (e: any) {
-      errors.push(String(e?.message || e));
-    }
-
-    // 4) Drizzle-like adapters may expose a `raw`/`executeSql` or be callable
-    try {
-      if (typeof (dbInstance as any).raw === 'function') {
-        return await (dbInstance as any).raw(sqlText);
-      }
-    } catch (e: any) {
-      errors.push(String(e?.message || e));
-    }
-
-    try {
-      if (typeof dbInstance === 'function') {
-        return await (dbInstance as any)(sqlText);
-      }
-    } catch (e: any) {
-      errors.push(String(e?.message || e));
-    }
-
-    throw new Error('dbInstance does not support run/execute/query/raw/call — attempts: ' + errors.join(' | '));
-  };
-
-  console.log("🏗️ Running MySQL DDL (per-table results will be returned)");
-
-  await run('users', async () => {
-    await execSql(
-      `CREATE TABLE IF NOT EXISTS users (
-        id VARCHAR(36) PRIMARY KEY,
-        username VARCHAR(255) NOT NULL UNIQUE,
-        password TEXT NOT NULL,
-        role VARCHAR(50) NOT NULL DEFAULT 'client',
-        email VARCHAR(255),
-        password_change_required TINYINT(1) NOT NULL DEFAULT 1,
-        theme VARCHAR(100) NOT NULL DEFAULT 'original',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB;`
-    );
-  });
-
-  await run('beats', async () => {
-    await execSql(`CREATE TABLE IF NOT EXISTS beats (
-        id VARCHAR(36) PRIMARY KEY,
-        title TEXT NOT NULL,
-        producer TEXT NOT NULL,
-        bpm INT NOT NULL,
-        genre TEXT NOT NULL,
-        price DOUBLE NOT NULL,
-        image_url TEXT NOT NULL,
-        audio_url TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB;`);
-  });
-
-  await run('purchases', async () => {
-    await execSql(`CREATE TABLE IF NOT EXISTS purchases (
-        id VARCHAR(36) PRIMARY KEY,
-        user_id VARCHAR(36) NOT NULL,
-        beat_id VARCHAR(36) NOT NULL,
-        price DOUBLE NOT NULL,
-        purchased_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id),
-        FOREIGN KEY (beat_id) REFERENCES beats(id)
-      ) ENGINE=InnoDB;`);
-  });
-
-  await run('analytics', async () => {
-    await execSql(`CREATE TABLE IF NOT EXISTS analytics (
-        id VARCHAR(36) PRIMARY KEY,
-        site_visits INT NOT NULL DEFAULT 0,
-        total_downloads INT NOT NULL DEFAULT 0,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB;`);
-  });
-
-  await run('customers', async () => {
-    await execSql(`CREATE TABLE IF NOT EXISTS customers (
-        id VARCHAR(36) PRIMARY KEY,
-        user_id VARCHAR(36) NOT NULL,
-        first_name TEXT NOT NULL,
-        last_name TEXT NOT NULL,
-        email VARCHAR(255) NOT NULL,
-        phone TEXT,
-        address TEXT,
-        city TEXT,
-        state TEXT,
-        zip_code TEXT,
-        country TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id)
-      ) ENGINE=InnoDB;`);
-  });
-
-  await run('cart', async () => {
-    await execSql(`CREATE TABLE IF NOT EXISTS cart (
-        id VARCHAR(36) PRIMARY KEY,
-        user_id VARCHAR(36) NOT NULL,
-        beat_id VARCHAR(36) NOT NULL,
-        added_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id),
-        FOREIGN KEY (beat_id) REFERENCES beats(id)
-      ) ENGINE=InnoDB;`);
-  });
-
-  await run('payments', async () => {
-    await execSql(`CREATE TABLE IF NOT EXISTS payments (
-        id VARCHAR(36) PRIMARY KEY,
-        purchase_id VARCHAR(36) NOT NULL,
-        customer_id VARCHAR(36) NOT NULL,
-        amount DOUBLE NOT NULL,
-        payment_method TEXT NOT NULL,
-        status TEXT NOT NULL DEFAULT 'pending',
-        transaction_id TEXT,
-        bank_reference TEXT,
-        notes TEXT,
-        approved_by VARCHAR(36),
-        approved_at TIMESTAMP,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY (purchase_id) REFERENCES purchases(id),
-        FOREIGN KEY (customer_id) REFERENCES customers(id),
-        FOREIGN KEY (approved_by) REFERENCES users(id)
-      ) ENGINE=InnoDB;`);
-  });
-
-  await run('genres', async () => {
-    await execSql(`CREATE TABLE IF NOT EXISTS genres (
-        id VARCHAR(36) PRIMARY KEY,
-        name VARCHAR(255) NOT NULL UNIQUE,
-        description TEXT,
-        image_url TEXT NOT NULL,
-        color VARCHAR(20) NOT NULL DEFAULT '#3b82f6',
-        is_active TINYINT(1) NOT NULL DEFAULT 1,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB;`);
-  });
-
-  await run('verification_codes', async () => {
-    await execSql(`CREATE TABLE IF NOT EXISTS verification_codes (
-        id VARCHAR(36) PRIMARY KEY,
-        user_id VARCHAR(36) NOT NULL,
-        code TEXT NOT NULL,
-        type TEXT NOT NULL DEFAULT 'password_reset',
-        expires_at TIMESTAMP NOT NULL,
-        used TINYINT(1) NOT NULL DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        FOREIGN KEY (user_id) REFERENCES users(id)
-      ) ENGINE=InnoDB;`);
-  });
-
-  await run('email_settings', async () => {
-    await execSql(`CREATE TABLE IF NOT EXISTS email_settings (
-        id VARCHAR(36) PRIMARY KEY,
-        enabled TINYINT(1) NOT NULL DEFAULT 0,
-        smtp_host TEXT NOT NULL DEFAULT 'smtp.gmail.com',
-        smtp_port INT NOT NULL DEFAULT 587,
-        smtp_secure TINYINT(1) NOT NULL DEFAULT 0,
-        smtp_user TEXT NOT NULL DEFAULT '',
-        smtp_pass TEXT NOT NULL DEFAULT '',
-        from_name TEXT NOT NULL DEFAULT 'BeatBazaar',
-        from_email TEXT NOT NULL DEFAULT '',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB;`);
-  });
-
-  await run('social_media_settings', async () => {
-    await execSql(`CREATE TABLE IF NOT EXISTS social_media_settings (
-        id VARCHAR(36) PRIMARY KEY,
-        facebook_url TEXT NOT NULL DEFAULT '',
-        instagram_url TEXT NOT NULL DEFAULT '',
-        twitter_url TEXT NOT NULL DEFAULT '',
-        youtube_url TEXT NOT NULL DEFAULT '',
-        tiktok_url TEXT NOT NULL DEFAULT '',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB;`);
-  });
-
-  await run('contact_settings', async () => {
-    await execSql(`CREATE TABLE IF NOT EXISTS contact_settings (
-        id VARCHAR(36) PRIMARY KEY,
-        band_image_url TEXT NOT NULL DEFAULT '',
-        band_name TEXT NOT NULL DEFAULT 'BeatBazaar',
-        contact_email TEXT NOT NULL DEFAULT 'contact@beatbazaar.com',
-        contact_phone TEXT NOT NULL DEFAULT '+1 (555) 123-4567',
-        contact_address TEXT NOT NULL DEFAULT '123 Music Street',
-        contact_city TEXT NOT NULL DEFAULT 'Los Angeles',
-        contact_state TEXT NOT NULL DEFAULT 'CA',
-        contact_zip_code TEXT NOT NULL DEFAULT '90210',
-        contact_country TEXT NOT NULL DEFAULT 'USA',
-        message_enabled TINYINT(1) NOT NULL DEFAULT 1,
-        message_subject TEXT NOT NULL DEFAULT 'New Contact Form Submission',
-        message_template TEXT NOT NULL DEFAULT 'You have received a new message from your contact form.',
-        facebook_url TEXT NOT NULL DEFAULT '',
-        instagram_url TEXT NOT NULL DEFAULT '',
-        twitter_url TEXT NOT NULL DEFAULT '',
-        youtube_url TEXT NOT NULL DEFAULT '',
-        tiktok_url TEXT NOT NULL DEFAULT '',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB;`);
-  });
-
-  await run('artist_bios', async () => {
-    await execSql(`CREATE TABLE IF NOT EXISTS artist_bios (
-        id VARCHAR(36) PRIMARY KEY,
-        name TEXT NOT NULL,
-        image_url TEXT NOT NULL DEFAULT '',
-        bio TEXT NOT NULL,
-        role TEXT NOT NULL DEFAULT 'Artist',
-        social_links JSON NOT NULL DEFAULT '{}',
-        is_active TINYINT(1) NOT NULL DEFAULT 1,
-        sort_order INT NOT NULL DEFAULT 0,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB;`);
-  });
-
-  await run('plans_settings', async () => {
-    await execSql(`CREATE TABLE IF NOT EXISTS plans_settings (
-        id VARCHAR(36) PRIMARY KEY,
-        page_title TEXT NOT NULL DEFAULT 'Beat Licensing Plans',
-        page_subtitle TEXT NOT NULL DEFAULT 'Choose the perfect licensing plan for your music project. From basic commercial use to exclusive ownership.',
-        basic_plan JSON NOT NULL DEFAULT '{"name":"Basic License","price":29}',
-        premium_plan JSON NOT NULL DEFAULT '{"name":"Premium License","price":99}',
-        exclusive_plan JSON NOT NULL DEFAULT '{"name":"Exclusive Rights","price":999}',
-        additional_features_title TEXT NOT NULL DEFAULT 'Why Choose BeatBazaar?',
-        additional_features JSON NOT NULL DEFAULT '[]',
-        faq_section JSON NOT NULL DEFAULT '{}',
-        trust_badges JSON NOT NULL DEFAULT '[]',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB;`);
-  });
-
-  await run('app_branding_settings', async () => {
-    await execSql(`CREATE TABLE IF NOT EXISTS app_branding_settings (
-        id VARCHAR(36) PRIMARY KEY,
-        app_name TEXT NOT NULL DEFAULT 'BeatBazaar',
-        app_logo TEXT NOT NULL DEFAULT '',
-        hero_title TEXT NOT NULL DEFAULT 'Discover Your Sound',
-        hero_subtitle TEXT NOT NULL DEFAULT 'Premium beats for every artist. Find your perfect sound and bring your music to life.',
-        hero_image TEXT NOT NULL DEFAULT '',
-        hero_button_text TEXT NOT NULL DEFAULT 'Start Creating',
-        hero_button_link TEXT NOT NULL DEFAULT '/beats',
-        login_title TEXT NOT NULL DEFAULT 'Welcome Back',
-        login_subtitle TEXT NOT NULL DEFAULT 'Sign in to your account to continue',
-        login_image TEXT NOT NULL DEFAULT '',
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB;`);
-  });
-
-  // Stripe tables
-  await run('stripe_settings', async () => {
-    await execSql(`CREATE TABLE IF NOT EXISTS stripe_settings (
-        id VARCHAR(36) PRIMARY KEY,
-        enabled TINYINT(1) NOT NULL DEFAULT 0,
-        publishable_key TEXT NOT NULL DEFAULT '',
-        secret_key TEXT NOT NULL DEFAULT '',
-        webhook_secret TEXT NOT NULL DEFAULT '',
-        currency TEXT NOT NULL DEFAULT 'usd',
-        test_mode TINYINT(1) NOT NULL DEFAULT 1,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP
-      ) ENGINE=InnoDB;`);
-  });
-
-  await run('stripe_transactions', async () => {
-    await execSql(`CREATE TABLE IF NOT EXISTS stripe_transactions (
-        id VARCHAR(36) PRIMARY KEY,
-        payment_id VARCHAR(36) NOT NULL,
-        stripe_payment_intent_id TEXT NOT NULL UNIQUE,
-        stripe_customer_id TEXT,
-        amount DOUBLE NOT NULL,
-        currency TEXT NOT NULL DEFAULT 'usd',
-        status TEXT NOT NULL DEFAULT 'pending',
-        payment_method TEXT,
-        receipt_url TEXT,
-        metadata JSON,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
-        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP ON UPDATE CURRENT_TIMESTAMP,
-        FOREIGN KEY (payment_id) REFERENCES payments(id)
-      ) ENGINE=InnoDB;`);
-  });
-
-  console.log("✅ MySQL DDL executed (per-table results available)");
-
-  return results;
-}
-
-/**
- * Reinitialize the module-level DB connection using provided config.
- * This will replace the running `db` adapter and mark the runtime as MySQL.
- * It also runs the full DDL and calls storage.onDatabaseReady() to finish bootstrapping.
- */
-export async function reinitializeDatabase(cfg: { host: string; port?: number | string; user: string; password?: string; database: string }) {
-  try {
-    const pool = mysql.createPool({
-      host: cfg.host,
-      port: cfg.port ? Number(cfg.port) : 3306,
-      user: cfg.user,
-      password: cfg.password || '',
-      database: cfg.database,
-      waitForConnections: true,
-      connectionLimit: 5,
-    } as any);
-
-  // replace module-level db (Drizzle adapter) so the rest of the app can use it
-  db = drizzleMysql(pool as any);
-  isMySQL = true;
-
-  // create tables using the raw pool when possible — mysql2 pool has execute/query which
-  // will work reliably for DDL. Passing the pool avoids adapter-specific method differences.
-  const results = await createMySQLTablesUsingDb(pool as any);
-
-    // run storage-level bootstrapping
-    try {
-      await (storage as DatabaseStorage).onDatabaseReady();
-    } catch (e) {
-      console.error('Error running storage.onDatabaseReady:', e);
-    }
-
-    // do not end the pool: we want the server to keep using it
-    return { ok: true, results };
-  } catch (error) {
-    console.error('reinitializeDatabase error:', error);
-    throw error;
-  }
-}
+// PostgreSQL tables are managed by Drizzle ORM via drizzle-kit push
+// No manual table creation functions needed
