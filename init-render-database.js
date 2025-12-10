@@ -156,7 +156,11 @@ async function initializeDatabase() {
         id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
         name TEXT UNIQUE NOT NULL,
         description TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        color TEXT NOT NULL DEFAULT '#3b82f6',
+        image_url TEXT,
+        is_active BOOLEAN NOT NULL DEFAULT true,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
     console.log('✅ Genres table created');

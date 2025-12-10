@@ -64,7 +64,11 @@ async function createAllTables(sql: any): Promise<void> {
       id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
       name TEXT UNIQUE NOT NULL,
       description TEXT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      color TEXT NOT NULL DEFAULT '#3b82f6',
+      image_url TEXT,
+      is_active BOOLEAN NOT NULL DEFAULT true,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `;
 
@@ -305,6 +309,27 @@ async function runMigrations(sql: any): Promise<void> {
           'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=600&h=400&fit=crop'
         )
       `;
+    }
+
+    // Check for missing genre columns
+    const genreColumns = await sql`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'genres' 
+      AND column_name IN ('color', 'image_url', 'is_active', 'updated_at')
+    `;
+
+    if (genreColumns.length < 4) {
+      console.log('🔄 Adding missing genre columns...');
+      await sql`ALTER TABLE genres ADD COLUMN IF NOT EXISTS color TEXT DEFAULT '#3b82f6'`;
+      await sql`ALTER TABLE genres ADD COLUMN IF NOT EXISTS image_url TEXT`;
+      await sql`ALTER TABLE genres ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`;
+      await sql`ALTER TABLE genres ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`;
+      
+      // Update existing genres to have the default color and active status
+      await sql`UPDATE genres SET color = '#3b82f6' WHERE color IS NULL`;
+      await sql`UPDATE genres SET is_active = true WHERE is_active IS NULL`;
+      await sql`UPDATE genres SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL`;
     }
 
   } catch (error) {
