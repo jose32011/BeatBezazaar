@@ -232,7 +232,7 @@ async function insertDefaultData(sql: any): Promise<void> {
       ${hashedPassword},
       'admin',
       'admin@beatbazaar.com',
-      1
+      ${1}
     )
     ON CONFLICT (username) DO NOTHING
   `;
