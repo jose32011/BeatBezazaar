@@ -779,6 +779,8 @@ function AdminSettingsContent() {
       return response.json();
     },
     onSuccess: () => {
+      // Invalidate the contact settings cache
+      queryClient.invalidateQueries({ queryKey: ['/api/contact-settings'] });
       toast({
         title: "Contact Settings Saved",
         description: "Your contact page settings have been updated successfully",
@@ -832,6 +834,8 @@ function AdminSettingsContent() {
       return response.json();
     },
     onSuccess: () => {
+      // Invalidate the app branding settings cache
+      queryClient.invalidateQueries({ queryKey: ['/api/app-branding-settings'] });
       toast({
         title: "App Branding Saved",
         description: "Your app branding settings have been updated successfully",
@@ -858,6 +862,8 @@ function AdminSettingsContent() {
       return response.json();
     },
     onSuccess: () => {
+      // Invalidate the home settings cache so the Home page updates
+      queryClient.invalidateQueries({ queryKey: ['/api/home-settings'] });
       toast({
         title: "Home Settings Saved",
         description: "Your home page settings have been updated successfully",
