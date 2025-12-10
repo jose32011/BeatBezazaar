@@ -137,13 +137,18 @@ async function createAllTables(sql: any): Promise<void> {
   await sql`
     CREATE TABLE IF NOT EXISTS payments (
       id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-      purchase_id TEXT,
-      customer_id TEXT,
+      purchase_id TEXT NOT NULL,
+      customer_id TEXT NOT NULL,
       amount DOUBLE PRECISION NOT NULL,
       payment_method TEXT NOT NULL,
+      status TEXT NOT NULL DEFAULT 'pending',
+      transaction_id TEXT,
       bank_reference TEXT,
       notes TEXT,
-      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+      approved_by TEXT,
+      approved_at TIMESTAMP,
+      created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+      updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
     )
   `;
 
@@ -330,6 +335,27 @@ async function runMigrations(sql: any): Promise<void> {
       await sql`UPDATE genres SET color = '#3b82f6' WHERE color IS NULL`;
       await sql`UPDATE genres SET is_active = true WHERE is_active IS NULL`;
       await sql`UPDATE genres SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL`;
+    }
+
+    // Check for missing payment columns
+    const paymentColumns = await sql`
+      SELECT column_name 
+      FROM information_schema.columns 
+      WHERE table_name = 'payments' 
+      AND column_name IN ('status', 'transaction_id', 'approved_by', 'approved_at', 'updated_at')
+    `;
+
+    if (paymentColumns.length < 5) {
+      console.log('🔄 Adding missing payment columns...');
+      await sql`ALTER TABLE payments ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending'`;
+      await sql`ALTER TABLE payments ADD COLUMN IF NOT EXISTS transaction_id TEXT`;
+      await sql`ALTER TABLE payments ADD COLUMN IF NOT EXISTS approved_by TEXT`;
+      await sql`ALTER TABLE payments ADD COLUMN IF NOT EXISTS approved_at TIMESTAMP`;
+      await sql`ALTER TABLE payments ADD COLUMN IF NOT EXISTS updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP`;
+      
+      // Update existing payments to have default status
+      await sql`UPDATE payments SET status = 'pending' WHERE status IS NULL`;
+      await sql`UPDATE payments SET updated_at = CURRENT_TIMESTAMP WHERE updated_at IS NULL`;
     }
 
   } catch (error) {

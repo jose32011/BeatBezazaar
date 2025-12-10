@@ -244,13 +244,18 @@ async function initializeDatabase() {
     await sql`
       CREATE TABLE IF NOT EXISTS payments (
         id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
-        purchase_id TEXT,
-        customer_id TEXT,
+        purchase_id TEXT NOT NULL,
+        customer_id TEXT NOT NULL,
         amount DOUBLE PRECISION NOT NULL,
         payment_method TEXT NOT NULL,
+        status TEXT NOT NULL DEFAULT 'pending',
+        transaction_id TEXT,
         bank_reference TEXT,
         notes TEXT,
-        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        approved_by TEXT,
+        approved_at TIMESTAMP,
+        created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+        updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
       )
     `;
     console.log('✅ Payments table created');
