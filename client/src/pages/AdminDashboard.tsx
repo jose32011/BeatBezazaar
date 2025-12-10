@@ -21,6 +21,7 @@ import AlbumArtGenerator from "@/components/AlbumArtGenerator";
 import BannerCreator from "@/components/BannerCreator";
 import CustomerManagement from "@/components/CustomerManagement";
 import PaymentManagement from "@/components/PaymentManagement";
+import ExclusivePurchaseManager from "@/components/ExclusivePurchaseManager";
 import AudioPlayer from "@/components/AudioPlayer";
 import AdminSettings from "@/pages/AdminSettings";
 import { useToast } from "@/hooks/use-toast";
@@ -50,6 +51,7 @@ function AdminDashboardContent() {
   // Navigation menu items
   const menuItems = [
     { id: "overview", label: "Overview", icon: BarChart3, shortLabel: "Overview" },
+    { id: "exclusive", label: "Exclusive Purchases", icon: Crown, shortLabel: "Exclusive" },
     { id: "customers", label: "Customers", icon: CustomerIcon, shortLabel: "Customers" },
     { id: "payments", label: "Payments", icon: PaymentIcon, shortLabel: "Payments" },
     { id: "beats", label: "Beat Management", icon: BeatIcon, shortLabel: "Beats" },
@@ -948,6 +950,11 @@ function AdminDashboardContent() {
             
 
             </div>
+          )}
+
+          {/* Exclusive Purchases */}
+          {activeTab === "exclusive" && (
+            <ExclusivePurchaseManager />
           )}
 
           {/* Beat Management */}

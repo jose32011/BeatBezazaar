@@ -26,6 +26,7 @@ function AdminUploadContent() {
     bpm: "",
     genre: "",
     price: "",
+    isExclusive: false,
   });
 
   // Generator states
@@ -137,6 +138,7 @@ function AdminUploadContent() {
         bpm: "",
         genre: "",
         price: "",
+        isExclusive: false,
       });
       setAlbumArt("");
       setAudioFile(null);
@@ -1188,6 +1190,36 @@ function AdminUploadContent() {
                   />
                 </div>
               </div>
+              
+              {/* Exclusive Beat Option */}
+              <div className="space-y-4 pt-4 border-t">
+                <div className="flex items-start space-x-3">
+                  <input
+                    type="checkbox"
+                    id="isExclusive"
+                    checked={formData.isExclusive}
+                    onChange={(e) => setFormData(prev => ({ ...prev, isExclusive: e.target.checked }))}
+                    className="mt-1 rounded"
+                  />
+                  <div className="flex-1">
+                    <Label htmlFor="isExclusive" className="text-base font-semibold flex items-center gap-2">
+                      <span className="text-yellow-600">👑</span>
+                      Exclusive Beat
+                    </Label>
+                    <p className="text-sm text-muted-foreground mt-1">
+                      Mark this beat as exclusive. When purchased, it will require admin approval and will be removed from the store permanently.
+                    </p>
+                    {formData.isExclusive && (
+                      <div className="mt-2 p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-md">
+                        <p className="text-sm text-yellow-800 dark:text-yellow-200">
+                          <strong>Note:</strong> Exclusive beats typically have higher prices. Once purchased and approved, the beat and its files will be permanently deleted from the system.
+                        </p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              </div>
+
               <div className="flex justify-end">
                 <Button 
                   onClick={() => setCurrentStep(2)}

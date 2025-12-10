@@ -1,4 +1,4 @@
-import { pgTable, text, integer, doublePrecision, timestamp } from "drizzle-orm/pg-core";
+import { pgTable, text, integer, doublePrecision, timestamp, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema, createSelectSchema } from 'drizzle-zod';
 import { z } from 'zod';
 
@@ -11,6 +11,8 @@ export const beats = pgTable("beats", {
   price: doublePrecision("price").notNull(),
   imageUrl: text("image_url").notNull(),
   audioUrl: text("audio_url"),
+  isExclusive: boolean("is_exclusive").default(false).notNull(),
+  isHidden: boolean("is_hidden").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });
 

@@ -260,6 +260,15 @@ function AdminSettingsContent() {
     loginImage: ''
   });
 
+  const [homeSettings, setHomeSettings] = useState({
+    title: 'Premium Beats for Your Next Hit',
+    description: 'Discover high-quality beats crafted by professional producers.',
+    feature1: 'Instant download after purchase',
+    feature2: 'High-quality WAV & MP3 files',
+    feature3: 'Professional mixing and mastering',
+    imageUrl: 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=600&h=400&fit=crop'
+  });
+
   const [contactSettings, setContactSettings] = useState({
     bandImageUrl: '',
     bandName: 'BeatBazaar',
@@ -414,6 +423,7 @@ function AdminSettingsContent() {
   // Navigation menu items
   const menuItems = [
     { id: "branding", label: "App Branding", icon: Globe, shortLabel: "Branding" },
+    { id: "home-settings", label: "Home Page", icon: Star, shortLabel: "Home" },
     { id: "site-settings", label: "Site Settings", icon: MessageSquare, shortLabel: "Site" },
     { id: "paypal", label: "PayPal", icon: CreditCard, shortLabel: "PayPal" },
     { id: "stripe", label: "Stripe", icon: CreditCard, shortLabel: "Stripe" },
@@ -651,6 +661,27 @@ function AdminSettingsContent() {
       .catch(error => {
         console.error('Failed to load artist bios:', error);
       });
+
+    // Load home settings from API
+    fetch('/api/home-settings', {
+      credentials: 'include',
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data) {
+          setHomeSettings({
+            title: data.title || 'Premium Beats for Your Next Hit',
+            description: data.description || 'Discover high-quality beats crafted by professional producers.',
+            feature1: data.feature1 || 'Instant download after purchase',
+            feature2: data.feature2 || 'High-quality WAV & MP3 files',
+            feature3: data.feature3 || 'Professional mixing and mastering',
+            imageUrl: data.imageUrl || 'https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=600&h=400&fit=crop'
+          });
+        }
+      })
+      .catch(error => {
+        console.error('Failed to load home settings:', error);
+      });
   }, []);
 
   const saveSettingsMutation = useMutation({
@@ -815,6 +846,32 @@ function AdminSettingsContent() {
     },
   });
 
+  const saveHomeSettingsMutation = useMutation({
+    mutationFn: async (homeSettingsData: typeof homeSettings) => {
+      const response = await fetch('/api/home-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(homeSettingsData),
+      });
+      if (!response.ok) throw new Error('Failed to save home settings');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "Home Settings Saved",
+        description: "Your home page settings have been updated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save home settings",
+        variant: "destructive",
+      });
+    },
+  });
+
 
   const createArtistBioMutation = useMutation({
     mutationFn: async (bioData: typeof bioFormData) => {
@@ -974,14 +1031,44 @@ function AdminSettingsContent() {
     },
   });
 
-  const resetDatabaseMutation = useMutation({
+  const [showResetConfirmDialog, setShowResetConfirmDialog] = useState(false);
+  const [databaseCounts, setDatabaseCounts] = useState<any>(null);
+
+  const checkDatabaseMutation = useMutation({
     mutationFn: async () => {
-      const response = await fetch('/api/admin/reset-database', {
-        method: 'POST',
+      const response = await fetch('/api/admin/reset-database/check', {
+        method: 'GET',
         credentials: 'include',
       });
       if (!response.ok) {
-        throw new Error('Failed to reset database');
+        throw new Error('Failed to check database');
+      }
+      return response.json();
+    },
+    onSuccess: (data) => {
+      setDatabaseCounts(data);
+      setShowResetConfirmDialog(true);
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to check database",
+        variant: "destructive",
+      });
+    },
+  });
+
+  const resetDatabaseMutation = useMutation({
+    mutationFn: async (confirmed: boolean) => {
+      const response = await fetch('/api/admin/reset-database', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ confirmed }),
+      });
+      if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.message || 'Failed to reset database');
       }
       return response.json();
     },
@@ -990,13 +1077,14 @@ function AdminSettingsContent() {
         title: "Database Reset Complete",
         description: data.message,
       });
+      setShowResetConfirmDialog(false);
       // Reload the page after reset
       setTimeout(() => window.location.reload(), 2000);
     },
-    onError: () => {
+    onError: (error: any) => {
       toast({
         title: "Error",
-        description: "Failed to reset database",
+        description: error.message || "Failed to reset database",
         variant: "destructive",
       });
     },
@@ -1382,6 +1470,107 @@ function AdminSettingsContent() {
                 </CardContent>
               </Card>
 
+            </div>
+          )}
+
+          {/* Home Settings */}
+          {activeTab === "home-settings" && (
+            <div className="space-y-6">
+              <Card>
+                <CardHeader>
+                  <CardTitle className="flex items-center gap-2">
+                    <Star className="h-5 w-5" />
+                    Featured Section
+                  </CardTitle>
+                  <CardDescription>
+                    Customize the featured section on your home page with title, description, features, and image
+                  </CardDescription>
+                </CardHeader>
+                <CardContent className="space-y-4">
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label htmlFor="home-title">Section Title</Label>
+                      <Input
+                        id="home-title"
+                        value={homeSettings.title}
+                        onChange={(e) => setHomeSettings(prev => ({ ...prev, title: e.target.value }))}
+                        placeholder="Premium Beats for Your Next Hit"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="home-description">Section Description</Label>
+                      <Textarea
+                        id="home-description"
+                        value={homeSettings.description}
+                        onChange={(e) => setHomeSettings(prev => ({ ...prev, description: e.target.value }))}
+                        placeholder="Discover high-quality beats crafted by professional producers."
+                        rows={3}
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="home-feature1">Feature 1</Label>
+                      <Input
+                        id="home-feature1"
+                        value={homeSettings.feature1}
+                        onChange={(e) => setHomeSettings(prev => ({ ...prev, feature1: e.target.value }))}
+                        placeholder="Instant download after purchase"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="home-feature2">Feature 2</Label>
+                      <Input
+                        id="home-feature2"
+                        value={homeSettings.feature2}
+                        onChange={(e) => setHomeSettings(prev => ({ ...prev, feature2: e.target.value }))}
+                        placeholder="High-quality WAV & MP3 files"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="home-feature3">Feature 3</Label>
+                      <Input
+                        id="home-feature3"
+                        value={homeSettings.feature3}
+                        onChange={(e) => setHomeSettings(prev => ({ ...prev, feature3: e.target.value }))}
+                        placeholder="Professional mixing and mastering"
+                      />
+                    </div>
+                    <div className="space-y-2">
+                      <Label htmlFor="home-image">Featured Image URL</Label>
+                      <Input
+                        id="home-image"
+                        value={homeSettings.imageUrl}
+                        onChange={(e) => setHomeSettings(prev => ({ ...prev, imageUrl: e.target.value }))}
+                        placeholder="https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=600&h=400&fit=crop"
+                      />
+                    </div>
+                    {homeSettings.imageUrl && (
+                      <div className="mt-4">
+                        <Label>Image Preview</Label>
+                        <div className="mt-2 rounded-lg overflow-hidden border max-w-md">
+                          <img
+                            src={homeSettings.imageUrl}
+                            alt="Featured section preview"
+                            className="w-full h-auto object-cover"
+                            onError={(e) => {
+                              e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='400' viewBox='0 0 600 400'%3E%3Crect width='600' height='400' fill='%236366f1'/%3E%3Ctext x='300' y='200' text-anchor='middle' fill='white' font-size='24' font-family='Arial'%3EImage not found%3C/text%3E%3C/svg%3E";
+                            }}
+                          />
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                  <div className="pt-4">
+                    <Button 
+                      onClick={() => saveHomeSettingsMutation.mutate(homeSettings)}
+                      disabled={saveHomeSettingsMutation.isPending}
+                      className="w-full sm:w-auto"
+                    >
+                      <Save className="h-4 w-4 mr-2" />
+                      {saveHomeSettingsMutation.isPending ? 'Saving...' : 'Save Home Settings'}
+                    </Button>
+                  </div>
+                </CardContent>
+              </Card>
             </div>
           )}
 
@@ -3644,17 +3833,13 @@ function AdminSettingsContent() {
                 variant="destructive"
                 size="lg"
                 className="gap-2 w-full sm:w-auto"
-                onClick={() => {
-                  if (window.confirm('Are you sure you want to reset the database? This will delete ALL data including beats, purchases, customers, and uploaded files. This action cannot be undone!')) {
-                    resetDatabaseMutation.mutate();
-                  }
-                }}
-                disabled={resetDatabaseMutation.isPending}
+                onClick={() => checkDatabaseMutation.mutate()}
+                disabled={checkDatabaseMutation.isPending || resetDatabaseMutation.isPending}
               >
-                {resetDatabaseMutation.isPending ? (
+                {checkDatabaseMutation.isPending || resetDatabaseMutation.isPending ? (
                   <>
                     <Trash2 className="h-5 w-5 animate-spin" />
-                    Clearing All Data...
+                    {checkDatabaseMutation.isPending ? 'Checking...' : 'Clearing All Data...'}
                   </>
                 ) : (
                   <>
@@ -3705,7 +3890,107 @@ function AdminSettingsContent() {
           </Button>
         </div>
 
-        {/* Database Reset Section removed for safety: reset endpoint and UI have been disabled/removed. */}
+        {/* Database Reset Confirmation Dialog */}
+        <Dialog open={showResetConfirmDialog} onOpenChange={setShowResetConfirmDialog}>
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle className="flex items-center gap-2 text-destructive">
+                <AlertCircle className="h-5 w-5" />
+                Confirm Database Reset
+              </DialogTitle>
+              <DialogDescription>
+                This action will permanently delete all data from your database. This cannot be undone!
+              </DialogDescription>
+            </DialogHeader>
+            
+            {databaseCounts && (
+              <div className="space-y-4">
+                <div className="bg-muted p-4 rounded-lg space-y-2">
+                  <p className="font-medium text-sm">Current Database Contents:</p>
+                  <div className="grid grid-cols-2 gap-2 text-sm">
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Users:</span>
+                      <span className="font-medium">{databaseCounts.users}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Beats:</span>
+                      <span className="font-medium">{databaseCounts.beats}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Genres:</span>
+                      <span className="font-medium">{databaseCounts.genres}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Purchases:</span>
+                      <span className="font-medium">{databaseCounts.purchases}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Customers:</span>
+                      <span className="font-medium">{databaseCounts.customers}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Cart Items:</span>
+                      <span className="font-medium">{databaseCounts.cart}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Payments:</span>
+                      <span className="font-medium">{databaseCounts.payments}</span>
+                    </div>
+                    <div className="flex justify-between">
+                      <span className="text-muted-foreground">Analytics:</span>
+                      <span className="font-medium">{databaseCounts.analytics}</span>
+                    </div>
+                  </div>
+                </div>
+
+                {Object.values(databaseCounts).some((count: any) => count > 0) ? (
+                  <div className="bg-destructive/10 border border-destructive/20 p-4 rounded-lg">
+                    <p className="text-sm font-medium text-destructive flex items-center gap-2">
+                      <AlertCircle className="h-4 w-4" />
+                      Warning: Your database contains data!
+                    </p>
+                    <p className="text-sm text-muted-foreground mt-2">
+                      All of the above data will be permanently deleted. A new admin user will be created with default credentials (username: admin, password: admin123).
+                    </p>
+                  </div>
+                ) : (
+                  <div className="bg-muted p-4 rounded-lg">
+                    <p className="text-sm text-muted-foreground">
+                      Your database is empty. Resetting will recreate the default admin user.
+                    </p>
+                  </div>
+                )}
+
+                <div className="flex gap-3 justify-end">
+                  <Button
+                    variant="outline"
+                    onClick={() => setShowResetConfirmDialog(false)}
+                    disabled={resetDatabaseMutation.isPending}
+                  >
+                    Cancel
+                  </Button>
+                  <Button
+                    variant="destructive"
+                    onClick={() => resetDatabaseMutation.mutate(true)}
+                    disabled={resetDatabaseMutation.isPending}
+                  >
+                    {resetDatabaseMutation.isPending ? (
+                      <>
+                        <Trash2 className="h-4 w-4 mr-2 animate-spin" />
+                        Resetting...
+                      </>
+                    ) : (
+                      <>
+                        <Trash2 className="h-4 w-4 mr-2" />
+                        Yes, Delete All Data
+                      </>
+                    )}
+                  </Button>
+                </div>
+              </div>
+            )}
+          </DialogContent>
+        </Dialog>
 
         {/* User Form Dialog */}
         <Dialog open={showUserDialog} onOpenChange={setShowUserDialog}>

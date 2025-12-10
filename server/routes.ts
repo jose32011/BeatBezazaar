@@ -1036,7 +1036,9 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
         audioUrl,
         imageUrl,
         bpm: parseInt(req.body.bpm) || 0,
-        price: parseFloat(req.body.price) || 0
+        price: parseFloat(req.body.price) || 0,
+        // Convert isExclusive from string to boolean (FormData sends everything as strings)
+        isExclusive: req.body.isExclusive === 'true' || req.body.isExclusive === true
       };
 
       const validatedBeat = insertBeatSchema.parse(beatData);
@@ -1055,6 +1057,11 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       // Convert numeric fields from strings (FormData sends everything as strings)
       if (updateData.bpm) updateData.bpm = parseInt(updateData.bpm);
       if (updateData.price) updateData.price = parseFloat(updateData.price);
+      
+      // Convert boolean fields from strings
+      if (updateData.isExclusive !== undefined) {
+        updateData.isExclusive = updateData.isExclusive === 'true' || updateData.isExclusive === true;
+      }
       
       // If a new image was uploaded, update the imageUrl
       if (req.file) {
@@ -1151,6 +1158,44 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       res.status(201).json(purchase);
     } catch (error) {
       res.status(400).json({ error: "Invalid purchase data" });
+    }
+  });
+
+  // Exclusive purchase management routes (admin only)
+  app.get("/api/admin/exclusive-purchases/pending", requireAdmin, async (req, res) => {
+    try {
+      const pendingPurchases = await storage.getPendingExclusivePurchases();
+      res.json(pendingPurchases);
+    } catch (error) {
+      console.error("Get pending exclusive purchases error:", error);
+      res.status(500).json({ error: "Failed to fetch pending exclusive purchases" });
+    }
+  });
+
+  app.post("/api/admin/exclusive-purchases/:purchaseId/approve", requireAdmin, async (req, res) => {
+    try {
+      const { purchaseId } = req.params;
+      const adminId = req.session?.userId as string | undefined;
+      if (!adminId) return res.status(401).json({ error: 'Not authenticated' });
+
+      await storage.approveExclusivePurchase(purchaseId, adminId);
+      res.json({ message: "Exclusive purchase approved. Beat has been removed from the system." });
+    } catch (error) {
+      console.error("Approve exclusive purchase error:", error);
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to approve exclusive purchase" });
+    }
+  });
+
+  app.post("/api/admin/exclusive-purchases/:purchaseId/reject", requireAdmin, async (req, res) => {
+    try {
+      const { purchaseId } = req.params;
+      const { notes } = req.body;
+
+      await storage.rejectExclusivePurchase(purchaseId, notes);
+      res.json({ message: "Exclusive purchase rejected. Beat is now visible again." });
+    } catch (error) {
+      console.error("Reject exclusive purchase error:", error);
+      res.status(500).json({ error: error instanceof Error ? error.message : "Failed to reject exclusive purchase" });
     }
   });
 
@@ -1338,9 +1383,37 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
     }
   });
 
-  // Database reset endpoint - requires admin authentication
+  // Database reset check endpoint - returns data counts
+  app.get("/api/admin/reset-database/check", requireAdmin, async (req, res) => {
+    try {
+      const counts = await storage.getDatabaseCounts();
+      res.json(counts);
+    } catch (error: any) {
+      console.error("Database check error:", error);
+      res.status(500).json({ 
+        error: "Failed to check database", 
+        details: error?.message || String(error)
+      });
+    }
+  });
+
+  // Database reset endpoint - requires admin authentication and confirmation
   app.post("/api/admin/reset-database", requireAdmin, async (req, res) => {
     try {
+      const { confirmed } = req.body;
+      
+      // Check if there's data in the database
+      const counts = await storage.getDatabaseCounts();
+      const hasData = Object.values(counts).some(count => count > 0);
+      
+      if (hasData && !confirmed) {
+        return res.status(400).json({ 
+          error: "Confirmation required",
+          message: "Database contains data. Please confirm you want to delete all data.",
+          counts
+        });
+      }
+      
       console.log("Admin initiated database reset");
       await storage.resetDatabase();
       console.log("Database reset completed successfully");
@@ -1886,6 +1959,46 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
     } catch (error) {
       console.error("Update app branding settings error:", error);
       res.status(500).json({ error: "Failed to update app branding settings" });
+    }
+  });
+
+  // Exclusive Purchase Management routes
+  app.get("/api/admin/exclusive-purchases/pending", requireAdmin, async (req, res) => {
+    try {
+      const pendingPurchases = await storage.getPendingExclusivePurchases();
+      res.json(pendingPurchases);
+    } catch (error) {
+      console.error("Get pending exclusive purchases error:", error);
+      res.status(500).json({ error: "Failed to get pending exclusive purchases" });
+    }
+  });
+
+  app.post("/api/admin/exclusive-purchases/:purchaseId/approve", requireAdmin, async (req, res) => {
+    try {
+      const { purchaseId } = req.params;
+      const adminId = req.session.userId;
+      
+      if (!adminId) {
+        return res.status(401).json({ error: "Admin authentication required" });
+      }
+      
+      await storage.approveExclusivePurchase(purchaseId, adminId);
+      res.json({ message: "Exclusive purchase approved and beat removed from store" });
+    } catch (error) {
+      console.error("Approve exclusive purchase error:", error);
+      res.status(500).json({ error: "Failed to approve exclusive purchase" });
+    }
+  });
+
+  app.post("/api/admin/exclusive-purchases/:purchaseId/reject", requireAdmin, async (req, res) => {
+    try {
+      const { purchaseId } = req.params;
+      
+      await storage.rejectExclusivePurchase(purchaseId);
+      res.json({ message: "Exclusive purchase rejected and beat restored to store" });
+    } catch (error) {
+      console.error("Reject exclusive purchase error:", error);
+      res.status(500).json({ error: "Failed to reject exclusive purchase" });
     }
   });
 

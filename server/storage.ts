@@ -850,9 +850,12 @@ export class DatabaseStorage implements IStorage {
         price: beats.price,
         imageUrl: beats.imageUrl,
         audioUrl: beats.audioUrl,
+        isExclusive: beats.isExclusive,
+        isHidden: beats.isHidden,
         createdAt: beats.createdAt,
       })
       .from(beats)
+      .where(eq(beats.isHidden, false)) // Only show non-hidden beats
       .orderBy(desc(beats.createdAt));
     return result as Beat[];
   }
@@ -868,9 +871,12 @@ export class DatabaseStorage implements IStorage {
         price: beats.price,
         imageUrl: beats.imageUrl,
         audioUrl: beats.audioUrl,
+        isExclusive: beats.isExclusive,
+        isHidden: beats.isHidden,
         createdAt: beats.createdAt,
       })
       .from(beats)
+      .where(eq(beats.isHidden, false)) // Only show non-hidden beats
       .orderBy(desc(beats.createdAt))
       .limit(limit);
     return result as Beat[];
@@ -887,10 +893,15 @@ export class DatabaseStorage implements IStorage {
         price: beats.price,
         imageUrl: beats.imageUrl,
         audioUrl: beats.audioUrl,
+        isExclusive: beats.isExclusive,
+        isHidden: beats.isHidden,
         createdAt: beats.createdAt,
       })
       .from(beats)
-      .where(eq(beats.genre, genreId))
+      .where(and(
+        eq(beats.genre, genreId),
+        eq(beats.isHidden, false) // Only show non-hidden beats
+      ))
       .orderBy(desc(beats.createdAt));
     if (limit) {
       query = query.limit(limit) as any;
@@ -1058,11 +1069,128 @@ export class DatabaseStorage implements IStorage {
   async createPurchase(insertPurchase: InsertPurchase): Promise<Purchase> {
     // MySQL adapter may not support .returning(); perform insert then select to return the created purchase
     const id = (insertPurchase as any).id || randomUUID();
-    const purchaseData = { ...insertPurchase, id } as any;
+    
+    // Get beat details to check if it's exclusive and store beat info
+    const beat = await this.getBeat(insertPurchase.beatId);
+    
+    const purchaseData = { 
+      ...insertPurchase, 
+      id,
+      beatTitle: beat?.title,
+      beatProducer: beat?.producer,
+      beatAudioUrl: beat?.audioUrl, // Store for records before deletion
+      beatImageUrl: beat?.imageUrl, // Store for records before deletion
+      isExclusive: beat?.isExclusive ? "true" : "false",
+      status: beat?.isExclusive ? "pending" : "completed"
+    } as any;
     
     await db.insert(purchases).values(purchaseData);
+    
+    // If exclusive, hide the beat from public view immediately
+    if (beat?.isExclusive) {
+      await db.update(beats)
+        .set({ isHidden: true })
+        .where(eq(beats.id, insertPurchase.beatId));
+      
+      console.log(`🔒 Exclusive beat ${beat.title} hidden - pending admin approval`);
+    }
+    
     const inserted = await db.select().from(purchases).where(eq(purchases.id, id)).limit(1);
     return inserted[0];
+  }
+
+  async getPendingExclusivePurchases(): Promise<any[]> {
+    const result = await db.select({
+      purchase: purchases,
+      user: users,
+      payment: payments
+    })
+      .from(purchases)
+      .leftJoin(users, eq(purchases.userId, users.id))
+      .leftJoin(payments, eq(purchases.id, payments.purchaseId))
+      .where(and(
+        eq(purchases.isExclusive, "true"),
+        eq(purchases.status, "pending")
+      ))
+      .orderBy(purchases.purchasedAt);
+    
+    return result;
+  }
+
+  async approveExclusivePurchase(purchaseId: string, adminId: string): Promise<void> {
+    // Get purchase details
+    const purchase = await db.select()
+      .from(purchases)
+      .where(eq(purchases.id, purchaseId))
+      .limit(1);
+    
+    if (!purchase[0]) {
+      throw new Error("Purchase not found");
+    }
+
+    const beatId = purchase[0].beatId;
+    
+    // Update purchase status
+    await db.update(purchases)
+      .set({ 
+        status: "approved",
+        approvedAt: new Date(),
+        approvedBy: adminId
+      })
+      .where(eq(purchases.id, purchaseId));
+    
+    // Get beat details before deletion
+    const beat = await this.getBeat(beatId);
+    
+    // Delete the beat's files
+    if (beat?.audioUrl) {
+      const audioPath = path.join(process.cwd(), beat.audioUrl);
+      if (fs.existsSync(audioPath)) {
+        fs.unlinkSync(audioPath);
+        console.log(`Deleted audio file: ${audioPath}`);
+      }
+    }
+    
+    if (beat?.imageUrl && beat.imageUrl.startsWith('/uploads')) {
+      const imagePath = path.join(process.cwd(), beat.imageUrl);
+      if (fs.existsSync(imagePath)) {
+        fs.unlinkSync(imagePath);
+        console.log(`Deleted image file: ${imagePath}`);
+      }
+    }
+    
+    // Delete the beat from database
+    await db.delete(beats).where(eq(beats.id, beatId));
+    console.log(`Deleted exclusive beat: ${beatId}`);
+  }
+
+  async rejectExclusivePurchase(purchaseId: string, notes?: string): Promise<void> {
+    // Get purchase details
+    const purchase = await db.select()
+      .from(purchases)
+      .where(eq(purchases.id, purchaseId))
+      .limit(1);
+    
+    if (!purchase[0]) {
+      throw new Error("Purchase not found");
+    }
+
+    const beatId = purchase[0].beatId;
+    
+    // Update purchase status to rejected with notes
+    await db.update(purchases)
+      .set({ 
+        status: "rejected",
+        notes: notes || "Purchase rejected by admin"
+      })
+      .where(eq(purchases.id, purchaseId));
+    
+    // Unhide the beat so it's available again
+    await db.update(beats)
+      .set({ isHidden: false })
+      .where(eq(beats.id, beatId));
+    
+    console.log(`Rejected exclusive purchase: ${purchaseId}`);
   }
 
   async getPurchaseByUserAndBeat(userId: string, beatId: string): Promise<Purchase | undefined> {
@@ -1074,10 +1202,10 @@ export class DatabaseStorage implements IStorage {
   }
 
   /**
-   * Check whether a given user actually owns a beat (purchase completed).
+   * Check whether a given user actually owns a beat (purchase completed or approved).
    * This is safer than relying on a purchases row alone because purchases
    * may be created before payment is completed. We require an associated
-   * payment with status 'completed' (or 'approved') to consider the beat owned.
+   * payment with status 'completed' (or 'approved') AND purchase status 'completed' or 'approved'.
    */
   async userOwnsBeat(userId: string, beatId: string): Promise<boolean> {
     try {
@@ -1088,7 +1216,8 @@ export class DatabaseStorage implements IStorage {
           and(
             eq(purchases.userId, userId),
             eq(purchases.beatId, beatId),
-            sql`${payments.status} = 'completed' OR ${payments.status} = 'approved'`
+            sql`${payments.status} = 'completed' OR ${payments.status} = 'approved'`,
+            sql`${purchases.status} = 'completed' OR ${purchases.status} = 'approved'`
           )
         )
         .limit(1);
@@ -1627,6 +1756,42 @@ export class DatabaseStorage implements IStorage {
     } catch (error) {
       console.error("Error deleting genre image file:", error);
       // Don't throw error here as the database deletion was successful
+    }
+  }
+
+  async getDatabaseCounts(): Promise<{
+    users: number;
+    beats: number;
+    genres: number;
+    purchases: number;
+    customers: number;
+    cart: number;
+    payments: number;
+    analytics: number;
+  }> {
+    try {
+      const [usersCount] = await db.select({ count: sql<number>`count(*)` }).from(users);
+      const [beatsCount] = await db.select({ count: sql<number>`count(*)` }).from(beats);
+      const [genresCount] = await db.select({ count: sql<number>`count(*)` }).from(genres);
+      const [purchasesCount] = await db.select({ count: sql<number>`count(*)` }).from(purchases);
+      const [customersCount] = await db.select({ count: sql<number>`count(*)` }).from(customers);
+      const [cartCount] = await db.select({ count: sql<number>`count(*)` }).from(cart);
+      const [paymentsCount] = await db.select({ count: sql<number>`count(*)` }).from(payments);
+      const [analyticsCount] = await db.select({ count: sql<number>`count(*)` }).from(analytics);
+
+      return {
+        users: Number(usersCount.count),
+        beats: Number(beatsCount.count),
+        genres: Number(genresCount.count),
+        purchases: Number(purchasesCount.count),
+        customers: Number(customersCount.count),
+        cart: Number(cartCount.count),
+        payments: Number(paymentsCount.count),
+        analytics: Number(analyticsCount.count),
+      };
+    } catch (error) {
+      console.error("Error getting database counts:", error);
+      throw error;
     }
   }
 
@@ -2503,6 +2668,74 @@ private async deleteAllUploadedFiles(): Promise<void> {
     } catch (error) {
       console.error("Error getting Stripe transactions by payment ID:", error);
       return [];
+    }
+  }
+
+  // Home settings operations
+  async getHomeSettings(): Promise<HomeSettings> {
+    try {
+      const settings = await db
+        .select()
+        .from(homeSettings)
+        .where(eq(homeSettings.id, "default"))
+        .limit(1);
+      
+      if (settings.length > 0) {
+        return settings[0];
+      }
+      
+      // Return default settings if none exist
+      return {
+        id: "default",
+        title: "Premium Beats for Your Next Hit",
+        description: "Discover high-quality beats crafted by professional producers. Whether you're working on your next album, mixtape, or single, we have the perfect sound for you.",
+        feature1: "Instant download after purchase",
+        feature2: "High-quality WAV & MP3 files",
+        feature3: "Professional mixing and mastering",
+        imageUrl: "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=600&h=400&fit=crop",
+        updatedAt: new Date(),
+      };
+    } catch (error) {
+      console.error("Get home settings error:", error);
+      // Return defaults on error
+      return {
+        id: "default",
+        title: "Premium Beats for Your Next Hit",
+        description: "Discover high-quality beats crafted by professional producers.",
+        feature1: "Instant download after purchase",
+        feature2: "High-quality WAV & MP3 files",
+        feature3: "Professional mixing and mastering",
+        imageUrl: "https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=600&h=400&fit=crop",
+        updatedAt: new Date(),
+      };
+    }
+  }
+
+  async updateHomeSettings(settings: Partial<NewHomeSettings>): Promise<HomeSettings> {
+    try {
+      const existing = await db
+        .select()
+        .from(homeSettings)
+        .where(eq(homeSettings.id, "default"))
+        .limit(1);
+      
+      if (existing.length > 0) {
+        const updated = await db
+          .update(homeSettings)
+          .set({ ...settings, updatedAt: new Date() })
+          .where(eq(homeSettings.id, "default"))
+          .returning();
+        return updated[0];
+      } else {
+        const created = await db
+          .insert(homeSettings)
+          .values({ id: "default", ...settings })
+          .returning();
+        return created[0];
+      }
+    } catch (error) {
+      console.error("Update home settings error:", error);
+      throw error;
     }
   }
 }

@@ -48,6 +48,11 @@ export default function Home() {
     queryKey: ['/api/genres'],
   });
 
+  // Fetch home settings
+  const { data: homeSettings } = useQuery<any>({
+    queryKey: ['/api/home-settings'],
+  });
+
   // Update playlist state when userPlaylist changes
   useEffect(() => {
     if (userPlaylist.length > 0) {
@@ -480,47 +485,53 @@ export default function Home() {
       </section>
 
       {/* Info Section */}
-      <section className="w-full px-6 py-16">
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
-          <div>
-            <h2 
-              className="text-3xl font-bold font-display mb-4"
-              style={{ color: themeColors.text }}
-            >
-              Premium Beats for Your Next Hit
-            </h2>
-            <p 
-              className="text-lg mb-6"
-              style={{ color: themeColors.textSecondary }}
-            >
-              Discover high-quality beats crafted by professional producers. 
-              Whether you're working on your next album, mixtape, or single, 
-              we have the perfect sound for you.
-            </p>
-            <ul className="space-y-3">
-              <li className="flex items-start gap-3">
-                <span style={{ color: themeColors.primary }}>✓</span>
-                <span style={{ color: themeColors.text }}>Instant download after purchase</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span style={{ color: themeColors.primary }}>✓</span>
-                <span style={{ color: themeColors.text }}>High-quality WAV & MP3 files</span>
-              </li>
-              <li className="flex items-start gap-3">
-                <span style={{ color: themeColors.primary }}>✓</span>
-                <span style={{ color: themeColors.text }}>Professional mixing and mastering</span>
-              </li>
-            </ul>
+      {homeSettings && (
+        <section className="w-full px-6 py-16">
+          <div className="grid grid-cols-1 md:grid-cols-2 gap-8 items-center">
+            <div>
+              <h2 
+                className="text-3xl font-bold font-display mb-4"
+                style={{ color: themeColors.text }}
+              >
+                {homeSettings.title}
+              </h2>
+              <p 
+                className="text-lg mb-6"
+                style={{ color: themeColors.textSecondary }}
+              >
+                {homeSettings.description}
+              </p>
+              <ul className="space-y-3">
+                {homeSettings.feature1 && (
+                  <li className="flex items-start gap-3">
+                    <span style={{ color: themeColors.primary }}>✓</span>
+                    <span style={{ color: themeColors.text }}>{homeSettings.feature1}</span>
+                  </li>
+                )}
+                {homeSettings.feature2 && (
+                  <li className="flex items-start gap-3">
+                    <span style={{ color: themeColors.primary }}>✓</span>
+                    <span style={{ color: themeColors.text }}>{homeSettings.feature2}</span>
+                  </li>
+                )}
+                {homeSettings.feature3 && (
+                  <li className="flex items-start gap-3">
+                    <span style={{ color: themeColors.primary }}>✓</span>
+                    <span style={{ color: themeColors.text }}>{homeSettings.feature3}</span>
+                  </li>
+                )}
+              </ul>
+            </div>
+            <div className="relative">
+              <img
+                src={homeSettings.imageUrl}
+                alt={homeSettings.title}
+                className="rounded-lg shadow-2xl w-full h-auto"
+              />
+            </div>
           </div>
-          <div className="relative">
-            <img
-              src="https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=600&h=400&fit=crop"
-              alt="Music Production"
-              className="rounded-lg shadow-2xl w-full h-auto"
-            />
-          </div>
-        </div>
-      </section>
+        </section>
+      )}
 
       {/* Genre Sections */}
       <div className="w-full px-6 py-8">
