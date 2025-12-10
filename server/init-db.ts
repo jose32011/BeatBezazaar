@@ -251,6 +251,122 @@ async function insertDefaultData(sql: any): Promise<void> {
 
 async function runMigrations(sql: any): Promise<void> {
   try {
+    // Check for app_branding_settings table
+    const appBrandingTable = await sql`
+      SELECT table_name 
+      FROM information_schema.tables 
+      WHERE table_schema = 'public' AND table_name = 'app_branding_settings'
+    `;
+
+    if (appBrandingTable.length === 0) {
+      console.log('🔄 Creating app_branding_settings table...');
+      await sql`
+        CREATE TABLE app_branding_settings (
+          id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+          app_name TEXT NOT NULL DEFAULT 'BeatBazaar',
+          app_logo TEXT NOT NULL DEFAULT '',
+          hero_title TEXT NOT NULL DEFAULT 'Discover Your Sound',
+          hero_subtitle TEXT NOT NULL DEFAULT 'Premium beats for every artist. Find your perfect sound and bring your music to life.',
+          hero_image TEXT NOT NULL DEFAULT '',
+          hero_button_text TEXT NOT NULL DEFAULT 'Start Creating',
+          hero_button_link TEXT NOT NULL DEFAULT '/beats',
+          login_title TEXT NOT NULL DEFAULT 'Welcome Back',
+          login_subtitle TEXT NOT NULL DEFAULT 'Sign in to your account to continue',
+          login_image TEXT NOT NULL DEFAULT '',
+          created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+          updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+        )
+      `;
+
+      // Insert default app branding settings
+      await sql`
+        INSERT INTO app_branding_settings (id, app_name, hero_title, hero_subtitle, hero_button_text, hero_button_link, login_title, login_subtitle)
+        VALUES (
+          'default',
+          'BeatBazaar',
+          'Discover Your Sound',
+          'Premium beats for every artist. Find your perfect sound and bring your music to life.',
+          'Start Creating',
+          '/beats',
+          'Welcome Back',
+          'Sign in to your account to continue'
+        )
+      `;
+      console.log('✅ App branding settings table created with defaults');
+    }
+
+    // Check for other settings tables
+    const settingsTables = ['email_settings', 'social_media_settings', 'contact_settings'];
+    
+    for (const tableName of settingsTables) {
+      const tableExists = await sql`
+        SELECT table_name 
+        FROM information_schema.tables 
+        WHERE table_schema = 'public' AND table_name = ${tableName}
+      `;
+
+      if (tableExists.length === 0) {
+        console.log(`🔄 Creating ${tableName} table...`);
+        
+        if (tableName === 'email_settings') {
+          await sql`
+            CREATE TABLE email_settings (
+              id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+              enabled BOOLEAN NOT NULL DEFAULT false,
+              smtp_host TEXT NOT NULL DEFAULT 'smtp.gmail.com',
+              smtp_port INTEGER NOT NULL DEFAULT 587,
+              smtp_secure BOOLEAN NOT NULL DEFAULT false,
+              smtp_user TEXT NOT NULL DEFAULT '',
+              smtp_pass TEXT NOT NULL DEFAULT '',
+              from_name TEXT NOT NULL DEFAULT 'BeatBazaar',
+              from_email TEXT NOT NULL DEFAULT '',
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+          `;
+        } else if (tableName === 'social_media_settings') {
+          await sql`
+            CREATE TABLE social_media_settings (
+              id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+              facebook_url TEXT NOT NULL DEFAULT '',
+              instagram_url TEXT NOT NULL DEFAULT '',
+              twitter_url TEXT NOT NULL DEFAULT '',
+              youtube_url TEXT NOT NULL DEFAULT '',
+              tiktok_url TEXT NOT NULL DEFAULT '',
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+          `;
+        } else if (tableName === 'contact_settings') {
+          await sql`
+            CREATE TABLE contact_settings (
+              id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
+              band_image_url TEXT NOT NULL DEFAULT '',
+              band_name TEXT NOT NULL DEFAULT 'BeatBazaar',
+              contact_email TEXT NOT NULL DEFAULT 'contact@beatbazaar.com',
+              contact_phone TEXT NOT NULL DEFAULT '+1 (555) 123-4567',
+              contact_address TEXT NOT NULL DEFAULT '123 Music Street',
+              contact_city TEXT NOT NULL DEFAULT 'Los Angeles',
+              contact_state TEXT NOT NULL DEFAULT 'CA',
+              contact_zip_code TEXT NOT NULL DEFAULT '90210',
+              contact_country TEXT NOT NULL DEFAULT 'USA',
+              message_enabled BOOLEAN NOT NULL DEFAULT true,
+              message_subject TEXT NOT NULL DEFAULT 'New Contact Form Submission',
+              message_template TEXT NOT NULL DEFAULT 'You have received a new message from your contact form.',
+              facebook_url TEXT NOT NULL DEFAULT '',
+              instagram_url TEXT NOT NULL DEFAULT '',
+              twitter_url TEXT NOT NULL DEFAULT '',
+              youtube_url TEXT NOT NULL DEFAULT '',
+              tiktok_url TEXT NOT NULL DEFAULT '',
+              created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+              updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
+            )
+          `;
+        }
+        console.log(`✅ ${tableName} table created`);
+      }
+    }
+
     // Check for exclusive purchase columns
     const purchaseColumns = await sql`
       SELECT column_name 
