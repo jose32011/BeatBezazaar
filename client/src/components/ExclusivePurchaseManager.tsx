@@ -54,6 +54,9 @@ export default function ExclusivePurchaseManager() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/exclusive-purchases/pending'] });
       queryClient.invalidateQueries({ queryKey: ['/api/beats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/beats/exclusive'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/playlist'] }); // User's purchased beats
+      queryClient.invalidateQueries({ queryKey: ['/api/purchases'] }); // Purchase history
       setShowApproveDialog(false);
       setSelectedPurchase(null);
       toast({
@@ -78,6 +81,9 @@ export default function ExclusivePurchaseManager() {
     onSuccess: () => {
       queryClient.invalidateQueries({ queryKey: ['/api/admin/exclusive-purchases/pending'] });
       queryClient.invalidateQueries({ queryKey: ['/api/beats'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/beats/exclusive'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/playlist'] }); // User's purchased beats
+      queryClient.invalidateQueries({ queryKey: ['/api/purchases'] }); // Purchase history
       setShowRejectDialog(false);
       setSelectedPurchase(null);
       setRejectNotes("");

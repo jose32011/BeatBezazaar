@@ -423,10 +423,13 @@ export default function Home() {
         });
       }
 
-      // Clear cart
+      // Clear cart and refresh user data
       if (isAuthenticated) {
         await apiRequest('DELETE', '/api/cart/clear');
+        // Invalidate all relevant caches to show real-time updates
         queryClient.invalidateQueries({ queryKey: ['/api/cart'] });
+        queryClient.invalidateQueries({ queryKey: ['/api/playlist'] }); // User's purchased beats
+        queryClient.invalidateQueries({ queryKey: ['/api/purchases'] }); // Purchase history
       } else {
         setCartItems([]);
       }

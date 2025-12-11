@@ -21,6 +21,7 @@ import AdminUpload from "@/pages/AdminUpload";
 import Contact from "@/pages/Contact";
 import Bio from "@/pages/Bio";
 import Plans from "@/pages/Plans";
+import ExclusiveMusic from "@/pages/ExclusiveMusic";
 import NotFound from "@/pages/not-found";
 import Setup from "@/pages/Setup";
 
@@ -44,6 +45,7 @@ function Router() {
       <Route path="/contact" component={Contact} />
       <Route path="/bio" component={Bio} />
       <Route path="/plans" component={Plans} />
+      <Route path="/exclusive-music" component={ExclusiveMusic} />
       <Route path="/music">
         <ErrorBoundary>
           <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>

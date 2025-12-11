@@ -175,6 +175,8 @@ export default function PaymentManagement() {
       queryClient.invalidateQueries({ queryKey: ['/api/payments'] });
       queryClient.invalidateQueries({ queryKey: ['/api/payments/status/pending'] });
       queryClient.invalidateQueries({ queryKey: ['/api/payments/status/approved'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/playlist'] }); // User's purchased beats
+      queryClient.invalidateQueries({ queryKey: ['/api/purchases'] }); // Purchase history
       toast({
         title: "Payment Approved",
         description: "The payment has been approved successfully.",
@@ -204,6 +206,8 @@ export default function PaymentManagement() {
       queryClient.invalidateQueries({ queryKey: ['/api/payments'] });
       queryClient.invalidateQueries({ queryKey: ['/api/payments/status/pending'] });
       queryClient.invalidateQueries({ queryKey: ['/api/payments/status/rejected'] });
+      queryClient.invalidateQueries({ queryKey: ['/api/playlist'] }); // User's purchased beats
+      queryClient.invalidateQueries({ queryKey: ['/api/purchases'] }); // Purchase history
       toast({
         title: "Payment Rejected",
         description: "The payment has been rejected.",

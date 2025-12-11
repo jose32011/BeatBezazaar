@@ -387,13 +387,14 @@ async function runMigrations(sql: any): Promise<void> {
       SELECT column_name 
       FROM information_schema.columns 
       WHERE table_name = 'beats' 
-      AND column_name IN ('is_exclusive', 'is_hidden')
+      AND column_name IN ('is_exclusive', 'is_hidden', 'exclusive_plan')
     `;
 
-    if (beatColumns.length < 2) {
+    if (beatColumns.length < 3) {
       console.log('🔄 Adding exclusive beat columns...');
       await sql`ALTER TABLE beats ADD COLUMN IF NOT EXISTS is_exclusive BOOLEAN DEFAULT false NOT NULL`;
       await sql`ALTER TABLE beats ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT false NOT NULL`;
+      await sql`ALTER TABLE beats ADD COLUMN IF NOT EXISTS exclusive_plan TEXT`;
     }
 
     // Ensure home_settings table exists

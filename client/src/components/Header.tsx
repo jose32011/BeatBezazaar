@@ -91,6 +91,12 @@ export default function Header({ cartCount = 0, onCartClick }: HeaderProps) {
                 Plans
               </Button>
             </Link>
+            <Link href="/exclusive-music">
+              <Button variant="ghost" size="sm" className="text-sm xl:text-base flex items-center gap-1">
+                <span className="text-yellow-500">👑</span>
+                Exclusive
+              </Button>
+            </Link>
             <Link href="/contact">
               <Button variant="ghost" size="sm" className="text-sm xl:text-base">
                 Contact

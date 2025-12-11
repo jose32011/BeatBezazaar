@@ -1019,6 +1019,59 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
     res.json(beat);
   });
 
+  // Get exclusive beats
+  app.get("/api/beats/exclusive", async (req, res) => {
+    try {
+      const exclusiveBeats = await storage.getExclusiveBeats();
+      res.json(exclusiveBeats);
+    } catch (error) {
+      console.error("Get exclusive beats error:", error);
+      res.status(500).json({ error: "Failed to fetch exclusive beats" });
+    }
+  });
+
+  // Get user's current plan
+  app.get("/api/user/plan", requireAuth, async (req, res) => {
+    try {
+      const userId = req.session?.userId;
+      if (!userId) {
+        return res.status(401).json({ error: "Not authenticated" });
+      }
+      
+      // For now, return a default plan - you can implement user plan storage later
+      // This could be stored in a user_plans table or as part of the user record
+      res.json({ plan: "basic" }); // Default to basic plan
+    } catch (error) {
+      console.error("Get user plan error:", error);
+      res.status(500).json({ error: "Failed to fetch user plan" });
+    }
+  });
+
+  // Create exclusive purchase request
+  app.post("/api/exclusive-purchases", requireAuth, async (req, res) => {
+    try {
+      const { beatId, userId, price } = req.body;
+      const sessionUserId = req.session?.userId;
+      
+      if (sessionUserId !== userId) {
+        return res.status(403).json({ error: "Unauthorized" });
+      }
+
+      // Create exclusive purchase request (pending admin approval)
+      const purchase = await storage.createExclusivePurchase({
+        userId,
+        beatId,
+        price,
+        status: 'pending'
+      });
+
+      res.json(purchase);
+    } catch (error) {
+      console.error("Create exclusive purchase error:", error);
+      res.status(500).json({ error: "Failed to create exclusive purchase" });
+    }
+  });
+
   app.post("/api/beats", requireAdmin, upload.fields([
     { name: 'audio', maxCount: 1 },
     { name: 'image', maxCount: 1 }

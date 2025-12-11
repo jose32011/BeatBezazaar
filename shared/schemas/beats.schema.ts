@@ -12,6 +12,7 @@ export const beats = pgTable("beats", {
   imageUrl: text("image_url").notNull(),
   audioUrl: text("audio_url"),
   isExclusive: boolean("is_exclusive").default(false).notNull(),
+  exclusivePlan: text("exclusive_plan"), // 'basic', 'premium', 'exclusive'
   isHidden: boolean("is_hidden").default(false).notNull(),
   createdAt: timestamp("created_at").defaultNow().notNull(),
 });

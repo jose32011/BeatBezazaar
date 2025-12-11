@@ -136,9 +136,11 @@ export interface IStorage {
   getAllBeats(): Promise<Beat[]>;
   getLatestBeats(limit: number): Promise<Beat[]>;
   getBeatsByGenre(genreId: string, limit?: number): Promise<Beat[]>;
+  getExclusiveBeats(): Promise<Beat[]>;
   createBeat(beat: InsertBeat): Promise<Beat>;
   updateBeat(id: string, beat: Partial<InsertBeat>): Promise<Beat | undefined>;
   deleteBeat(id: string): Promise<boolean>;
+  createExclusivePurchase(purchase: { userId: string; beatId: string; price: number; status: string }): Promise<any>;
   
   // Purchase operations
   getPurchase(id: string): Promise<Purchase | undefined>;
@@ -851,6 +853,7 @@ export class DatabaseStorage implements IStorage {
         imageUrl: beats.imageUrl,
         audioUrl: beats.audioUrl,
         isExclusive: beats.isExclusive,
+        exclusivePlan: beats.exclusivePlan,
         isHidden: beats.isHidden,
         createdAt: beats.createdAt,
       })
@@ -872,6 +875,7 @@ export class DatabaseStorage implements IStorage {
         imageUrl: beats.imageUrl,
         audioUrl: beats.audioUrl,
         isExclusive: beats.isExclusive,
+        exclusivePlan: beats.exclusivePlan,
         isHidden: beats.isHidden,
         createdAt: beats.createdAt,
       })
@@ -894,6 +898,7 @@ export class DatabaseStorage implements IStorage {
         imageUrl: beats.imageUrl,
         audioUrl: beats.audioUrl,
         isExclusive: beats.isExclusive,
+        exclusivePlan: beats.exclusivePlan,
         isHidden: beats.isHidden,
         createdAt: beats.createdAt,
       })
@@ -907,6 +912,32 @@ export class DatabaseStorage implements IStorage {
       query = query.limit(limit) as any;
     }
     const result = await query;
+    return result as Beat[];
+  }
+
+  async getExclusiveBeats(): Promise<Beat[]> {
+    const result = await db
+      .select({
+        id: beats.id,
+        title: beats.title,
+        producer: beats.producer,
+        bpm: beats.bpm,
+        genre: beats.genre,
+        price: beats.price,
+        imageUrl: beats.imageUrl,
+        audioUrl: beats.audioUrl,
+        isExclusive: beats.isExclusive,
+        exclusivePlan: beats.exclusivePlan,
+        isHidden: beats.isHidden,
+        createdAt: beats.createdAt,
+      })
+      .from(beats)
+      .where(and(
+        eq(beats.isExclusive, true),
+        eq(beats.isHidden, false)
+      ))
+      .orderBy(desc(beats.createdAt));
+
     return result as Beat[];
   }
 
@@ -1198,6 +1229,25 @@ export class DatabaseStorage implements IStorage {
       .from(purchases)
       .where(and(eq(purchases.userId, userId), eq(purchases.beatId, beatId)))
       .limit(1);
+    return result[0];
+  }
+
+  async createExclusivePurchase(purchase: { userId: string; beatId: string; price: number; status: string }): Promise<any> {
+    const id = randomUUID();
+    const purchaseData = {
+      id,
+      userId: purchase.userId,
+      beatId: purchase.beatId,
+      price: purchase.price,
+      isExclusive: 'true', // Mark as exclusive purchase
+      status: purchase.status,
+      purchasedAt: new Date(),
+    };
+
+    await db.insert(purchases).values(purchaseData as any);
+    
+    // Return the created purchase
+    const result = await db.select().from(purchases).where(eq(purchases.id, id)).limit(1);
     return result[0];
   }
 
