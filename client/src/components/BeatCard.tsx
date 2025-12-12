@@ -90,7 +90,7 @@ export default function BeatCard({
     >
       <div className="relative aspect-square overflow-hidden">
         <img
-          src={imageError ? '/placeholder-beat.png' : beat.imageUrl}
+          src={imageError ? '/placeholder-beat.svg' : beat.imageUrl}
           alt={`Cover art for ${beat.title}`}
           className="w-full h-full object-cover transition-transform duration-300 group-hover:scale-105"
           loading="lazy"
