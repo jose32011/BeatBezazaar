@@ -59,6 +59,7 @@ import {
 import GenreManagement from "@/components/GenreManagement";
 import ThemeSelector from "@/components/ThemeSelector";
 import ThemePreview from "@/components/ThemePreview";
+import BackupRestoreManager from "@/components/BackupRestoreManager";
 
 interface ArtistBio {
   id: string;
@@ -432,6 +433,7 @@ function AdminSettingsContent() {
     { id: "users", label: "Admin Users", icon: Users, shortLabel: "Users" },
     { id: "genres", label: "Genre Management", icon: Music, shortLabel: "Genres" },
     { id: "themes", label: "Themes", icon: Palette, shortLabel: "Themes" },
+    { id: "backup", label: "Backup & Restore", icon: Database, shortLabel: "Backup" },
     { id: "database", label: "Database", icon: Database, shortLabel: "DB" }
   ];
 
@@ -3775,6 +3777,13 @@ function AdminSettingsContent() {
                 )}
               </CardContent>
             </Card>
+          )}
+
+          {/* Backup & Restore */}
+          {activeTab === "backup" && (
+            <div>
+              <BackupRestoreManager />
+            </div>
           )}
 
           {/* Database Management */}

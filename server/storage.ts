@@ -1,5 +1,7 @@
 import path from "path";
 import fs from "fs";
+import archiver from "archiver";
+import AdmZip from "adm-zip";
 import { 
   stripeSettings,
   stripeTransactions,
@@ -2626,12 +2628,12 @@ private async deleteAllUploadedFiles(): Promise<void> {
       } else {
         const newSettings: InsertStripeSettings = {
           id: randomUUID(),
-          enabled: 0,
+          enabled: false,
           publishableKey: "",
           secretKey: "",
           webhookSecret: "",
           currency: "usd",
-          testMode: 1,
+          testMode: true,
           ...settings,
           createdAt: now,
           updatedAt: now,
@@ -2786,6 +2788,293 @@ private async deleteAllUploadedFiles(): Promise<void> {
     } catch (error) {
       console.error("Update home settings error:", error);
       throw error;
+    }
+  }
+
+  async getBackupStats(): Promise<any> {
+    try {
+      const [beatsCount] = await db.select({ count: sql`count(*)` }).from(beats);
+      const [usersCount] = await db.select({ count: sql`count(*)` }).from(users);
+      const [purchasesCount] = await db.select({ count: sql`count(*)` }).from(purchases);
+      const [genresCount] = await db.select({ count: sql`count(*)` }).from(genres);
+      const [customersCount] = await db.select({ count: sql`count(*)` }).from(customers);
+      const [paymentsCount] = await db.select({ count: sql`count(*)` }).from(payments);
+      
+      // Get file system stats
+      const audioDir = path.join(process.cwd(), 'uploads', 'audio');
+      const imageDir = path.join(process.cwd(), 'uploads', 'images');
+      
+      let audioFiles = 0;
+      let imageFiles = 0;
+      let totalFileSize = 0;
+      
+      if (fs.existsSync(audioDir)) {
+        const files = fs.readdirSync(audioDir);
+        audioFiles = files.length;
+        for (const file of files) {
+          const filePath = path.join(audioDir, file);
+          const stats = fs.statSync(filePath);
+          totalFileSize += stats.size;
+        }
+      }
+      
+      if (fs.existsSync(imageDir)) {
+        const files = fs.readdirSync(imageDir);
+        imageFiles = files.length;
+        for (const file of files) {
+          const filePath = path.join(imageDir, file);
+          const stats = fs.statSync(filePath);
+          totalFileSize += stats.size;
+        }
+      }
+      
+      return {
+        database: {
+          beats: Number(beatsCount.count),
+          users: Number(usersCount.count),
+          purchases: Number(purchasesCount.count),
+          genres: Number(genresCount.count),
+          customers: Number(customersCount.count),
+          payments: Number(paymentsCount.count),
+        },
+        files: {
+          audioFiles,
+          imageFiles,
+          totalFiles: audioFiles + imageFiles,
+          totalSizeMB: Math.round(totalFileSize / (1024 * 1024) * 100) / 100,
+        },
+        lastBackup: null, // TODO: Track last backup time
+      };
+    } catch (error) {
+      console.error("Error getting backup stats:", error);
+      throw error;
+    }
+  }
+
+  async createBackup(progressCallback?: (progress: any) => void): Promise<string> {
+    try {
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const backupDir = path.join(process.cwd(), 'backups');
+      const backupPath = path.join(backupDir, `backup-${timestamp}.zip`);
+      
+      // Ensure backup directory exists
+      if (!fs.existsSync(backupDir)) {
+        fs.mkdirSync(backupDir, { recursive: true });
+      }
+      
+      progressCallback?.({ step: 'init', message: 'Starting backup process...' });
+      
+      // Create temporary directory for backup files
+      const tempDir = path.join(backupDir, `temp-${timestamp}`);
+      fs.mkdirSync(tempDir, { recursive: true });
+      
+      try {
+        // Export database data
+        progressCallback?.({ step: 'database', message: 'Exporting database...' });
+        
+        const dbData: any = {};
+        
+        // Safely export each table, handling missing tables gracefully
+        const tables = [
+          { name: 'beats', table: beats },
+          { name: 'users', table: users },
+          { name: 'genres', table: genres },
+          { name: 'customers', table: customers },
+          { name: 'purchases', table: purchases },
+          { name: 'payments', table: payments },
+          { name: 'cart', table: cart },
+          { name: 'analytics', table: analytics },
+          { name: 'verificationCodes', table: verificationCodes },
+          { name: 'emailSettings', table: emailSettings },
+          { name: 'socialMediaSettings', table: socialMediaSettings },
+          { name: 'contactSettings', table: contactSettings },
+          { name: 'plansSettings', table: plansSettings },
+          { name: 'appBrandingSettings', table: appBrandingSettings },
+          { name: 'artistBios', table: artistBios },
+          { name: 'stripeSettings', table: stripeSettings },
+          { name: 'stripeTransactions', table: stripeTransactions },
+          { name: 'homeSettings', table: homeSettings },
+        ];
+        
+        for (const { name, table } of tables) {
+          try {
+            dbData[name] = await db.select().from(table);
+            console.log(`✓ Exported ${name}: ${dbData[name].length} records`);
+          } catch (error) {
+            console.log(`⚠️ Table ${name} not found or error exporting:`, error);
+            dbData[name] = []; // Set empty array for missing tables
+          }
+        }
+        
+        const dbPath = path.join(tempDir, 'database.json');
+        fs.writeFileSync(dbPath, JSON.stringify(dbData, null, 2));
+        
+        // Copy upload files
+        progressCallback?.({ step: 'files', message: 'Copying upload files...' });
+        
+        const uploadsDir = path.join(process.cwd(), 'uploads');
+        const backupUploadsDir = path.join(tempDir, 'uploads');
+        
+        if (fs.existsSync(uploadsDir)) {
+          this.copyDirectory(uploadsDir, backupUploadsDir);
+        }
+        
+        // Create ZIP archive
+        progressCallback?.({ step: 'compress', message: 'Creating backup archive...' });
+        
+        // archiver is already imported at the top
+        const output = fs.createWriteStream(backupPath);
+        const archive = archiver('zip', { zlib: { level: 9 } });
+        
+        return new Promise((resolve, reject) => {
+          output.on('close', () => {
+            // Clean up temp directory
+            fs.rmSync(tempDir, { recursive: true, force: true });
+            progressCallback?.({ step: 'complete', message: 'Backup completed successfully!' });
+            resolve(backupPath);
+          });
+          
+          archive.on('error', (err) => {
+            fs.rmSync(tempDir, { recursive: true, force: true });
+            reject(err);
+          });
+          
+          archive.pipe(output);
+          archive.directory(tempDir, false);
+          archive.finalize();
+        });
+        
+      } catch (error) {
+        // Clean up temp directory on error
+        if (fs.existsSync(tempDir)) {
+          fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+        throw error;
+      }
+      
+    } catch (error) {
+      console.error("Create backup error:", error);
+      throw error;
+    }
+  }
+
+  async restoreBackup(backupPath: string, options: any, progressCallback?: (progress: any) => void): Promise<void> {
+    try {
+      progressCallback?.({ step: 'init', message: 'Starting restore process...' });
+      
+      // Create temporary directory for extraction
+      const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
+      const tempDir = path.join(process.cwd(), 'temp-restore', timestamp);
+      fs.mkdirSync(tempDir, { recursive: true });
+      
+      try {
+        // Extract backup archive
+        progressCallback?.({ step: 'extract', message: 'Extracting backup archive...' });
+        
+        // AdmZip is already imported at the top
+        const zip = new AdmZip(backupPath);
+        zip.extractAllTo(tempDir, true);
+        
+        // Read database backup
+        const dbPath = path.join(tempDir, 'database.json');
+        if (!fs.existsSync(dbPath)) {
+          throw new Error('Invalid backup: database.json not found');
+        }
+        
+        const dbData = JSON.parse(fs.readFileSync(dbPath, 'utf8'));
+        
+        // Clear existing data if requested
+        if (options.clearExisting) {
+          progressCallback?.({ step: 'clear', message: 'Clearing existing data...' });
+          await this.resetDatabase();
+        }
+        
+        // Restore database data
+        progressCallback?.({ step: 'database', message: 'Restoring database...' });
+        
+        // Restore in correct order to respect foreign key constraints
+        const restoreOperations = [
+          { name: 'users', table: users, data: dbData.users },
+          { name: 'genres', table: genres, data: dbData.genres },
+          { name: 'beats', table: beats, data: dbData.beats },
+          { name: 'customers', table: customers, data: dbData.customers },
+          { name: 'purchases', table: purchases, data: dbData.purchases },
+          { name: 'payments', table: payments, data: dbData.payments },
+          { name: 'cart', table: cart, data: dbData.cart },
+          { name: 'analytics', table: analytics, data: dbData.analytics },
+          { name: 'verificationCodes', table: verificationCodes, data: dbData.verificationCodes },
+          { name: 'emailSettings', table: emailSettings, data: dbData.emailSettings },
+          { name: 'socialMediaSettings', table: socialMediaSettings, data: dbData.socialMediaSettings },
+          { name: 'contactSettings', table: contactSettings, data: dbData.contactSettings },
+          { name: 'plansSettings', table: plansSettings, data: dbData.plansSettings },
+          { name: 'appBrandingSettings', table: appBrandingSettings, data: dbData.appBrandingSettings },
+          { name: 'artistBios', table: artistBios, data: dbData.artistBios },
+          { name: 'stripeSettings', table: stripeSettings, data: dbData.stripeSettings },
+          { name: 'stripeTransactions', table: stripeTransactions, data: dbData.stripeTransactions },
+          { name: 'homeSettings', table: homeSettings, data: dbData.homeSettings },
+        ];
+        
+        for (const { name, table, data } of restoreOperations) {
+          if (data?.length) {
+            try {
+              await db.insert(table).values(data).onConflictDoNothing();
+              console.log(`✓ Restored ${name}: ${data.length} records`);
+            } catch (error) {
+              console.log(`⚠️ Failed to restore ${name}:`, error);
+              // Continue with other tables even if one fails
+            }
+          }
+        }
+        
+        // Restore files if requested
+        if (options.restoreFiles) {
+          progressCallback?.({ step: 'files', message: 'Restoring upload files...' });
+          
+          const backupUploadsDir = path.join(tempDir, 'uploads');
+          const uploadsDir = path.join(process.cwd(), 'uploads');
+          
+          if (fs.existsSync(backupUploadsDir)) {
+            // Clear existing uploads if requested
+            if (options.clearExisting && fs.existsSync(uploadsDir)) {
+              fs.rmSync(uploadsDir, { recursive: true, force: true });
+            }
+            
+            // Copy backup files
+            this.copyDirectory(backupUploadsDir, uploadsDir);
+          }
+        }
+        
+        progressCallback?.({ step: 'complete', message: 'Restore completed successfully!' });
+        
+      } finally {
+        // Clean up temp directory
+        if (fs.existsSync(tempDir)) {
+          fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+      }
+      
+    } catch (error) {
+      console.error("Restore backup error:", error);
+      throw error;
+    }
+  }
+
+  private copyDirectory(src: string, dest: string): void {
+    if (!fs.existsSync(dest)) {
+      fs.mkdirSync(dest, { recursive: true });
+    }
+    
+    const entries = fs.readdirSync(src, { withFileTypes: true });
+    
+    for (const entry of entries) {
+      const srcPath = path.join(src, entry.name);
+      const destPath = path.join(dest, entry.name);
+      
+      if (entry.isDirectory()) {
+        this.copyDirectory(srcPath, destPath);
+      } else {
+        fs.copyFileSync(srcPath, destPath);
+      }
     }
   }
 }

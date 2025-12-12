@@ -2098,6 +2098,103 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
     }
   });
 
+  // Backup and Restore endpoints
+  app.get("/api/admin/backup/stats", requireAdmin, async (req, res) => {
+    try {
+      const stats = await storage.getBackupStats();
+      res.json(stats);
+    } catch (error) {
+      console.error("Get backup stats error:", error);
+      res.status(500).json({ error: "Failed to get backup statistics" });
+    }
+  });
+
+  app.post("/api/admin/backup/create", requireAdmin, async (req, res) => {
+    try {
+      // Set headers for streaming response
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Transfer-Encoding', 'chunked');
+      
+      const backupPath = await storage.createBackup((progress) => {
+        // Send progress updates
+        res.write(JSON.stringify(progress) + '\n');
+      });
+      
+      // Store backup path in session for download
+      (req.session as any).backupPath = backupPath;
+      res.end();
+    } catch (error) {
+      console.error("Create backup error:", error);
+      // Check if headers have already been sent
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Failed to create backup" });
+      } else {
+        // If headers already sent, send error as streaming data
+        res.write(JSON.stringify({ error: "Failed to create backup" }) + '\n');
+        res.end();
+      }
+    }
+  });
+
+  app.get("/api/admin/backup/download", requireAdmin, async (req, res) => {
+    try {
+      const backupPath = (req.session as any).backupPath;
+      if (!backupPath || !fs.existsSync(backupPath)) {
+        return res.status(404).json({ error: "Backup file not found" });
+      }
+      
+      const filename = path.basename(backupPath);
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Type', 'application/zip');
+      
+      const fileStream = fs.createReadStream(backupPath);
+      fileStream.pipe(res);
+      
+      // Clean up backup file after download
+      fileStream.on('end', () => {
+        fs.unlinkSync(backupPath);
+        delete (req.session as any).backupPath;
+      });
+    } catch (error) {
+      console.error("Download backup error:", error);
+      res.status(500).json({ error: "Failed to download backup" });
+    }
+  });
+
+  app.post("/api/admin/backup/restore", requireAdmin, upload.single('backup'), async (req, res) => {
+    try {
+      if (!req.file) {
+        return res.status(400).json({ error: "No backup file provided" });
+      }
+      
+      const options = JSON.parse(req.body.options || '{}');
+      
+      // Set headers for streaming response
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Transfer-Encoding', 'chunked');
+      
+      await storage.restoreBackup(req.file.path, options, (progress) => {
+        // Send progress updates
+        res.write(JSON.stringify(progress) + '\n');
+      });
+      
+      // Clean up uploaded file
+      fs.unlinkSync(req.file.path);
+      
+      res.end();
+    } catch (error) {
+      console.error("Restore backup error:", error);
+      // Check if headers have already been sent
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Failed to restore backup" });
+      } else {
+        // If headers already sent, send error as streaming data
+        res.write(JSON.stringify({ error: "Failed to restore backup" }) + '\n');
+        res.end();
+      }
+    }
+  });
+
   const httpServer = createServer(app);
 
   return httpServer;
