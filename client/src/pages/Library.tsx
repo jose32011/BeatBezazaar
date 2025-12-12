@@ -17,6 +17,18 @@ export default function Library() {
   const [, setLocation] = useLocation();
   const audioPlayer = useAudioPlayer();
 
+  // Fetch genres for genre name mapping
+  const { data: genres = [] } = useQuery<any[]>({
+    queryKey: ["/api/genres"],
+    queryFn: async () => {
+      const response = await fetch("/api/genres", {
+        credentials: "include",
+      });
+      if (!response.ok) throw new Error("Failed to fetch genres");
+      return response.json();
+    },
+  });
+
   // Fetch user's purchased beats
   const { data: playlist = [], isLoading, error } = useQuery<Beat[]>({
     queryKey: ["/api/playlist"],
@@ -207,21 +219,26 @@ export default function Library() {
             </div>
           ) : (
             <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 pb-32">
-              {playlist.map((beat) => (
-                <div key={beat.id} className="relative group">
-                  <BeatCard
-                    beat={beat}
-                    isPlaying={audioPlayer.isPlaying(beat.id)}
-                    hasAudioError={audioPlayer.hasError(beat.id)}
-                    onPlayPause={() => handlePlayPause(beat)}
-                    onDownload={() => handleDownload(beat)}
-                    isOwned={true}
-                    showDownload={true}
-                    disableNavigation={true}
-                    alwaysShowPlayer={true}
-                  />
-                </div>
-              ))}
+              {playlist.map((beat) => {
+                // Find the genre name from the genre ID
+                const genreName = genres.find(g => g.id === beat.genre)?.name || beat.genre;
+                return (
+                  <div key={beat.id} className="relative group">
+                    <BeatCard
+                      beat={beat}
+                      genreName={genreName}
+                      isPlaying={audioPlayer.isPlaying(beat.id)}
+                      hasAudioError={audioPlayer.hasError(beat.id)}
+                      onPlayPause={() => handlePlayPause(beat)}
+                      onDownload={() => handleDownload(beat)}
+                      isOwned={true}
+                      showDownload={true}
+                      disableNavigation={true}
+                      alwaysShowPlayer={true}
+                    />
+                  </div>
+                );
+              })}
             </div>
           )}
         </div>

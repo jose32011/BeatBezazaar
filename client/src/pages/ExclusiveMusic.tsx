@@ -37,6 +37,16 @@ export default function ExclusiveMusic() {
   const queryClient = useQueryClient();
   const themeColors = getThemeColors();
 
+  // Fetch genres for genre name mapping
+  const { data: genres = [] } = useQuery<any[]>({
+    queryKey: ['/api/genres'],
+    queryFn: async () => {
+      const response = await fetch('/api/genres');
+      if (!response.ok) throw new Error('Failed to fetch genres');
+      return response.json();
+    },
+  });
+
   // Fetch exclusive beats
   const { data: exclusiveBeats = [], isLoading: beatsLoading } = useQuery<Beat[]>({
     queryKey: ['/api/beats/exclusive'],
@@ -333,19 +343,23 @@ export default function ExclusiveMusic() {
               </div>
             ) : (
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {exclusiveBeats.map((beat) => (
-                  <div key={beat.id} className="relative">
-                    <BeatCard
-                      beat={beat}
-                      isPlaying={false}
-                      onPlay={() => {}}
-                      onAddToCart={() => handleExclusivePurchase(beat)}
-                      isInCart={false}
-                      isOwned={false}
-                      showAddToCart={canPurchaseExclusive(beat.exclusivePlan || 'premium')}
-                      addToCartText="Purchase Exclusive"
-                    />
-                    <div className="absolute top-2 right-2">
+                {exclusiveBeats.map((beat) => {
+                  // Find the genre name from the genre ID
+                  const genreName = genres.find(g => g.id === beat.genre)?.name || beat.genre;
+                  return (
+                    <div key={beat.id} className="relative">
+                      <BeatCard
+                        beat={beat}
+                        genreName={genreName}
+                        isPlaying={false}
+                        onPlay={() => {}}
+                        onAddToCart={() => handleExclusivePurchase(beat)}
+                        isInCart={false}
+                        isOwned={false}
+                        showAddToCart={canPurchaseExclusive(beat.exclusivePlan || 'premium')}
+                        addToCartText="Purchase Exclusive"
+                        />
+                      <div className="absolute top-2 right-2">
                       <div 
                         className="px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1"
                         style={{
@@ -355,10 +369,11 @@ export default function ExclusiveMusic() {
                       >
                         {getPlanIcon(beat.exclusivePlan || 'premium')}
                         {beat.exclusivePlan || 'Premium'}
+                        </div>
                       </div>
                     </div>
-                  </div>
-                ))}
+                  );
+                })}
               </div>
             )}
           </div>

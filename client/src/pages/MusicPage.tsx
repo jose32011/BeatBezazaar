@@ -444,10 +444,13 @@ export default function MusicPage() {
                 <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6 mb-8">
                   {paginatedBeats.map((beat) => {
                     const isOwned = purchases.some((p) => p.beatId === beat.id);
+                    // Find the genre name from the genre ID
+                    const genreName = genres.find(g => g.id === beat.genre)?.name || beat.genre;
                     return (
                       <BeatCard
                         key={beat.id}
                         beat={beat}
+                        genreName={genreName}
                         isPlaying={audioPlayer.isPlaying(beat.id)}
                         hasAudioError={audioPlayer.hasError(beat.id)}
                         isInCart={cart.some((item: any) => item.id === beat.id)}
