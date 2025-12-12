@@ -148,10 +148,9 @@ export default function BeatCarousel({ beats, userPlaylist = [], onPlayBeat, onA
       <Button
         variant="outline"
         size="icon"
-        className="absolute left-8 top-1/2 -translate-y-1/2 z-50 rounded-full backdrop-blur-sm bg-black/60 hover:bg-black/80 border-2 border-white/40 text-white w-14 h-14 shadow-xl"
+        className="fixed left-4 top-1/2 -translate-y-1/2 z-50 rounded-full backdrop-blur-sm bg-black/60 hover:bg-black/80 border-2 border-white/40 text-white w-14 h-14 shadow-xl"
         onClick={scrollPrev}
         data-testid="button-carousel-prev"
-        style={{ left: '2rem' }}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
@@ -172,10 +171,9 @@ export default function BeatCarousel({ beats, userPlaylist = [], onPlayBeat, onA
       <Button
         variant="outline"
         size="icon"
-        className="absolute right-8 top-1/2 -translate-y-1/2 z-50 rounded-full backdrop-blur-sm bg-black/60 hover:bg-black/80 border-2 border-white/40 text-white w-14 h-14 shadow-xl"
+        className="fixed right-4 top-1/2 -translate-y-1/2 z-50 rounded-full backdrop-blur-sm bg-black/60 hover:bg-black/80 border-2 border-white/40 text-white w-14 h-14 shadow-xl"
         onClick={scrollNext}
         data-testid="button-carousel-next"
-        style={{ right: '2rem' }}
       >
         <svg
           xmlns="http://www.w3.org/2000/svg"
