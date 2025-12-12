@@ -57,21 +57,22 @@ export default function BeatCard({
   };
 
   const handleCardClick = () => {
-    if (!disableNavigation) {
-      setLocation(`/beats/${beat.id}`);
+    if (!disableNavigation && onPlayPause) {
+      // Instead of navigating to a non-existent route, play/pause the audio
+      onPlayPause();
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!disableNavigation && (e.key === 'Enter' || e.key === ' ')) {
+    if (!disableNavigation && onPlayPause && (e.key === 'Enter' || e.key === ' ')) {
       e.preventDefault();
-      handleCardClick();
+      onPlayPause();
     }
   };
 
   return (
     <Card 
-      className={`group overflow-hidden transition-all duration-300 theme-card ${!disableNavigation ? 'cursor-pointer hover:shadow-lg hover:-translate-y-1' : ''} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2`}
+      className={`group overflow-hidden transition-all duration-300 theme-card ${!disableNavigation && onPlayPause ? 'cursor-pointer hover:shadow-lg hover:-translate-y-1' : ''} focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-offset-2`}
       style={{ 
         backgroundColor: themeColors.surface,
         borderColor: themeColors.border,
@@ -80,11 +81,11 @@ export default function BeatCard({
       }}
       onMouseEnter={handleMouseEnter}
       onMouseLeave={() => setIsHovered(false)}
-      onClick={disableNavigation ? undefined : handleCardClick}
-      onKeyDown={disableNavigation ? undefined : handleKeyDown}
-      tabIndex={disableNavigation ? -1 : 0}
+      onClick={disableNavigation || !onPlayPause ? undefined : handleCardClick}
+      onKeyDown={disableNavigation || !onPlayPause ? undefined : handleKeyDown}
+      tabIndex={disableNavigation || !onPlayPause ? -1 : 0}
       role="article"
-      aria-label={`${beat.title} by ${beat.producer}, ${beat.bpm} BPM, ${isOwned ? 'Owned' : `$${beat.price.toFixed(2)}`}`}
+      aria-label={`${beat.title} by ${beat.producer}, ${beat.bpm} BPM, ${isOwned ? 'Owned' : `$${beat.price.toFixed(2)}`}${onPlayPause ? '. Click to play' : ''}`}
       data-testid={`card-beat-${beat.id}`}
     >
       <div className="relative aspect-square overflow-hidden">
