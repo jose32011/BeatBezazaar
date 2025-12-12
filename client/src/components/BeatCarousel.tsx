@@ -21,7 +21,12 @@ export default function BeatCarousel({ beats, userPlaylist = [], onPlayBeat, onA
   const { getThemeColors } = useTheme();
   const themeColors = getThemeColors();
   const [emblaRef, emblaApi] = useEmblaCarousel(
-    { loop: true },
+    { 
+      loop: true,
+      align: 'center',
+      containScroll: 'trimSnaps',
+      slidesToScroll: 1
+    },
     [Autoplay({ delay: 5000, stopOnInteraction: false })]
   );
 
@@ -34,109 +39,95 @@ export default function BeatCarousel({ beats, userPlaylist = [], onPlayBeat, onA
   }, [emblaApi]);
 
   return (
-    <div className="relative overflow-visible">
-      <div className="overflow-hidden" ref={emblaRef}>
-        <div className="flex">
+    <div className="relative py-16 bg-gradient-to-b from-black/20 to-black/60">
+      {/* Carousel Container */}
+      <div className="overflow-hidden mx-8" ref={emblaRef}>
+        <div className="flex gap-6">
           {beats.map((beat) => (
             <div
               key={beat.id}
-              className="flex-[0_0_100%] min-w-0 relative"
+              className="flex-[0_0_80%] md:flex-[0_0_60%] lg:flex-[0_0_40%] xl:flex-[0_0_30%] min-w-0"
               data-testid={`carousel-slide-${beat.id}`}
             >
-              <div className="relative h-[400px] lg:h-[500px] overflow-hidden rounded-lg">
-                {/* Blurred background image */}
+              <div className="relative group cursor-pointer transform transition-all duration-300 hover:scale-105">
+                {/* Card Background */}
                 <div 
-                  className="absolute inset-0"
+                  className="relative h-[300px] rounded-2xl overflow-hidden shadow-2xl"
                   style={{
-                    backgroundImage: `url(${beat.imageUrl})`,
-                    backgroundSize: 'cover',
-                    backgroundPosition: 'center',
-                    filter: 'blur(40px)',
-                    transform: 'scale(1.1)',
+                    background: `linear-gradient(135deg, ${themeColors.primary}40, ${themeColors.secondary}40)`,
                   }}
-                />
-                
-                {/* Dark overlay */}
-                <div className="absolute inset-0 bg-black/40" />
-                
-                {/* Album art on the left - not stretched */}
-                <div className="absolute left-0 top-0 bottom-0 w-[400px] lg:w-[500px] flex items-center justify-center p-8">
-                  <img
-                    src={beat.imageUrl}
-                    alt={beat.title}
-                    className="max-w-full max-h-full object-contain rounded-lg shadow-2xl"
-                  />
-                </div>
-                
-                {/* Gradient overlay for text readability */}
-                <div className="absolute inset-0 bg-gradient-to-r from-black/60 via-black/40 to-transparent" />
-                
-                <div className="absolute bottom-0 left-0 right-0 p-8 lg:p-12">
-                  <div className="max-w-4xl ml-[420px] lg:ml-[520px]">
-                    <div className="flex gap-3 mb-4">
-                      <Badge variant="secondary" data-testid={`badge-genre-${beat.id}`}>
-                        {beat.genre}
-                      </Badge>
-                      <Badge variant="secondary" data-testid={`badge-bpm-${beat.id}`}>
-                        {beat.bpm} BPM
-                      </Badge>
-                    </div>
-                    
-                    <h3 className="text-3xl lg:text-5xl font-bold font-display mb-2" data-testid={`text-title-${beat.id}`}>
+                >
+                  {/* Beat Image */}
+                  <div className="absolute top-6 left-6 right-6">
+                    <img
+                      src={beat.imageUrl}
+                      alt={beat.title}
+                      className="w-16 h-16 rounded-lg object-cover shadow-lg"
+                    />
+                  </div>
+                  
+                  {/* Content */}
+                  <div className="absolute bottom-0 left-0 right-0 p-6 text-white">
+                    <h3 className="text-xl font-bold mb-2 truncate" data-testid={`text-title-${beat.id}`}>
                       {beat.title}
                     </h3>
-                    <p className="text-lg text-muted-foreground mb-4" data-testid={`text-producer-${beat.id}`}>
+                    <p className="text-sm opacity-80 mb-3 truncate" data-testid={`text-producer-${beat.id}`}>
                       by {beat.producer}
                     </p>
                     
-                    <div className="flex items-center gap-4">
+                    {/* Beat Info */}
+                    <div className="flex justify-between items-center mb-4">
+                      <div className="flex gap-2">
+                        <Badge variant="secondary" className="text-xs">
+                          {beat.bpm} BPM
+                        </Badge>
+                      </div>
+                      <span className="text-lg font-bold" data-testid={`text-price-${beat.id}`}>
+                        ${beat.price}
+                      </span>
+                    </div>
+                    
+                    {/* Action Buttons */}
+                    <div className="flex gap-2">
                       <Button
-                        size="lg"
-                        className="gap-2"
+                        size="sm"
+                        className="flex-1 gap-1"
                         onClick={() => onPlayBeat?.(beat)}
                         data-testid={`button-play-${beat.id}`}
                       >
-                        <Play className="h-5 w-5" />
-                        Preview
+                        <Play className="h-3 w-3" />
+                        Play
                       </Button>
-                      <div className="flex gap-2">
-                        {userPlaylist.some(playlistBeat => playlistBeat.id === beat.id) ? (
+                      
+                      {userPlaylist.some(playlistBeat => playlistBeat.id === beat.id) ? (
+                        <Button
+                          size="sm"
+                          variant="outline"
+                          className="gap-1"
+                          disabled
+                          data-testid={`button-owned-${beat.id}`}
+                        >
+                          <Check className="h-3 w-3" />
+                          Owned
+                        </Button>
+                      ) : (
+                        onAddToCart && (
                           <Button
-                            size="lg"
+                            size="sm"
                             variant="outline"
-                            className="gap-2"
-                            disabled
-                            style={{ 
-                              backgroundColor: themeColors.primary + '20',
-                              color: themeColors.primary,
-                              borderColor: themeColors.primary,
-                              cursor: 'not-allowed'
-                            }}
-                            data-testid={`button-owned-${beat.id}`}
+                            className="gap-1"
+                            onClick={() => onAddToCart?.(beat)}
+                            data-testid={`button-add-cart-${beat.id}`}
                           >
-                            <Check className="h-5 w-5" />
-                            Owned
+                            <ShoppingCart className="h-3 w-3" />
                           </Button>
-                        ) : (
-                          onAddToCart && (
-                            <Button
-                              size="lg"
-                              variant="outline"
-                              className="gap-2"
-                              onClick={() => onAddToCart?.(beat)}
-                              data-testid={`button-add-cart-${beat.id}`}
-                            >
-                              <ShoppingCart className="h-5 w-5" />
-                              Add to Cart
-                            </Button>
-                          )
-                        )}
-                      </div>
-                      <span className="text-2xl font-bold font-display" data-testid={`text-price-${beat.id}`}>
-                        {userPlaylist.some(playlistBeat => playlistBeat.id === beat.id) ? 'Owned' : `$${beat.price}`}
-                      </span>
+                        )
+                      )}
                     </div>
                   </div>
+                  
+                  {/* Gradient Overlay */}
+                  <div className="absolute inset-0 bg-gradient-to-t from-black/80 via-black/20 to-transparent" />
                 </div>
               </div>
             </div>
@@ -144,51 +135,52 @@ export default function BeatCarousel({ beats, userPlaylist = [], onPlayBeat, onA
         </div>
       </div>
 
-      {/* Left Navigation Arrow */}
-      <Button
-        variant="outline"
-        size="icon"
-        className="fixed left-4 top-1/2 -translate-y-1/2 z-50 rounded-full backdrop-blur-sm bg-black/60 hover:bg-black/80 border-2 border-white/40 text-white w-14 h-14 shadow-xl"
-        onClick={scrollPrev}
-        data-testid="button-carousel-prev"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="32"
-          height="32"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+      {/* Navigation Arrows - Bottom Center */}
+      <div className="absolute bottom-4 left-1/2 -translate-x-1/2 flex gap-4 z-50">
+        <Button
+          variant="outline"
+          size="icon"
+          className="rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white w-12 h-12 backdrop-blur-sm"
+          onClick={scrollPrev}
+          data-testid="button-carousel-prev"
         >
-          <polyline points="15 18 9 12 15 6"></polyline>
-        </svg>
-      </Button>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="15 18 9 12 15 6"></polyline>
+          </svg>
+        </Button>
 
-      {/* Right Navigation Arrow */}
-      <Button
-        variant="outline"
-        size="icon"
-        className="fixed right-4 top-1/2 -translate-y-1/2 z-50 rounded-full backdrop-blur-sm bg-black/60 hover:bg-black/80 border-2 border-white/40 text-white w-14 h-14 shadow-xl"
-        onClick={scrollNext}
-        data-testid="button-carousel-next"
-      >
-        <svg
-          xmlns="http://www.w3.org/2000/svg"
-          width="32"
-          height="32"
-          viewBox="0 0 24 24"
-          fill="none"
-          stroke="currentColor"
-          strokeWidth="2.5"
-          strokeLinecap="round"
-          strokeLinejoin="round"
+        <Button
+          variant="outline"
+          size="icon"
+          className="rounded-full bg-white/10 hover:bg-white/20 border-white/30 text-white w-12 h-12 backdrop-blur-sm"
+          onClick={scrollNext}
+          data-testid="button-carousel-next"
         >
-          <polyline points="9 18 15 12 9 6"></polyline>
-        </svg>
-      </Button>
+          <svg
+            xmlns="http://www.w3.org/2000/svg"
+            width="20"
+            height="20"
+            viewBox="0 0 24 24"
+            fill="none"
+            stroke="currentColor"
+            strokeWidth="2"
+            strokeLinecap="round"
+            strokeLinejoin="round"
+          >
+            <polyline points="9 18 15 12 9 6"></polyline>
+          </svg>
+        </Button>
+      </div>
     </div>
   );
 }
