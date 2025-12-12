@@ -179,9 +179,11 @@ export default function MusicPage() {
 
     // Filter by genre
     if (selectedGenre) {
-      filtered = filtered.filter(beat => 
-        normalizeGenreName(beat.genre) === normalizeGenreName(selectedGenre)
-      );
+      filtered = filtered.filter(beat => {
+        // Find the genre name from the genre ID
+        const genreName = genres.find(g => g.id === beat.genre)?.name || beat.genre;
+        return normalizeGenreName(genreName) === normalizeGenreName(selectedGenre);
+      });
     }
 
     // Filter by search query
@@ -233,7 +235,7 @@ export default function MusicPage() {
   const genresWithCounts = genres.map(genre => {
     const matchingBeats = beats.filter(beat => 
       !purchasedBeatIds.has(beat.id) && 
-      normalizeGenreName(beat.genre) === normalizeGenreName(genre.name)
+      beat.genre === genre.id
     );
     return {
       ...genre,

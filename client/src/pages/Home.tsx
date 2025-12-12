@@ -204,16 +204,16 @@ export default function Home() {
   };
 
   // Get beats for each genre (latest 6)
-  const getBeatsForGenre = (genreName: string) => {
+  const getBeatsForGenre = (genreId: string) => {
     return beats
-      .filter(beat => normalizeGenreName(beat.genre) === normalizeGenreName(genreName))
+      .filter(beat => beat.genre === genreId)
       .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
       .slice(0, 6);
   };
 
   // Get total beat count for a genre
-  const getBeatCountForGenre = (genreName: string) => {
-    return beats.filter(beat => normalizeGenreName(beat.genre) === normalizeGenreName(genreName)).length;
+  const getBeatCountForGenre = (genreId: string) => {
+    return beats.filter(beat => beat.genre === genreId).length;
   };
 
   // Handle view all click - navigate to music page with genre filter
@@ -563,8 +563,8 @@ export default function Home() {
           </div>
         ) : (
           genres.map((genre) => {
-            const genreBeats = getBeatsForGenre(genre.name);
-            const totalBeats = getBeatCountForGenre(genre.name);
+            const genreBeats = getBeatsForGenre(genre.id);
+            const totalBeats = getBeatCountForGenre(genre.id);
             
             // Only show genres that have beats
             if (genreBeats.length === 0) return null;
