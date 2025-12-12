@@ -148,7 +148,7 @@ export default function BeatCarousel({ beats, userPlaylist = [], onPlayBeat, onA
       <Button
         variant="outline"
         size="icon"
-        className="absolute left-0 top-1/2 -translate-y-1/2 z-50 rounded-full backdrop-blur-sm bg-black/60 hover:bg-black/80 border-2 border-white/40 text-white w-14 h-14 shadow-xl -translate-x-1/2"
+        className="fixed left-4 top-1/2 -translate-y-1/2 z-50 rounded-full backdrop-blur-sm bg-black/60 hover:bg-black/80 border-2 border-white/40 text-white w-14 h-14 shadow-xl"
         onClick={scrollPrev}
         data-testid="button-carousel-prev"
       >
@@ -171,7 +171,7 @@ export default function BeatCarousel({ beats, userPlaylist = [], onPlayBeat, onA
       <Button
         variant="outline"
         size="icon"
-        className="absolute right-0 top-1/2 -translate-y-1/2 z-50 rounded-full backdrop-blur-sm bg-black/60 hover:bg-black/80 border-2 border-white/40 text-white w-14 h-14 shadow-xl translate-x-1/2"
+        className="fixed right-4 top-1/2 -translate-y-1/2 z-50 rounded-full backdrop-blur-sm bg-black/60 hover:bg-black/80 border-2 border-white/40 text-white w-14 h-14 shadow-xl"
         onClick={scrollNext}
         data-testid="button-carousel-next"
       >
