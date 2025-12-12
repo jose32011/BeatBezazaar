@@ -278,7 +278,7 @@ export default function GenreManagement() {
                 <Music className="h-5 w-5" />
                 Genre Management
               </CardTitle>
-              <CardDescription>
+              <CardDescription className="mt-3">
                 Manage music genres and their visual representations
               </CardDescription>
             </div>
