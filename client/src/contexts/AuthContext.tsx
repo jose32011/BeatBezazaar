@@ -1,5 +1,6 @@
 import { createContext, useContext, useEffect, useState, ReactNode } from "react";
 import { useLocation } from "wouter";
+import { useQueryClient } from "@tanstack/react-query";
 
 interface User {
   id: string;
@@ -27,6 +28,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
   const [isLoading, setIsLoading] = useState(true);
   const [showPasswordChangeModal, setShowPasswordChangeModal] = useState(false);
   const [, setLocation] = useLocation();
+  const queryClient = useQueryClient();
 
   useEffect(() => {
     checkAuth();
@@ -40,12 +42,29 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       
       if (response.ok) {
         const data = await response.json();
+        
+        // If the user changed (different ID), invalidate user-specific cache
+        if (user && user.id !== data.user.id) {
+          queryClient.invalidateQueries({ queryKey: ['/api/playlist'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/cart'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/purchases'] });
+          queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
+        }
+        
         setUser(data.user);
       } else {
+        // If user was logged in but now isn't, clear cache
+        if (user) {
+          queryClient.clear();
+        }
         setUser(null);
       }
     } catch (error) {
       console.error("Auth check failed:", error);
+      // If there was an error and user was logged in, clear cache
+      if (user) {
+        queryClient.clear();
+      }
       setUser(null);
     } finally {
       setIsLoading(false);
@@ -54,6 +73,12 @@ export function AuthProvider({ children }: { children: ReactNode }) {
 
   const login = (userData: User) => {
     setUser(userData);
+    
+    // Invalidate user-specific cached data when user logs in
+    queryClient.invalidateQueries({ queryKey: ['/api/playlist'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/cart'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/purchases'] });
+    queryClient.invalidateQueries({ queryKey: ['/api/customers'] });
     
     // Show password change modal if password change is required
     if (userData.passwordChangeRequired) {
@@ -71,6 +96,10 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       console.error("Logout failed:", error);
     } finally {
       setUser(null);
+      
+      // Clear all cached data when user logs out
+      queryClient.clear();
+      
       setLocation("/login");
     }
   };
