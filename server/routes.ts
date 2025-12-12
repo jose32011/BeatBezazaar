@@ -1210,7 +1210,12 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
 
       res.status(201).json(purchase);
     } catch (error) {
-      res.status(400).json({ error: "Invalid purchase data" });
+      console.error("Create purchase error:", error);
+      console.error("Error details:", error instanceof Error ? error.message : error);
+      res.status(400).json({ 
+        error: "Invalid purchase data",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 
@@ -1777,12 +1782,17 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
         
         if (!customer) {
           console.log("Customer not found, creating new customer for user ID:", uid);
+          
+          // Get user data to populate customer info
+          const user = await storage.getUser(uid);
+          const userEmail = user?.email || `user-${uid}@beatbazaar.com`;
+          
           // Create a customer record for this user
           const customerData = {
             userId: uid,
             firstName: "Customer",
             lastName: "User",
-            email: "",
+            email: userEmail,
             phone: null,
             address: null,
             city: null,
@@ -1813,7 +1823,11 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       res.status(201).json(payment);
     } catch (error) {
       console.error("Create payment error:", error);
-      res.status(500).json({ error: "Failed to create payment" });
+      console.error("Error details:", error instanceof Error ? error.message : error);
+      res.status(500).json({ 
+        error: "Failed to create payment",
+        details: error instanceof Error ? error.message : "Unknown error"
+      });
     }
   });
 

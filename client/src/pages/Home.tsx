@@ -374,8 +374,9 @@ export default function Home() {
         const purchaseData = {
           userId: user?.id,
           beatId: item.id,
-          price: item.price
+          price: Number(item.price) // Ensure price is a number
         };
+        console.log('Creating purchase with data:', purchaseData);
         const response = await apiRequest('POST', '/api/purchases', purchaseData);
         return response.json(); // Parse the JSON response
       });
@@ -407,6 +408,7 @@ export default function Home() {
         notes: paymentMethod === 'bank_transfer' ? 'Bank transfer payment' : 'PayPal payment'
       };
 
+      console.log('Creating payment with data:', paymentData);
       const paymentResponse = await apiRequest('POST', '/api/payments', paymentData);
       const payment = await paymentResponse.json();
       console.log('Payment created:', payment);
@@ -437,9 +439,20 @@ export default function Home() {
       setIsCartOpen(false);
     } catch (error) {
       console.error('Checkout error:', error);
+      
+      // Show more specific error message if available
+      let errorMessage = "There was an error processing your payment. Please try again.";
+      if (error instanceof Error) {
+        // Extract more specific error from the API response
+        const match = error.message.match(/\d+: (.+)/);
+        if (match && match[1]) {
+          errorMessage = match[1];
+        }
+      }
+      
       toast({
         title: "Checkout Failed",
-        description: "There was an error processing your payment. Please try again.",
+        description: errorMessage,
         variant: "destructive",
       });
     }
