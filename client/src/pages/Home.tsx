@@ -432,6 +432,7 @@ export default function Home() {
         queryClient.invalidateQueries({ queryKey: ['/api/cart'] });
         queryClient.invalidateQueries({ queryKey: ['/api/playlist'] }); // User's purchased beats
         queryClient.invalidateQueries({ queryKey: ['/api/purchases'] }); // Purchase history
+        queryClient.invalidateQueries({ queryKey: ['/api/purchases/my'] }); // User's purchases on music page
       } else {
         setCartItems([]);
       }

@@ -2,11 +2,12 @@ import { useQuery } from "@tanstack/react-query";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useLocation } from "wouter";
+import { useState, useMemo } from "react";
 import Header from "@/components/Header";
 import BeatCard from "@/components/BeatCard";
 import AudioPlayerFooter from "@/components/AudioPlayerFooter";
 import { Button } from "@/components/ui/button";
-import { Music } from "lucide-react";
+import { Music, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 import type { Beat } from "@shared/schema";
 
@@ -16,6 +17,10 @@ export default function Library() {
   const { user } = useAuth();
   const [, setLocation] = useLocation();
   const audioPlayer = useAudioPlayer();
+  
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const beatsPerPage = 20; // Show more beats per page for full width layout
 
   // Fetch genres for genre name mapping
   const { data: genres = [] } = useQuery<any[]>({
@@ -89,6 +94,20 @@ export default function Library() {
     }
   };
 
+  // Pagination logic
+  const paginatedBeats = useMemo(() => {
+    const startIndex = (currentPage - 1) * beatsPerPage;
+    const endIndex = startIndex + beatsPerPage;
+    return playlist.slice(startIndex, endIndex);
+  }, [playlist, currentPage, beatsPerPage]);
+
+  const totalPages = Math.ceil(playlist.length / beatsPerPage);
+
+  const handlePageChange = (page: number) => {
+    setCurrentPage(page);
+    window.scrollTo({ top: 0, behavior: 'smooth' });
+  };
+
   // Redirect to login if not authenticated
   if (!user) {
     return (
@@ -117,14 +136,14 @@ export default function Library() {
           className="min-h-screen py-8 px-4"
           style={{ backgroundColor: themeColors.background }}
         >
-          <div className="max-w-7xl mx-auto">
+          <div className="w-full px-4 sm:px-6 lg:px-8">
             <h1
               className="text-4xl font-bold mb-8"
               style={{ color: themeColors.text }}
             >
               My Library
             </h1>
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6">
               {Array.from({ length: 8 }).map((_, i) => (
                 <div
                   key={i}
@@ -171,7 +190,7 @@ export default function Library() {
         className="min-h-screen py-8 px-4"
         style={{ backgroundColor: themeColors.background }}
       >
-        <div className="max-w-7xl mx-auto">
+        <div className="w-full px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between mb-8">
             <div>
               <h1
@@ -185,6 +204,11 @@ export default function Library() {
                 style={{ color: themeColors.textSecondary }}
               >
                 {playlist.length} {playlist.length === 1 ? "beat" : "beats"} in your collection
+                {totalPages > 1 && (
+                  <span className="ml-2">
+                    (Page {currentPage} of {totalPages})
+                  </span>
+                )}
               </p>
             </div>
           </div>
@@ -218,28 +242,94 @@ export default function Library() {
               </Button>
             </div>
           ) : (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6 pb-32">
-              {playlist.map((beat) => {
-                // Find the genre name from the genre ID
-                const genreName = genres.find(g => g.id === beat.genre)?.name || beat.genre;
-                return (
-                  <div key={beat.id} className="relative group">
-                    <BeatCard
-                      beat={beat}
-                      genreName={genreName}
-                      isPlaying={audioPlayer.isPlaying(beat.id)}
-                      hasAudioError={audioPlayer.hasError(beat.id)}
-                      onPlayPause={() => handlePlayPause(beat)}
-                      onDownload={() => handleDownload(beat)}
-                      isOwned={true}
-                      showDownload={true}
-                      disableNavigation={true}
-                      alwaysShowPlayer={true}
-                    />
+            <>
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 2xl:grid-cols-6 gap-6 mb-8">
+                {paginatedBeats.map((beat) => {
+                  // Find the genre name from the genre ID
+                  const genreName = genres.find(g => g.id === beat.genre)?.name || beat.genre;
+                  return (
+                    <div key={beat.id} className="relative group">
+                      <BeatCard
+                        beat={beat}
+                        genreName={genreName}
+                        isPlaying={audioPlayer.isPlaying(beat.id)}
+                        hasAudioError={audioPlayer.hasError(beat.id)}
+                        onPlayPause={() => handlePlayPause(beat)}
+                        onDownload={() => handleDownload(beat)}
+                        isOwned={true}
+                        showDownload={true}
+                        disableNavigation={true}
+                        alwaysShowPlayer={true}
+                      />
+                    </div>
+                  );
+                })}
+              </div>
+
+              {/* Pagination Controls */}
+              {totalPages > 1 && (
+                <div className="flex items-center justify-center gap-2 pb-32">
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage - 1)}
+                    disabled={currentPage === 1}
+                    style={{
+                      borderColor: themeColors.border,
+                      color: themeColors.text,
+                    }}
+                  >
+                    <ChevronLeft className="h-4 w-4 mr-1" />
+                    Previous
+                  </Button>
+
+                  <div className="flex items-center gap-1">
+                    {Array.from({ length: Math.min(5, totalPages) }, (_, i) => {
+                      let pageNum;
+                      if (totalPages <= 5) {
+                        pageNum = i + 1;
+                      } else if (currentPage <= 3) {
+                        pageNum = i + 1;
+                      } else if (currentPage >= totalPages - 2) {
+                        pageNum = totalPages - 4 + i;
+                      } else {
+                        pageNum = currentPage - 2 + i;
+                      }
+
+                      return (
+                        <Button
+                          key={pageNum}
+                          variant={currentPage === pageNum ? "default" : "outline"}
+                          size="sm"
+                          onClick={() => handlePageChange(pageNum)}
+                          style={{
+                            backgroundColor: currentPage === pageNum ? themeColors.primary : 'transparent',
+                            borderColor: themeColors.border,
+                            color: currentPage === pageNum ? '#ffffff' : themeColors.text,
+                          }}
+                        >
+                          {pageNum}
+                        </Button>
+                      );
+                    })}
                   </div>
-                );
-              })}
-            </div>
+
+                  <Button
+                    variant="outline"
+                    size="sm"
+                    onClick={() => handlePageChange(currentPage + 1)}
+                    disabled={currentPage === totalPages}
+                    style={{
+                      borderColor: themeColors.border,
+                      color: themeColors.text,
+                    }}
+                  >
+                    Next
+                    <ChevronRight className="h-4 w-4 ml-1" />
+                  </Button>
+                </div>
+              )}
+            </>
           )}
         </div>
       </div>

@@ -116,7 +116,7 @@ export default function MusicPage() {
       return response.json();
     },
     enabled: !!user,
-    staleTime: 1000 * 60 * 10, // 10 minutes - purchases rarely change
+    staleTime: 1000 * 60 * 2, // 2 minutes - allow for real-time updates after purchase
     gcTime: 1000 * 60 * 60, // 1 hour
   });
 

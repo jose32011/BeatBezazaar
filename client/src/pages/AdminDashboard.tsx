@@ -108,8 +108,9 @@ function AdminDashboardContent() {
     
     const genreCounts: { [key: string]: number } = {};
     beats.forEach(beat => {
-      const genre = beat.genre || 'Unknown';
-      genreCounts[genre] = (genreCounts[genre] || 0) + 1;
+      // Find genre name from genre ID
+      const genreName = genres.find(g => g.id === beat.genre)?.name || beat.genre || 'Unknown';
+      genreCounts[genreName] = (genreCounts[genreName] || 0) + 1;
     });
     
     console.log('Genre data:', { beats: beats.length, genreCounts });
@@ -994,7 +995,7 @@ function AdminDashboardContent() {
                         <TableRow key={beat.id}>
                           <TableCell className="font-medium">{beat.title}</TableCell>
                           <TableCell>{beat.producer}</TableCell>
-                          <TableCell>{beat.genre}</TableCell>
+                          <TableCell>{genres.find(g => g.id === beat.genre)?.name || beat.genre}</TableCell>
                           <TableCell>{beat.bpm}</TableCell>
                           <TableCell>${parseFloat(String(beat.price)).toFixed(2)}</TableCell>
                           <TableCell>
