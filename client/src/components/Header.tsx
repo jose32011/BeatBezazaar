@@ -4,6 +4,7 @@ import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCart } from "@/contexts/CartContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAppBranding } from "@/hooks/useAppBranding";
 import { useState } from "react";
@@ -16,12 +17,12 @@ import {
 } from "@/components/ui/dropdown-menu";
 
 interface HeaderProps {
-  cartCount?: number;
-  onCartClick?: () => void;
+  // Remove cart props since we're using context now
 }
 
-export default function Header({ cartCount = 0, onCartClick }: HeaderProps) {
+export default function Header({}: HeaderProps = {}) {
   const { user, logout } = useAuth();
+  const { cartCount, openCart } = useCart();
   const { getThemeColors } = useTheme();
   const themeColors = getThemeColors();
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
@@ -139,7 +140,7 @@ export default function Header({ cartCount = 0, onCartClick }: HeaderProps) {
               variant="ghost"
               size="icon"
               className="relative"
-              onClick={onCartClick}
+              onClick={openCart}
               data-testid="button-cart"
             >
               <ShoppingCart className="h-5 w-5" />

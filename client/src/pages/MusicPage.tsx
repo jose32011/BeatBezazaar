@@ -1,6 +1,7 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCart } from "@/contexts/CartContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useLocation } from "wouter";
 import { useEffect, useState, useMemo } from "react";
@@ -19,6 +20,7 @@ export default function MusicPage() {
   const { getThemeColors } = useTheme();
   const themeColors = getThemeColors();
   const { user } = useAuth();
+  const { cart, addToCart, isInCart } = useCart();
   const [, setLocation] = useLocation();
   const audioPlayer = useAudioPlayer();
   const queryClient = useQueryClient();
@@ -82,24 +84,7 @@ export default function MusicPage() {
     gcTime: 1000 * 60 * 30,
   });
 
-  // Fetch user's cart
-  const { data: cart = [] } = useQuery<Beat[]>({
-    queryKey: ["/api/cart"],
-    queryFn: async () => {
-      if (!user) return [];
-      const response = await fetch("/api/cart", {
-        credentials: "include",
-      });
-      if (!response.ok) {
-        if (response.status === 401) return [];
-        throw new Error("Failed to fetch cart");
-      }
-      return response.json();
-    },
-    enabled: !!user,
-    staleTime: 1000 * 30, // 30 seconds - cart changes frequently
-    gcTime: 1000 * 60 * 10, // 10 minutes
-  });
+  // Cart is now handled by CartContext
 
   // Fetch user's purchases
   const { data: purchases = [] } = useQuery<{ beatId: string }[]>({
@@ -120,50 +105,7 @@ export default function MusicPage() {
     gcTime: 1000 * 60 * 60, // 1 hour
   });
 
-  // Add to cart mutation
-  const addToCartMutation = useMutation({
-    mutationFn: async (beatId: string) => {
-      const response = await fetch("/api/cart/add", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        credentials: "include",
-        body: JSON.stringify({ beatId }),
-      });
-
-      if (!response.ok) {
-        throw new Error("Failed to add to cart");
-      }
-
-      return response.json();
-    },
-    onSuccess: () => {
-      // Invalidate and refetch cart
-      queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
-      toast({
-        title: "Added to cart",
-        description: "Beat has been added to your cart",
-      });
-    },
-    onError: (error) => {
-      console.error("Error adding to cart:", error);
-      toast({
-        title: "Error",
-        description: "Failed to add beat to cart",
-        variant: "destructive",
-      });
-    },
-  });
-
-  const handleAddToCart = (beatId: string) => {
-    if (!user) {
-      setLocation("/login");
-      return;
-    }
-
-    addToCartMutation.mutate(beatId);
-  };
+  // Add to cart is now handled by CartContext
 
   // Helper function to normalize genre names for comparison
   const normalizeGenreName = (name: string | null | undefined) => {
@@ -455,7 +397,7 @@ export default function MusicPage() {
                         genreName={genreName}
                         isPlaying={audioPlayer.isPlaying(beat.id)}
                         hasAudioError={audioPlayer.hasError(beat.id)}
-                        isInCart={cart.some((item: any) => item.id === beat.id)}
+                        isInCart={isInCart(beat.id)}
                         isOwned={isOwned}
                         onPlayPause={() => {
                           if (audioPlayer.isPlaying(beat.id)) {
@@ -470,7 +412,7 @@ export default function MusicPage() {
                             }, isOwned);
                           }
                     }}
-                        onAddToCart={() => handleAddToCart(beat.id)}
+                        onAddToCart={() => addToCart(beat.id)}
                       />
                     );
                   })}

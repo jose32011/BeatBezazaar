@@ -6,6 +6,7 @@ import BeatCard from "@/components/BeatCard";
 import GenreCard from "@/components/GenreCard";
 import AudioPlayerFooter from "@/components/AudioPlayerFooter";
 import { useAuth } from "@/contexts/AuthContext";
+import { useCart } from "@/contexts/CartContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 import { useToast } from "@/hooks/use-toast";
@@ -37,6 +38,7 @@ interface PlansSettings {
 export default function ExclusiveMusic() {
   const [, setLocation] = useLocation();
   const { user, isAuthenticated } = useAuth();
+  const { isInCart } = useCart();
   const { getThemeColors } = useTheme();
   const { toast } = useToast();
   const queryClient = useQueryClient();
@@ -543,7 +545,7 @@ export default function ExclusiveMusic() {
                           }
                         }}
                         onAddToCart={() => handleExclusivePurchase(beat)}
-                        isInCart={false}
+                        isInCart={isInCart(beat.id)}
                         isOwned={false}
                         showAddToCart={canPurchaseExclusive(beat.exclusivePlan || 'premium')}
                         addToCartText="Purchase Exclusive"

@@ -5,6 +5,7 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
+import { CartProvider } from "@/contexts/CartContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AudioProvider } from "@/contexts/AudioContext";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
@@ -99,16 +100,18 @@ function App() {
     <QueryClientProvider client={queryClient}>
       <ThemeProvider>
         <AuthProvider>
-          <AudioProvider>
-            <AudioPlayerProvider>
-              <TooltipProvider>
-                <div className="dark">
-                  <Toaster />
-                  <AppContent />
-                </div>
-              </TooltipProvider>
-            </AudioPlayerProvider>
-          </AudioProvider>
+          <CartProvider>
+            <AudioProvider>
+              <AudioPlayerProvider>
+                <TooltipProvider>
+                  <div className="dark">
+                    <Toaster />
+                    <AppContent />
+                  </div>
+                </TooltipProvider>
+              </AudioPlayerProvider>
+            </AudioProvider>
+          </CartProvider>
         </AuthProvider>
       </ThemeProvider>
     </QueryClientProvider>

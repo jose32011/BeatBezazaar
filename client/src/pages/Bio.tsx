@@ -6,6 +6,7 @@ import { useAppBranding } from "@/hooks/useAppBranding";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useQuery } from "@tanstack/react-query";
 import Header from "@/components/Header";
+import AudioPlayerFooter from "@/components/AudioPlayerFooter";
 
 interface ArtistBio {
   id: string;
@@ -237,6 +238,7 @@ function Bio() {
           </div>
         )}
       </div>
+      <AudioPlayerFooter />
     </div>
   );
 }

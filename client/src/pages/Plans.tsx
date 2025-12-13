@@ -6,6 +6,7 @@ import { Check, Star, Music, Crown, Zap, Shield, Users, Download, Headphones } f
 import { useTheme } from "@/contexts/ThemeContext";
 import { useQuery } from "@tanstack/react-query";
 import Header from "@/components/Header";
+import AudioPlayerFooter from "@/components/AudioPlayerFooter";
 
 interface PlansSettings {
   id?: string;
@@ -377,6 +378,7 @@ function Plans() {
           </div>
         </div>
       </div>
+      <AudioPlayerFooter />
     </div>
   );
 }
