@@ -104,6 +104,34 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Separate multer configuration for backup uploads with higher file size limit
+  const backupUpload = multer({
+    storage: multer.memoryStorage(), // Store in memory for backup files
+    limits: {
+      fileSize: 20 * 1024 * 1024 // 20MB limit for backup files
+    },
+    fileFilter: (req, file, cb) => {
+      // Accept any file type for backups
+      cb(null, true);
+    }
+  });
+
+  // For chunked backup uploads (if needed for files approaching the 20MB limit)
+  const chunkUpload = multer({
+    storage: multer.diskStorage({
+      destination: (req, file, cb) => {
+        cb(null, 'temp-restore/chunks/');
+      },
+      filename: (req, file, cb) => {
+        const chunkId = req.body.chunkId || Date.now();
+        cb(null, `chunk-${chunkId}-${req.body.chunkIndex || 0}`);
+      }
+    }),
+    limits: {
+      fileSize: 5 * 1024 * 1024 // 5MB per chunk (4 chunks = 20MB max)
+    }
+  });
+
   // Log audio file requests
   app.use('/uploads/audio', (req, res, next) => {
     console.log(`Audio file requested: ${req.path}`);
@@ -2115,13 +2143,13 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       res.setHeader('Content-Type', 'application/json');
       res.setHeader('Transfer-Encoding', 'chunked');
       
-      const backupPath = await storage.createBackup((progress) => {
+      const backupResult = await storage.createBackup((progress) => {
         // Send progress updates
         res.write(JSON.stringify(progress) + '\n');
       });
       
-      // Store backup path in session for download
-      (req.session as any).backupPath = backupPath;
+      // Store backup path(s) in session for download
+      (req.session as any).backupPath = backupResult;
       res.end();
     } catch (error) {
       console.error("Create backup error:", error);
@@ -2138,30 +2166,91 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
 
   app.get("/api/admin/backup/download", requireAdmin, async (req, res) => {
     try {
-      const backupPath = (req.session as any).backupPath;
-      if (!backupPath || !fs.existsSync(backupPath)) {
-        return res.status(404).json({ error: "Backup file not found" });
+      const backupResult = (req.session as any).backupPath;
+      if (!backupResult) {
+        return res.status(404).json({ error: "Backup not found" });
       }
       
-      const filename = path.basename(backupPath);
-      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
-      res.setHeader('Content-Type', 'application/zip');
+      // Handle single file backup
+      if (typeof backupResult === 'string') {
+        if (!fs.existsSync(backupResult)) {
+          return res.status(404).json({ error: "Backup file not found" });
+        }
+        
+        const filename = path.basename(backupResult);
+        res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+        res.setHeader('Content-Type', 'application/zip');
+        
+        const fileStream = fs.createReadStream(backupResult);
+        fileStream.pipe(res);
+        return;
+      }
       
-      const fileStream = fs.createReadStream(backupPath);
-      fileStream.pipe(res);
+      // Handle multi-part backup
+      if (Array.isArray(backupResult)) {
+        // Check if all parts exist
+        const missingParts = backupResult.filter(partPath => !fs.existsSync(partPath));
+        if (missingParts.length > 0) {
+          return res.status(404).json({ error: "Some backup parts not found" });
+        }
+        
+        // For multi-part, we'll create a temporary combined ZIP for download
+        // or return information about the parts
+        const partInfo = backupResult.map((partPath, index) => ({
+          part: index + 1,
+          filename: path.basename(partPath),
+          size: fs.statSync(partPath).size
+        }));
+        
+        res.json({
+          type: 'multipart',
+          message: 'Multi-part backup created. Download each part separately.',
+          parts: partInfo,
+          downloadUrls: backupResult.map((_, index) => `/api/admin/backup/download-part/${index + 1}`)
+        });
+        return;
+      }
       
-      // Clean up backup file after download
-      fileStream.on('end', () => {
-        fs.unlinkSync(backupPath);
-        delete (req.session as any).backupPath;
-      });
+      res.status(400).json({ error: "Invalid backup format" });
     } catch (error) {
       console.error("Download backup error:", error);
       res.status(500).json({ error: "Failed to download backup" });
     }
   });
 
-  app.post("/api/admin/backup/restore", requireAdmin, upload.single('backup'), async (req, res) => {
+  // Download individual backup part
+  app.get("/api/admin/backup/download-part/:partNumber", requireAdmin, async (req, res) => {
+    try {
+      const partNumber = parseInt(req.params.partNumber);
+      const backupResult = (req.session as any).backupPath;
+      
+      if (!Array.isArray(backupResult)) {
+        return res.status(400).json({ error: "Not a multi-part backup" });
+      }
+      
+      if (partNumber < 1 || partNumber > backupResult.length) {
+        return res.status(404).json({ error: "Invalid part number" });
+      }
+      
+      const partPath = backupResult[partNumber - 1];
+      if (!fs.existsSync(partPath)) {
+        return res.status(404).json({ error: "Backup part not found" });
+      }
+      
+      const filename = path.basename(partPath);
+      res.setHeader('Content-Disposition', `attachment; filename="${filename}"`);
+      res.setHeader('Content-Type', 'application/zip');
+      
+      const fileStream = fs.createReadStream(partPath);
+      fileStream.pipe(res);
+      
+    } catch (error) {
+      console.error("Download backup part error:", error);
+      res.status(500).json({ error: "Failed to download backup part" });
+    }
+  });
+
+  app.post("/api/admin/backup/restore", requireAdmin, backupUpload.single('backup'), async (req, res) => {
     try {
       if (!req.file) {
         return res.status(400).json({ error: "No backup file provided" });
@@ -2190,6 +2279,139 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       } else {
         // If headers already sent, send error as streaming data
         res.write(JSON.stringify({ error: "Failed to restore backup" }) + '\n');
+        res.end();
+      }
+    }
+  });
+
+  // Multi-part backup restore endpoint
+  app.post("/api/admin/backup/restore-multipart", requireAdmin, backupUpload.any(), async (req, res) => {
+    try {
+      const files = req.files as Express.Multer.File[];
+      
+      if (!files || files.length === 0) {
+        return res.status(400).json({ error: "No backup files provided" });
+      }
+      
+      const totalParts = parseInt(req.body.totalParts || '0');
+      const options = JSON.parse(req.body.options || '{}');
+      
+      if (files.length !== totalParts) {
+        return res.status(400).json({ 
+          error: `Expected ${totalParts} parts, but received ${files.length} files` 
+        });
+      }
+      
+      // Set headers for streaming response
+      res.setHeader('Content-Type', 'application/json');
+      res.setHeader('Transfer-Encoding', 'chunked');
+      
+      // Send initial progress
+      res.write(JSON.stringify({ 
+        step: "Preparing Multi-Part Restore", 
+        message: `Processing ${files.length} backup parts...` 
+      }) + '\n');
+      
+      // Sort files by part number (backupPart1, backupPart2, etc.)
+      const sortedFiles = files.sort((a, b) => {
+        const aMatch = a.fieldname.match(/backupPart(\d+)/);
+        const bMatch = b.fieldname.match(/backupPart(\d+)/);
+        
+        if (aMatch && bMatch) {
+          return parseInt(aMatch[1]) - parseInt(bMatch[1]);
+        }
+        
+        return a.fieldname.localeCompare(b.fieldname);
+      });
+      
+      // Create temporary directory for combining parts
+      const tempDir = path.join(process.cwd(), 'temp-restore', `multipart-${Date.now()}`);
+      fs.mkdirSync(tempDir, { recursive: true });
+      
+      try {
+        // Send progress update
+        res.write(JSON.stringify({ 
+          step: "Combining Parts", 
+          message: "Combining backup parts into single archive..." 
+        }) + '\n');
+        
+        // Combine all parts into a single file
+        const combinedPath = path.join(tempDir, 'combined-backup.zip');
+        const writeStream = fs.createWriteStream(combinedPath);
+        
+        for (let i = 0; i < sortedFiles.length; i++) {
+          const file = sortedFiles[i];
+          const readStream = fs.createReadStream(file.path);
+          
+          await new Promise((resolve, reject) => {
+            readStream.pipe(writeStream, { end: false });
+            readStream.on('end', resolve);
+            readStream.on('error', reject);
+          });
+          
+          // Send progress update
+          res.write(JSON.stringify({ 
+            step: "Combining Parts", 
+            message: `Combined part ${i + 1} of ${sortedFiles.length}` 
+          }) + '\n');
+        }
+        
+        writeStream.end();
+        
+        // Wait for write stream to finish
+        await new Promise((resolve, reject) => {
+          writeStream.on('finish', resolve);
+          writeStream.on('error', reject);
+        });
+        
+        // Send progress update
+        res.write(JSON.stringify({ 
+          step: "Starting Restore", 
+          message: "Combined backup created, starting restore process..." 
+        }) + '\n');
+        
+        // Now restore the combined backup
+        await storage.restoreBackup(combinedPath, options, (progress) => {
+          // Send progress updates
+          res.write(JSON.stringify(progress) + '\n');
+        });
+        
+        // Clean up temporary files
+        fs.unlinkSync(combinedPath);
+        fs.rmSync(tempDir, { recursive: true, force: true });
+        
+        // Clean up uploaded part files
+        sortedFiles.forEach(file => {
+          if (fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+          }
+        });
+        
+        res.end();
+        
+      } catch (error) {
+        // Clean up on error
+        if (fs.existsSync(tempDir)) {
+          fs.rmSync(tempDir, { recursive: true, force: true });
+        }
+        
+        sortedFiles.forEach(file => {
+          if (fs.existsSync(file.path)) {
+            fs.unlinkSync(file.path);
+          }
+        });
+        
+        throw error;
+      }
+      
+    } catch (error) {
+      console.error("Multi-part restore backup error:", error);
+      // Check if headers have already been sent
+      if (!res.headersSent) {
+        res.status(500).json({ error: "Failed to restore multi-part backup" });
+      } else {
+        // If headers already sent, send error as streaming data
+        res.write(JSON.stringify({ error: "Failed to restore multi-part backup" }) + '\n');
         res.end();
       }
     }

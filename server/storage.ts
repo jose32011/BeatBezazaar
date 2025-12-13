@@ -2851,7 +2851,7 @@ private async deleteAllUploadedFiles(): Promise<void> {
     }
   }
 
-  async createBackup(progressCallback?: (progress: any) => void): Promise<string> {
+  async createBackup(progressCallback?: (progress: any) => void): Promise<string | string[]> {
     try {
       const timestamp = new Date().toISOString().replace(/[:.]/g, '-');
       const backupDir = path.join(process.cwd(), 'backups');
@@ -2928,10 +2928,33 @@ private async deleteAllUploadedFiles(): Promise<void> {
         
         return new Promise((resolve, reject) => {
           output.on('close', () => {
-            // Clean up temp directory
-            fs.rmSync(tempDir, { recursive: true, force: true });
-            progressCallback?.({ step: 'complete', message: 'Backup completed successfully!' });
-            resolve(backupPath);
+            // Check if backup file exceeds 20MB
+            const stats = fs.statSync(backupPath);
+            const fileSizeMB = stats.size / (1024 * 1024);
+            
+            if (fileSizeMB > 20) {
+              progressCallback?.({ step: 'split', message: 'Backup exceeds 20MB, creating multi-part archive...' });
+              
+              // Create multi-part backup
+              this.createMultiPartBackup(backupPath, progressCallback)
+                .then((partPaths) => {
+                  // Clean up original large file
+                  fs.unlinkSync(backupPath);
+                  // Clean up temp directory
+                  fs.rmSync(tempDir, { recursive: true, force: true });
+                  progressCallback?.({ step: 'complete', message: `Multi-part backup created with ${partPaths.length} parts!` });
+                  resolve(partPaths);
+                })
+                .catch((error) => {
+                  fs.rmSync(tempDir, { recursive: true, force: true });
+                  reject(error);
+                });
+            } else {
+              // Clean up temp directory
+              fs.rmSync(tempDir, { recursive: true, force: true });
+              progressCallback?.({ step: 'complete', message: 'Backup completed successfully!' });
+              resolve(backupPath);
+            }
           });
           
           archive.on('error', (err) => {
@@ -2956,6 +2979,76 @@ private async deleteAllUploadedFiles(): Promise<void> {
       console.error("Create backup error:", error);
       throw error;
     }
+  }
+
+  private async createMultiPartBackup(originalPath: string, progressCallback?: (progress: any) => void): Promise<string[]> {
+    const maxPartSize = 20 * 1024 * 1024; // 20MB per part
+    const partPaths: string[] = [];
+    
+    const stats = fs.statSync(originalPath);
+    const totalSize = stats.size;
+    const numParts = Math.ceil(totalSize / maxPartSize);
+    
+    const baseDir = path.dirname(originalPath);
+    const baseName = path.basename(originalPath, '.zip');
+    
+    const readStream = fs.createReadStream(originalPath);
+    let currentPart = 1;
+    let currentPartSize = 0;
+    let currentWriteStream: fs.WriteStream | null = null;
+    
+    return new Promise((resolve, reject) => {
+      const createNewPart = () => {
+        if (currentWriteStream) {
+          currentWriteStream.end();
+        }
+        
+        const partPath = path.join(baseDir, `${baseName}-part${currentPart}.zip`);
+        partPaths.push(partPath);
+        currentWriteStream = fs.createWriteStream(partPath);
+        currentPartSize = 0;
+        
+        progressCallback?.({ 
+          step: 'split', 
+          message: `Creating part ${currentPart} of ${numParts}...` 
+        });
+      };
+      
+      createNewPart();
+      
+      readStream.on('data', (chunk: Buffer) => {
+        if (!currentWriteStream) return;
+        
+        // If adding this chunk would exceed the part size, start a new part
+        if (currentPartSize + chunk.length > maxPartSize && currentPart < numParts) {
+          currentPart++;
+          createNewPart();
+        }
+        
+        currentWriteStream.write(chunk);
+        currentPartSize += chunk.length;
+      });
+      
+      readStream.on('end', () => {
+        if (currentWriteStream) {
+          currentWriteStream.end();
+        }
+        resolve(partPaths);
+      });
+      
+      readStream.on('error', (error) => {
+        if (currentWriteStream) {
+          currentWriteStream.end();
+        }
+        // Clean up partial files
+        partPaths.forEach(partPath => {
+          if (fs.existsSync(partPath)) {
+            fs.unlinkSync(partPath);
+          }
+        });
+        reject(error);
+      });
+    });
   }
 
   async restoreBackup(backupPath: string, options: any, progressCallback?: (progress: any) => void): Promise<void> {
