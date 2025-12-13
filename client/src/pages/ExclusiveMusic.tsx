@@ -1,15 +1,20 @@
-import { useState, useEffect } from "react";
-import { useQuery, useQueryClient } from "@tanstack/react-query";
+import { useState, useEffect, useMemo } from "react";
+import { useQuery, useQueryClient, useMutation } from "@tanstack/react-query";
 import { useLocation } from "wouter";
 import Header from "@/components/Header";
 import BeatCard from "@/components/BeatCard";
+import GenreCard from "@/components/GenreCard";
+import AudioPlayerFooter from "@/components/AudioPlayerFooter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 import { useToast } from "@/hooks/use-toast";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Crown, Star, Music, Shield, Lock } from "lucide-react";
-import type { Beat } from "@shared/schema";
+import { Crown, Star, Music, Shield, Lock, Search } from "lucide-react";
+import { Input } from "@/components/ui/input";
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
+import type { Beat, Genre } from "@shared/schema";
 
 interface PlansSettings {
   basicPlan: {
@@ -35,26 +40,38 @@ export default function ExclusiveMusic() {
   const { getThemeColors } = useTheme();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const audioPlayer = useAudioPlayer();
   const themeColors = getThemeColors();
+  const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [sortBy, setSortBy] = useState<string>("latest");
 
-  // Fetch genres for genre name mapping
-  const { data: genres = [] } = useQuery<any[]>({
+  // Fetch genres
+  const { data: genres = [] } = useQuery<Genre[]>({
     queryKey: ['/api/genres'],
     queryFn: async () => {
-      const response = await fetch('/api/genres');
+      const response = await fetch('/api/genres', {
+        credentials: 'include',
+      });
       if (!response.ok) throw new Error('Failed to fetch genres');
       return response.json();
     },
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
   });
 
   // Fetch exclusive beats
   const { data: exclusiveBeats = [], isLoading: beatsLoading } = useQuery<Beat[]>({
     queryKey: ['/api/beats/exclusive'],
     queryFn: async () => {
-      const response = await fetch('/api/beats/exclusive');
+      const response = await fetch('/api/beats/exclusive', {
+        credentials: 'include',
+      });
       if (!response.ok) throw new Error('Failed to fetch exclusive beats');
       return response.json();
     },
+    staleTime: 1000 * 60 * 5,
+    gcTime: 1000 * 60 * 30,
   });
 
   // Fetch plans settings
@@ -160,6 +177,63 @@ export default function ExclusiveMusic() {
     
     return userPlanLevel >= requiredLevel;
   };
+
+  // Helper function to normalize genre names for comparison
+  const normalizeGenreName = (name: string | null | undefined) => {
+    if (!name) return '';
+    return name.toLowerCase().replace(/[-\s]/g, '');
+  };
+
+  // Filter and sort exclusive beats
+  const filteredExclusiveBeats = useMemo(() => {
+    let filtered = [...exclusiveBeats];
+
+    // Filter by genre
+    if (selectedGenre) {
+      filtered = filtered.filter(beat => {
+        // Find the genre name from the genre ID
+        const genreName = genres.find(g => g.id === beat.genre)?.name || beat.genre;
+        return normalizeGenreName(genreName) === normalizeGenreName(selectedGenre);
+      });
+    }
+
+    // Filter by search query
+    if (searchQuery.trim()) {
+      const query = searchQuery.toLowerCase();
+      filtered = filtered.filter(beat => 
+        beat.title.toLowerCase().includes(query) || 
+        beat.producer.toLowerCase().includes(query)
+      );
+    }
+
+    // Sort beats
+    filtered = [...filtered].sort((a, b) => {
+      switch (sortBy) {
+        case 'latest':
+          return new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime();
+        case 'oldest':
+          return new Date(a.createdAt || 0).getTime() - new Date(b.createdAt || 0).getTime();
+        case 'a-z':
+          return a.title.localeCompare(b.title);
+        case 'z-a':
+          return b.title.localeCompare(a.title);
+        default:
+          return 0;
+      }
+    });
+
+    return filtered;
+  }, [exclusiveBeats, selectedGenre, searchQuery, sortBy, genres]);
+
+  // Calculate exclusive beat counts for each genre
+  const genresWithExclusiveCounts = genres.map(genre => {
+    const matchingBeats = exclusiveBeats.filter(beat => beat.genre === genre.id);
+    return {
+      ...genre,
+      beatCount: matchingBeats.length,
+      imageUrl: genre.imageUrl || ''
+    };
+  }).filter(genre => genre.beatCount > 0); // Only show genres with exclusive beats
 
   if (beatsLoading) {
     return (
@@ -323,16 +397,109 @@ export default function ExclusiveMusic() {
         </section>
       )}
 
+      {/* Search and Filters */}
+      {isAuthenticated && userPlan && userPlan.plan !== 'basic' && exclusiveBeats.length > 0 && (
+        <section className="w-full px-6 py-4">
+          <div className="container mx-auto">
+            <div className="mb-8 space-y-4">
+              <div className="flex flex-col md:flex-row gap-4">
+                {/* Search Bar */}
+                <div className="flex-1 relative">
+                  <Search 
+                    className="absolute left-3 top-1/2 transform -translate-y-1/2 h-5 w-5" 
+                    style={{ color: themeColors.textSecondary }}
+                  />
+                  <Input
+                    type="text"
+                    placeholder="Search exclusive beats..."
+                    value={searchQuery}
+                    onChange={(e) => setSearchQuery(e.target.value)}
+                    className="pl-10"
+                    style={{
+                      backgroundColor: themeColors.surface,
+                      borderColor: themeColors.border,
+                      color: themeColors.text,
+                    }}
+                  />
+                </div>
+
+                {/* Sort By */}
+                <Select value={sortBy} onValueChange={setSortBy}>
+                  <SelectTrigger 
+                    className="w-full md:w-[200px]"
+                    style={{
+                      backgroundColor: themeColors.surface,
+                      borderColor: themeColors.border,
+                      color: themeColors.text,
+                    }}
+                  >
+                    <SelectValue placeholder="Sort By" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="latest">Latest First</SelectItem>
+                    <SelectItem value="oldest">Oldest First</SelectItem>
+                    <SelectItem value="a-z">A-Z (Title)</SelectItem>
+                    <SelectItem value="z-a">Z-A (Title)</SelectItem>
+                  </SelectContent>
+                </Select>
+              </div>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Genre Filter */}
+      {isAuthenticated && userPlan && userPlan.plan !== 'basic' && genresWithExclusiveCounts.length > 0 && (
+        <section className="w-full px-6 py-4">
+          <div className="container mx-auto">
+            <div className="flex items-center justify-between mb-4">
+              <h2 
+                className="text-2xl font-bold"
+                style={{ color: themeColors.text }}
+              >
+                Filter by Genre
+              </h2>
+              {selectedGenre && (
+                <button
+                  onClick={() => setSelectedGenre(null)}
+                  className="text-sm hover:underline"
+                  style={{ color: themeColors.primary }}
+                >
+                  Clear filter
+                </button>
+              )}
+            </div>
+            <div className="grid grid-cols-4 md:grid-cols-6 lg:grid-cols-8 gap-2">
+              {genresWithExclusiveCounts.map((genre) => (
+                <GenreCard
+                  key={genre.id}
+                  name={genre.name}
+                  beatCount={genre.beatCount}
+                  imageUrl={genre.imageUrl}
+                  onClick={() => setSelectedGenre(selectedGenre === genre.name ? null : genre.name)}
+                  isSelected={selectedGenre === genre.name}
+                />
+              ))}
+            </div>
+          </div>
+        </section>
+      )}
+
       {/* Exclusive Beats Grid */}
       {isAuthenticated && userPlan && userPlan.plan !== 'basic' && (
-        <section className="w-full px-6 py-8">
+        <section className="w-full px-6 py-8 pb-32">
           <div className="container mx-auto">
-            <h2 
-              className="text-2xl font-bold mb-8"
-              style={{ color: themeColors.text }}
-            >
-              Available Exclusive Beats
-            </h2>
+            <div className="flex items-center justify-between mb-6">
+              <h2 
+                className="text-2xl font-bold"
+                style={{ color: themeColors.text }}
+              >
+                {selectedGenre ? `${selectedGenre} Exclusive Beats` : 'Available Exclusive Beats'}
+              </h2>
+              <span style={{ color: themeColors.textSecondary }}>
+                Showing {filteredExclusiveBeats.length} {filteredExclusiveBeats.length === 1 ? 'beat' : 'beats'}
+              </span>
+            </div>
             
             {exclusiveBeats.length === 0 ? (
               <div className="text-center py-12">
@@ -341,9 +508,18 @@ export default function ExclusiveMusic() {
                   No exclusive beats available at the moment. Check back soon!
                 </p>
               </div>
+            ) : filteredExclusiveBeats.length === 0 ? (
+              <div className="text-center py-12">
+                <Crown className="h-16 w-16 mx-auto mb-4 text-muted-foreground" />
+                <p style={{ color: themeColors.textSecondary }}>
+                  {selectedGenre 
+                    ? `No exclusive beats available in ${selectedGenre} genre` 
+                    : 'No exclusive beats match your search'}
+                </p>
+              </div>
             ) : (
-              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 gap-6">
-                {exclusiveBeats.map((beat) => {
+              <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
+                {filteredExclusiveBeats.map((beat) => {
                   // Find the genre name from the genre ID
                   const genreName = genres.find(g => g.id === beat.genre)?.name || beat.genre;
                   return (
@@ -351,8 +527,21 @@ export default function ExclusiveMusic() {
                       <BeatCard
                         beat={beat}
                         genreName={genreName}
-                        isPlaying={false}
-                        onPlay={() => {}}
+                        isPlaying={audioPlayer.isPlaying(beat.id)}
+                        hasAudioError={audioPlayer.hasError(beat.id)}
+                        onPlayPause={() => {
+                          if (audioPlayer.isPlaying(beat.id)) {
+                            audioPlayer.pause();
+                          } else {
+                            audioPlayer.play(beat.id, beat.audioUrl || '', {
+                              id: beat.id,
+                              title: beat.title,
+                              producer: beat.producer,
+                              imageUrl: beat.imageUrl,
+                              audioUrl: beat.audioUrl || undefined,
+                            }, false);
+                          }
+                        }}
                         onAddToCart={() => handleExclusivePurchase(beat)}
                         isInCart={false}
                         isOwned={false}
@@ -360,15 +549,15 @@ export default function ExclusiveMusic() {
                         addToCartText="Purchase Exclusive"
                         />
                       <div className="absolute top-2 right-2">
-                      <div 
-                        className="px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1"
-                        style={{
-                          backgroundColor: themeColors.primary,
-                          color: themeColors.primaryForeground
-                        }}
-                      >
-                        {getPlanIcon(beat.exclusivePlan || 'premium')}
-                        {beat.exclusivePlan || 'Premium'}
+                        <div 
+                          className="px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1"
+                          style={{
+                            backgroundColor: themeColors.primary,
+                            color: themeColors.primaryForeground
+                          }}
+                        >
+                          {getPlanIcon(beat.exclusivePlan || 'premium')}
+                          {beat.exclusivePlan || 'Premium'}
                         </div>
                       </div>
                     </div>
@@ -379,6 +568,8 @@ export default function ExclusiveMusic() {
           </div>
         </section>
       )}
+      
+      <AudioPlayerFooter />
     </div>
   );
 }

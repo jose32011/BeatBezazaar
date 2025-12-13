@@ -15,12 +15,15 @@ interface BeatCardProps {
   isInCart?: boolean;
   hasAudioError?: boolean;
   onPlayPause?: () => void;
+  onPlay?: () => void; // Alternative to onPlayPause for compatibility
   onAddToCart?: () => void;
   onDownload?: () => void;
   genreName?: string; // Optional genre name to display instead of beat.genre
   showDownload?: boolean; // Show download button
   disableNavigation?: boolean; // Disable navigation on card click
   alwaysShowPlayer?: boolean; // Always show the play button (not just on hover)
+  showAddToCart?: boolean; // Control whether to show add to cart button
+  addToCartText?: string; // Custom text for add to cart button
 }
 
 export default function BeatCard({ 
@@ -30,12 +33,15 @@ export default function BeatCard({
   isInCart = false,
   hasAudioError = false,
   onPlayPause,
+  onPlay,
   onAddToCart,
   onDownload,
   genreName,
   showDownload = false,
   disableNavigation = false,
-  alwaysShowPlayer = false
+  alwaysShowPlayer = false,
+  showAddToCart = true,
+  addToCartText = "Add"
 }: BeatCardProps) {
   const [isHovered, setIsHovered] = useState(false);
   const [imageError, setImageError] = useState(false);
@@ -57,16 +63,18 @@ export default function BeatCard({
   };
 
   const handleCardClick = () => {
-    if (!disableNavigation && onPlayPause) {
+    const playHandler = onPlayPause || onPlay;
+    if (!disableNavigation && playHandler) {
       // Instead of navigating to a non-existent route, play/pause the audio
-      onPlayPause();
+      playHandler();
     }
   };
 
   const handleKeyDown = (e: React.KeyboardEvent) => {
-    if (!disableNavigation && onPlayPause && (e.key === 'Enter' || e.key === ' ')) {
+    const playHandler = onPlayPause || onPlay;
+    if (!disableNavigation && playHandler && (e.key === 'Enter' || e.key === ' ')) {
       e.preventDefault();
-      onPlayPause();
+      playHandler();
     }
   };
 
@@ -111,16 +119,18 @@ export default function BeatCard({
             }}
             onClick={(e) => {
               e.stopPropagation();
-              if (!hasAudioError && onPlayPause) {
-                onPlayPause();
+              const playHandler = onPlayPause || onPlay;
+              if (!hasAudioError && playHandler) {
+                playHandler();
               }
             }}
             onKeyDown={(e) => {
               if (e.key === 'Enter' || e.key === ' ') {
                 e.preventDefault();
                 e.stopPropagation();
-                if (!hasAudioError && onPlayPause) {
-                  onPlayPause();
+                const playHandler = onPlayPause || onPlay;
+                if (!hasAudioError && playHandler) {
+                  playHandler();
                 }
               }
             }}
@@ -261,7 +271,7 @@ export default function BeatCard({
                 In Cart
               </Button>
             ) : (
-              onAddToCart && (
+              showAddToCart && onAddToCart && (
                 <Button
                   variant="outline"
                   size="sm"
@@ -286,11 +296,11 @@ export default function BeatCard({
                       }
                     }
                   }}
-                  aria-label={`Add ${beat.title} to cart`}
+                  aria-label={`${addToCartText} ${beat.title}`}
                   data-testid={`button-add-cart-${beat.id}`}
                 >
                   <ShoppingCart className="h-4 w-4" aria-hidden="true" />
-                  Add
+                  {addToCartText}
                 </Button>
               )
             )}
