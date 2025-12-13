@@ -7,7 +7,7 @@ import type { Beat } from "@shared/schema";
 import BeatCarousel from "@/components/BeatCarousel";
 import AudioPlayer from "@/components/AudioPlayer";
 import Cart, { type CartItem } from "@/components/Cart";
-import GenreSection from "@/components/GenreSection";
+
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/hooks/use-toast";
@@ -43,10 +43,7 @@ export default function Home() {
     enabled: isAuthenticated,
   });
 
-  // Fetch genres from API
-  const { data: genres = [] } = useQuery<any[]>({
-    queryKey: ['/api/genres'],
-  });
+
 
   // Fetch home settings
   const { data: homeSettings } = useQuery<any>({
@@ -197,32 +194,7 @@ export default function Home() {
     setPlayerDuration(duration);
   };
 
-  // Helper function to normalize genre names for comparison
-  const normalizeGenreName = (name: string | null | undefined) => {
-    if (!name) return '';
-    return name.toLowerCase().replace(/[-\s]/g, '');
-  };
 
-  // Get beats for each genre (latest 6)
-  const getBeatsForGenre = (genreId: string) => {
-    return beats
-      .filter(beat => beat.genre === genreId)
-      .sort((a, b) => new Date(b.createdAt || 0).getTime() - new Date(a.createdAt || 0).getTime())
-      .slice(0, 6);
-  };
-
-  // Get total beat count for a genre
-  const getBeatCountForGenre = (genreId: string) => {
-    return beats.filter(beat => beat.genre === genreId).length;
-  };
-
-  // Handle view all click - navigate to music page with genre filter
-  const handleViewAllGenre = (genreId: string) => {
-    const genre = genres.find(g => g.id === genreId);
-    if (genre) {
-      setLocation(`/music?genre=${encodeURIComponent(genre.name)}`);
-    }
-  };
 
   const handleAddToCart = (beat: Beat) => {
     console.log('🛒 handleAddToCart called for:', beat.title);
@@ -550,48 +522,7 @@ export default function Home() {
         </section>
       )}
 
-      {/* Genre Sections */}
-      <div className="w-full px-6 py-8">
-        {beatsLoading ? (
-          <div className="text-center py-8">
-            <div className="animate-spin rounded-full h-12 w-12 border-b-2 border-primary mx-auto mb-4"></div>
-            <p style={{ color: themeColors.textSecondary }}>Loading genres...</p>
-          </div>
-        ) : genres.length === 0 ? (
-          <div className="text-center py-8">
-            <p style={{ color: themeColors.textSecondary }}>No genres available yet.</p>
-          </div>
-        ) : (
-          genres.map((genre) => {
-            const genreBeats = getBeatsForGenre(genre.id);
-            const totalBeats = getBeatCountForGenre(genre.id);
-            
-            // Only show genres that have beats
-            if (genreBeats.length === 0) return null;
-            
-            return (
-              <GenreSection
-                key={genre.id}
-                genre={genre}
-                beats={genreBeats}
-                totalBeats={totalBeats}
-                onViewAll={handleViewAllGenre}
-                isPlaying={(beatId) => currentlyPlaying === beatId}
-                onPlayPause={(beatId, audioUrl) => {
-                  const beat = beats.find(b => b.id === beatId);
-                  if (beat) handlePlayPause(beat);
-                }}
-                onAddToCart={(beatId) => {
-                  const beat = beats.find(b => b.id === beatId);
-                  if (beat) handleAddToCart(beat);
-                }}
-                isInCart={(beatId) => userCart.some(b => b.id === beatId)}
-                isOwned={(beatId) => userPlaylist.some(b => b.id === beatId)}
-              />
-            );
-          })
-        )}
-      </div>
+
 
 
 

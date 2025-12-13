@@ -43,11 +43,6 @@ export default function Login() {
     firstName: "",
     lastName: "",
     phone: "",
-    address: "",
-    city: "",
-    state: "",
-    zipCode: "",
-    country: "",
   });
 
   const handleLogin = async (e: React.FormEvent) => {
@@ -121,11 +116,6 @@ export default function Login() {
           firstName: registerData.firstName,
           lastName: registerData.lastName,
           phone: registerData.phone,
-          address: registerData.address,
-          city: registerData.city,
-          state: registerData.state,
-          zipCode: registerData.zipCode,
-          country: registerData.country,
         }),
         credentials: "include",
       });
@@ -204,9 +194,31 @@ export default function Login() {
           </CardHeader>
           <CardContent>
             <Tabs defaultValue="login" className="w-full">
-              <TabsList className="grid w-full grid-cols-2">
-                <TabsTrigger value="login">Login</TabsTrigger>
-                <TabsTrigger value="register">Register</TabsTrigger>
+              <TabsList 
+                className="grid w-full grid-cols-2"
+                style={{
+                  backgroundColor: themeColors.surface,
+                  borderColor: themeColors.border
+                }}
+              >
+                <TabsTrigger 
+                  value="login"
+                  style={{
+                    color: themeColors.text,
+                    backgroundColor: 'transparent'
+                  }}
+                >
+                  Login
+                </TabsTrigger>
+                <TabsTrigger 
+                  value="register"
+                  style={{
+                    color: themeColors.text,
+                    backgroundColor: 'transparent'
+                  }}
+                >
+                  Register
+                </TabsTrigger>
               </TabsList>
 
               <TabsContent value="login">
@@ -268,6 +280,11 @@ export default function Login() {
                   <Button
                     type="submit"
                     className="w-full h-10 sm:h-11 text-sm sm:text-base"
+                    style={{
+                      backgroundColor: themeColors.primary,
+                      color: '#ffffff',
+                      border: 'none'
+                    }}
                     disabled={isLoading}
                   >
                     {isLoading ? "Signing in..." : "Sign In"}
@@ -396,69 +413,20 @@ export default function Login() {
                     />
                   </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="register-address" className="text-white">Address (Optional)</Label>
-                    <Input
-                      id="register-address"
-                      type="text"
-                      placeholder="Street address"
-                      value={registerData.address}
-                      onChange={(e) => setRegisterData({ ...registerData, address: e.target.value })}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
-                    />
-                  </div>
 
-                  <div className="grid grid-cols-3 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="register-city" className="text-white">City</Label>
-                      <Input
-                        id="register-city"
-                        type="text"
-                        placeholder="City"
-                        value={registerData.city}
-                        onChange={(e) => setRegisterData({ ...registerData, city: e.target.value })}
-                        className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="register-state" className="text-white">State</Label>
-                      <Input
-                        id="register-state"
-                        type="text"
-                        placeholder="State"
-                        value={registerData.state}
-                        onChange={(e) => setRegisterData({ ...registerData, state: e.target.value })}
-                        className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="register-zip" className="text-white">ZIP</Label>
-                      <Input
-                        id="register-zip"
-                        type="text"
-                        placeholder="ZIP Code"
-                        value={registerData.zipCode}
-                        onChange={(e) => setRegisterData({ ...registerData, zipCode: e.target.value })}
-                        className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
-                      />
-                    </div>
-                  </div>
 
-                  <div className="space-y-2">
-                    <Label htmlFor="register-country" className="text-white">Country</Label>
-                    <Input
-                      id="register-country"
-                      type="text"
-                      placeholder="Country"
-                      value={registerData.country}
-                      onChange={(e) => setRegisterData({ ...registerData, country: e.target.value })}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
-                    />
-                  </div>
+
+
+
 
                   <Button
                     type="submit"
-                    className="w-full h-10 sm:h-11 text-sm sm:text-base bg-gradient-to-r from-purple-600 to-blue-600 hover:from-purple-700 hover:to-blue-700"
+                    className="w-full h-10 sm:h-11 text-sm sm:text-base"
+                    style={{
+                      backgroundColor: themeColors.primary,
+                      color: '#ffffff',
+                      border: 'none'
+                    }}
                     disabled={isLoading}
                   >
                     {isLoading ? "Creating account..." : "Create Account"}

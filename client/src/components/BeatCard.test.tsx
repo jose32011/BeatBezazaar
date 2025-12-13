@@ -297,7 +297,7 @@ describe('BeatCard Unit Tests', () => {
 
     // After error, should show placeholder
     await vi.waitFor(() => {
-      expect(img.src).toContain('placeholder-beat.png');
+      expect(img.src).toContain('placeholder-beat.svg');
     });
     
     container.remove();

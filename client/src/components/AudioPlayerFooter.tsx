@@ -45,76 +45,41 @@ export default function AudioPlayerFooter() {
 
   return (
     <div
-      className="fixed bottom-0 left-0 right-0 z-50 border-t backdrop-blur-lg"
+      className="audio-player-footer fixed bottom-0 left-0 right-0 z-50 border-t backdrop-blur-md"
       style={{
-        backgroundColor: `${themeColors.background}f0`,
-        borderColor: `${themeColors.border}40`,
+        backgroundColor: themeColors.secondary, // Use solid secondary color
+        borderColor: themeColors.border,
+        boxShadow: `0 -4px 6px -1px rgba(0,0,0,0.2)`
       }}
     >
-      <div className="max-w-full mx-auto px-6 py-4">
-        <div className="flex items-center gap-6">
-          {/* Beat Info */}
-          <div className="flex items-center gap-4 min-w-[250px]">
-            {currentBeat.imageUrl && (
-              <img
-                src={currentBeat.imageUrl}
-                alt={currentBeat.title}
-                className="w-14 h-14 rounded object-cover"
-              />
-            )}
-            <div className="flex-1 min-w-0">
-              <h4
-                className="font-semibold truncate"
-                style={{ color: themeColors.text }}
-              >
-                {currentBeat.title}
-              </h4>
-              <p
-                className="text-sm truncate"
-                style={{ color: themeColors.textSecondary }}
-              >
-                {currentBeat.producer}
-              </p>
-            </div>
-          </div>
+      {/* Mobile Layout */}
+      <div className="block sm:hidden">
+        <div className="flex items-center p-3 gap-3">
+          {/* Square Album Art on Left */}
+          {currentBeat.imageUrl && (
+            <img
+              src={currentBeat.imageUrl}
+              alt={currentBeat.title}
+              className="w-12 h-12 rounded-lg object-cover flex-shrink-0"
+            />
+          )}
 
-          {/* Player Controls */}
-          <div className="flex-1 flex flex-col items-center gap-2">
-            <div className="flex items-center gap-4">
-              <button
-                onClick={() => audioPlayer.previous()}
-                className="p-2 rounded-full hover:bg-white/10 transition-colors"
-                style={{ color: themeColors.text }}
-              >
-                <SkipBack className="w-5 h-5" />
-              </button>
-
-              <button
-                onClick={() => audioPlayer.isPlaying(currentBeat.id) ? audioPlayer.pause() : audioPlayer.play(currentBeat.id, currentBeat.audioUrl || '')}
-                className="p-3 rounded-full transition-colors"
-                style={{
-                  backgroundColor: themeColors.primary,
-                  color: 'white',
-                }}
-              >
-                {audioPlayer.isPlaying(currentBeat.id) ? (
-                  <Pause className="w-6 h-6" />
-                ) : (
-                  <Play className="w-6 h-6 ml-0.5" />
-                )}
-              </button>
-
-              <button
-                onClick={() => audioPlayer.next()}
-                className="p-2 rounded-full hover:bg-white/10 transition-colors"
-                style={{ color: themeColors.text }}
-              >
-                <SkipForward className="w-5 h-5" />
-              </button>
-            </div>
-
+          {/* Middle Content - Title, Producer, Progress */}
+          <div className="flex-1 min-w-0">
+            <h4
+              className="font-semibold text-sm truncate mb-1"
+              style={{ color: themeColors.text }}
+            >
+              {currentBeat.title}
+            </h4>
+            <p
+              className="text-xs truncate mb-2"
+              style={{ color: themeColors.textSecondary }}
+            >
+              By {currentBeat.producer}
+            </p>
             {/* Progress Bar */}
-            <div className="w-full max-w-2xl flex items-center gap-3">
+            <div className="flex items-center gap-2">
               <span
                 className="text-xs tabular-nums"
                 style={{ color: themeColors.textSecondary }}
@@ -127,6 +92,11 @@ export default function AudioPlayerFooter() {
                 step={0.1}
                 onValueChange={(value) => audioPlayer.seek(value[0])}
                 className="flex-1"
+                style={{
+                  '--slider-track': themeColors.surface,
+                  '--slider-range': themeColors.primary,
+                  '--slider-thumb': themeColors.primary
+                } as React.CSSProperties & { [key: string]: string }}
               />
               <span
                 className="text-xs tabular-nums"
@@ -137,26 +107,157 @@ export default function AudioPlayerFooter() {
             </div>
           </div>
 
-          {/* Volume Control */}
-          <div className="flex items-center gap-3 min-w-[150px]">
+          {/* Right Side - Play/Pause Button */}
+          <div className="flex-shrink-0">
             <button
-              onClick={toggleMute}
-              className="p-2 rounded-full hover:bg-white/10 transition-colors"
-              style={{ color: themeColors.text }}
+              onClick={() => audioPlayer.isPlaying(currentBeat.id) ? audioPlayer.pause() : audioPlayer.play(currentBeat.id, currentBeat.audioUrl || '')}
+              className="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
+              style={{
+                backgroundColor: themeColors.primary,
+                color: 'white',
+              }}
             >
-              {isMuted || volume === 0 ? (
-                <VolumeX className="w-5 h-5" />
+              {audioPlayer.isPlaying(currentBeat.id) ? (
+                <Pause className="w-5 h-5" />
               ) : (
-                <Volume2 className="w-5 h-5" />
+                <Play className="w-5 h-5 ml-0.5" />
               )}
             </button>
-            <Slider
-              value={[isMuted ? 0 : volume]}
-              max={100}
-              step={1}
-              onValueChange={handleVolumeChange}
-              className="w-24"
-            />
+          </div>
+        </div>
+      </div>
+
+      {/* Desktop Layout */}
+      <div className="hidden sm:block">
+        <div className="max-w-full mx-auto px-6 py-4">
+          <div className="flex items-center gap-6">
+            {/* Beat Info */}
+            <div className="flex items-center gap-4 min-w-[250px]">
+              {currentBeat.imageUrl && (
+                <img
+                  src={currentBeat.imageUrl}
+                  alt={currentBeat.title}
+                  className="w-14 h-14 rounded object-cover"
+                />
+              )}
+              <div className="flex-1 min-w-0">
+                <h4
+                  className="font-semibold truncate"
+                  style={{ color: themeColors.text }}
+                >
+                  {currentBeat.title}
+                </h4>
+                <p
+                  className="text-sm truncate"
+                  style={{ color: themeColors.textSecondary }}
+                >
+                  {currentBeat.producer}
+                </p>
+              </div>
+            </div>
+
+            {/* Player Controls */}
+            <div className="flex-1 flex flex-col items-center gap-2">
+              <div className="flex items-center gap-4">
+                <button
+                  onClick={() => audioPlayer.previous()}
+                  className="p-2 rounded-full transition-colors"
+                  style={{ 
+                    color: themeColors.text,
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${themeColors.surface}40`}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <SkipBack className="w-5 h-5" />
+                </button>
+
+                <button
+                  onClick={() => audioPlayer.isPlaying(currentBeat.id) ? audioPlayer.pause() : audioPlayer.play(currentBeat.id, currentBeat.audioUrl || '')}
+                  className="p-3 rounded-full transition-colors"
+                  style={{
+                    backgroundColor: themeColors.primary,
+                    color: 'white',
+                  }}
+                >
+                  {audioPlayer.isPlaying(currentBeat.id) ? (
+                    <Pause className="w-6 h-6" />
+                  ) : (
+                    <Play className="w-6 h-6 ml-0.5" />
+                  )}
+                </button>
+
+                <button
+                  onClick={() => audioPlayer.next()}
+                  className="p-2 rounded-full transition-colors"
+                  style={{ 
+                    color: themeColors.text,
+                  }}
+                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${themeColors.surface}40`}
+                  onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                >
+                  <SkipForward className="w-5 h-5" />
+                </button>
+              </div>
+
+              {/* Progress Bar */}
+              <div className="w-full max-w-2xl flex items-center gap-3">
+                <span
+                  className="text-xs tabular-nums"
+                  style={{ color: themeColors.textSecondary }}
+                >
+                  {formatTime(audioPlayer.currentTime)}
+                </span>
+                <Slider
+                  value={[audioPlayer.currentTime]}
+                  max={audioPlayer.isCurrentTrackOwned ? audioPlayer.duration : Math.min(30, audioPlayer.duration || 30)}
+                  step={0.1}
+                  onValueChange={(value) => audioPlayer.seek(value[0])}
+                  className="flex-1"
+                  style={{
+                    '--slider-track': themeColors.surface,
+                    '--slider-range': themeColors.primary,
+                    '--slider-thumb': themeColors.primary
+                  } as React.CSSProperties & { [key: string]: string }}
+                />
+                <span
+                  className="text-xs tabular-nums"
+                  style={{ color: themeColors.textSecondary }}
+                >
+                  {formatTime(audioPlayer.isCurrentTrackOwned ? audioPlayer.duration : Math.min(30, audioPlayer.duration || 30))}
+                </span>
+              </div>
+            </div>
+
+            {/* Volume Control */}
+            <div className="flex items-center gap-3 min-w-[150px]">
+              <button
+                onClick={toggleMute}
+                className="p-2 rounded-full transition-colors"
+                style={{ 
+                  color: themeColors.text,
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${themeColors.surface}40`}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+              >
+                {isMuted || volume === 0 ? (
+                  <VolumeX className="w-5 h-5" />
+                ) : (
+                  <Volume2 className="w-5 h-5" />
+                )}
+              </button>
+              <Slider
+                value={[isMuted ? 0 : volume]}
+                max={100}
+                step={1}
+                onValueChange={handleVolumeChange}
+                className="w-24"
+                style={{
+                  '--slider-track': themeColors.surface,
+                  '--slider-range': themeColors.primary,
+                  '--slider-thumb': themeColors.primary
+                } as React.CSSProperties & { [key: string]: string }}
+              />
+            </div>
           </div>
         </div>
       </div>

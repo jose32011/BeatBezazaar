@@ -1,23 +1,42 @@
 import { Button } from "@/components/ui/button";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useAppBranding } from "@/hooks/useAppBranding";
+import { useThemeHero } from "@/hooks/useThemeHero";
 import { Link } from "wouter";
-import heroBackground from '@assets/generated_images/Hero_background_waveform_visualization_112bcc17.png';
 
 export default function Hero() {
-  const { getThemeColors } = useTheme();
+  const { getThemeColors, isLoading: themeLoading, theme } = useTheme();
   const themeColors = getThemeColors();
+  const { getHeroImage, getHeroImageWithFallback } = useThemeHero();
 
   // Get app branding settings
-  const { heroTitle, heroSubtitle, heroImage, heroButtonText, heroButtonLink } = useAppBranding();
+  const { heroTitle, heroSubtitle, heroImage, heroButtonText, heroButtonLink, isLoading: brandingLoading } = useAppBranding();
 
+  // Show loading state while theme or branding is loading
+  if (themeLoading || brandingLoading) {
+    return (
+      <section className="relative h-[600px] flex items-center justify-center overflow-hidden bg-gray-900">
+        <div className="relative z-10 w-full px-6 text-center">
+          <div className="animate-pulse">
+            <div className="h-16 bg-gray-700 rounded mb-6 mx-auto max-w-md"></div>
+            <div className="h-6 bg-gray-700 rounded mb-8 mx-auto max-w-lg"></div>
+            <div className="h-12 bg-gray-700 rounded mx-auto max-w-xs"></div>
+          </div>
+        </div>
+      </section>
+    );
+  }
+
+  // Get the final hero image - only use custom heroImage if it's actually set (not empty)
+  const imageToUse = getHeroImageWithFallback(heroImage && heroImage.trim() ? heroImage : undefined);
+  
   return (
-    <section className="relative h-[600px] flex items-center justify-center overflow-hidden">
+    <section className="relative h-[600px] flex items-center justify-center overflow-hidden" key={`hero-${theme}`}>
       <div 
-        className="absolute inset-0 bg-cover bg-center"
-            style={{ 
-              backgroundImage: `url(${heroImage || heroBackground})` 
-            }}
+        className="absolute inset-0 bg-cover bg-center transition-all duration-500"
+        style={{ 
+          backgroundImage: `url(${imageToUse})` 
+        }}
       />
       <div 
         className="absolute inset-0"
@@ -51,7 +70,11 @@ export default function Hero() {
           <Link href={heroButtonLink}>
             <Button 
               size="sm" 
-              className="sm:size-lg text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3 drop-shadow-lg shadow-xl"
+              className="sm:size-lg text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3 drop-shadow-lg shadow-xl border-0"
+              style={{
+                backgroundColor: themeColors.primary,
+                color: themeColors.text
+              }}
               data-testid="button-browse-beats"
             >
               {heroButtonText}

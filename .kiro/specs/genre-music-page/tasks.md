@@ -266,5 +266,6 @@
     - Clean up on unmount
     - Preload on hover (optional)
 
-- [ ] 14. Final checkpoint - Ensure all tests pass
-  - Ensure all tests pass, ask the user if questions arise.
+- [x] 14. Final checkpoint - Ensure all tests pass
+  - [x] Fixed failing test for image fallback filename (placeholder-beat.svg vs placeholder-beat.png)
+  - [x] All 38 tests now pass successfully

@@ -192,7 +192,11 @@ const themes: Record<Theme, ThemeColors> = {
 const ThemeContext = createContext<ThemeContextType | undefined>(undefined);
 
 export function ThemeProvider({ children }: { children: ReactNode }) {
-  const [theme, setTheme] = useState<Theme>('original');
+  // Initialize theme from localStorage immediately to prevent flash
+  const [theme, setTheme] = useState<Theme>(() => {
+    const savedTheme = localStorage.getItem('beatbazaar-theme') as Theme;
+    return (savedTheme && themes[savedTheme]) ? savedTheme : 'original';
+  });
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {

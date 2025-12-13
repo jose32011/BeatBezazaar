@@ -1833,3 +1833,43 @@ reen reader only utility class for accessibility */
   white-space: nowrap;
   border-width: 0;
 }
+/* Theme-aware tabs styling - only for tab triggers, not content */
+[data-radix-tabs-trigger][data-state="active"] {
+  background-color: var(--theme-primary) !important;
+  color: #ffffff !important;
+}/* Prevent
+ theme flash on page load */
+html {
+  background-color: #1a1a1a; /* Dark background to match most themes */
+}
+
+/* Smooth theme transitions */
+* {
+  transition: background-color 0.2s ease, color 0.2s ease;
+}/* The
+me-aware slider styling */
+[data-radix-slider-track] {
+  background-color: var(--slider-track, var(--theme-surface)) !important;
+}
+
+[data-radix-slider-range] {
+  background-color: var(--slider-range, var(--theme-primary)) !important;
+}
+
+[data-radix-slider-thumb] {
+  background-color: var(--slider-thumb, var(--theme-primary)) !important;
+  border-color: var(--slider-thumb, var(--theme-primary)) !important;
+}/* Audio Pl
+ayer Footer Theme Styling */
+.audio-player-footer [data-radix-slider-track] {
+  background-color: rgba(255, 255, 255, 0.2) !important;
+}
+
+.audio-player-footer [data-radix-slider-range] {
+  background-color: var(--theme-primary) !important;
+}
+
+.audio-player-footer [data-radix-slider-thumb] {
+  background-color: var(--theme-primary) !important;
+  border-color: var(--theme-primary) !important;
+}
