@@ -231,8 +231,9 @@ function Plans() {
                   <Badge 
                     className="px-4 py-1 text-sm font-semibold"
                     style={{
-                      backgroundColor: themeColors.primary,
-                      color: themeColors.primaryForeground
+                      backgroundColor: themeColors.background,
+                      color: themeColors.text,
+                      border: `1px solid ${themeColors.border}`
                     }}
                   >
                     <Star className="h-3 w-3 mr-1" />
@@ -297,8 +298,9 @@ function Plans() {
                   className="w-full mt-6"
                   size="lg"
                   style={{
-                    backgroundColor: plan.popular ? themeColors.primary : themeColors.secondary,
-                    color: plan.popular ? themeColors.primaryForeground : themeColors.secondaryForeground
+                    backgroundColor: themeColors.background,
+                    color: themeColors.text,
+                    border: `1px solid ${themeColors.border}`
                   }}
                 >
                   {plan.id === "exclusive" ? "Get Exclusive Rights" : "Choose Plan"}
@@ -325,8 +327,9 @@ function Plans() {
                 <div 
                   className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
                   style={{
-                    backgroundColor: themeColors.primary,
-                    color: themeColors.primaryForeground
+                    backgroundColor: themeColors.background,
+                    color: themeColors.text,
+                    border: `1px solid ${themeColors.border}`
                   }}
                 >
                   {getIcon(feature.icon)}

@@ -193,9 +193,12 @@ function Contact() {
                 <div className="flex items-center space-x-4">
                   <div 
                     className="w-12 h-12 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: `${themeColors.primary}20` }}
+                    style={{ 
+                      backgroundColor: themeColors.surface,
+                      border: `1px solid ${themeColors.border}`
+                    }}
                   >
-                    <Mail className="h-6 w-6" style={{ color: themeColors.primary }} />
+                    <Mail className="h-6 w-6" style={{ color: themeColors.text }} />
                   </div>
                   <div>
                     <p className="font-medium" style={{ color: themeColors.foreground }}>Email</p>
@@ -206,9 +209,12 @@ function Contact() {
                 <div className="flex items-center space-x-4">
                   <div 
                     className="w-12 h-12 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: `${themeColors.primary}20` }}
+                    style={{ 
+                      backgroundColor: themeColors.surface,
+                      border: `1px solid ${themeColors.border}`
+                    }}
                   >
-                    <Phone className="h-6 w-6" style={{ color: themeColors.primary }} />
+                    <Phone className="h-6 w-6" style={{ color: themeColors.text }} />
                   </div>
                   <div>
                     <p className="font-medium" style={{ color: themeColors.foreground }}>Phone</p>
@@ -219,9 +225,12 @@ function Contact() {
                 <div className="flex items-center space-x-4">
                   <div 
                     className="w-12 h-12 rounded-lg flex items-center justify-center"
-                    style={{ backgroundColor: `${themeColors.primary}20` }}
+                    style={{ 
+                      backgroundColor: themeColors.surface,
+                      border: `1px solid ${themeColors.border}`
+                    }}
                   >
-                    <MapPin className="h-6 w-6" style={{ color: themeColors.primary }} />
+                    <MapPin className="h-6 w-6" style={{ color: themeColors.text }} />
                   </div>
                   <div>
                     <p className="font-medium" style={{ color: themeColors.foreground }}>Address</p>
@@ -394,8 +403,9 @@ function Contact() {
                   disabled={isSubmitting}
                   className="w-full h-10 sm:h-11 text-sm sm:text-base"
                   style={{
-                    backgroundColor: themeColors.primary,
-                    color: themeColors.primaryForeground
+                    backgroundColor: themeColors.background,
+                    color: themeColors.text,
+                    border: `1px solid ${themeColors.border}`
                   }}
                 >
                   {isSubmitting ? (

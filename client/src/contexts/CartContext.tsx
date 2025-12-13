@@ -9,11 +9,13 @@ interface CartContextType {
   cart: Beat[];
   cartCount: number;
   isLoading: boolean;
+  isCartOpen: boolean;
   addToCart: (beatId: string) => void;
   removeFromCart: (beatId: string) => void;
   clearCart: () => void;
   isInCart: (beatId: string) => boolean;
   openCart: () => void;
+  closeCart: () => void;
 }
 
 const CartContext = createContext<CartContextType | undefined>(undefined);
@@ -170,23 +172,23 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
 
   const openCart = () => {
     setIsCartOpen(true);
-    // TODO: Implement cart modal/drawer
-    // For now, navigate to a cart page or show a toast
-    toast({
-      title: "Cart",
-      description: `You have ${cart.length} item(s) in your cart`,
-    });
+  };
+
+  const closeCart = () => {
+    setIsCartOpen(false);
   };
 
   const value: CartContextType = {
     cart,
     cartCount: cart.length,
     isLoading,
+    isCartOpen,
     addToCart: handleAddToCart,
     removeFromCart: handleRemoveFromCart,
     clearCart: handleClearCart,
     isInCart,
     openCart,
+    closeCart,
   };
 
   return <CartContext.Provider value={value}>{children}</CartContext.Provider>;

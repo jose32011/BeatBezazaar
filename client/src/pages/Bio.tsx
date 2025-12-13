@@ -174,8 +174,11 @@ function Bio() {
                             }}
                           />
                         ) : (
-                          <div className="w-full h-full flex items-center justify-center" style={{ backgroundColor: themeColors.primary }}>
-                            <Music className="h-16 w-16 text-white" />
+                          <div className="w-full h-full flex items-center justify-center" style={{ 
+                            backgroundColor: themeColors.background,
+                            border: `1px solid ${themeColors.border}`
+                          }}>
+                            <Music className="h-16 w-16" style={{ color: themeColors.text }} />
                           </div>
                         )}
                       </div>

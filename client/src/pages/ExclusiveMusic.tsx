@@ -267,9 +267,12 @@ export default function ExclusiveMusic() {
           <div className="flex justify-center mb-6">
             <div 
               className="w-20 h-20 rounded-full flex items-center justify-center"
-              style={{ backgroundColor: themeColors.primary }}
+              style={{ 
+                backgroundColor: themeColors.background,
+                border: `2px solid ${themeColors.border}`
+              }}
             >
-              <Crown className="h-10 w-10" style={{ color: themeColors.primaryForeground }} />
+              <Crown className="h-10 w-10" style={{ color: themeColors.text }} />
             </div>
           </div>
           <h1 
@@ -292,8 +295,9 @@ export default function ExclusiveMusic() {
                 onClick={() => setLocation('/login?redirect=/exclusive-music')}
                 size="lg"
                 style={{
-                  backgroundColor: themeColors.primary,
-                  color: themeColors.primaryForeground
+                  backgroundColor: themeColors.background,
+                  color: themeColors.text,
+                  border: `1px solid ${themeColors.border}`
                 }}
               >
                 Sign In to Access
@@ -324,8 +328,9 @@ export default function ExclusiveMusic() {
                   onClick={() => setLocation('/plans?upgrade=exclusive')}
                   className="w-full"
                   style={{
-                    backgroundColor: themeColors.primary,
-                    color: themeColors.primaryForeground
+                    backgroundColor: themeColors.background,
+                    color: themeColors.text,
+                    border: `1px solid ${themeColors.border}`
                   }}
                 >
                   Upgrade Plan
@@ -554,8 +559,9 @@ export default function ExclusiveMusic() {
                         <div 
                           className="px-2 py-1 rounded-full text-xs font-semibold flex items-center gap-1"
                           style={{
-                            backgroundColor: themeColors.primary,
-                            color: themeColors.primaryForeground
+                            backgroundColor: themeColors.background,
+                            color: themeColors.text,
+                            border: `1px solid ${themeColors.border}`
                           }}
                         >
                           {getPlanIcon(beat.exclusivePlan || 'premium')}

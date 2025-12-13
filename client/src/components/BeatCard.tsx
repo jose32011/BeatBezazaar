@@ -113,8 +113,9 @@ export default function BeatCard({
             size="icon"
             className={`h-16 w-16 rounded-full theme-button-primary transition-all duration-200 focus-visible:outline-none focus-visible:ring-4 focus-visible:ring-offset-2 ${isPlaying ? 'ring-4 ring-offset-2 scale-110' : 'hover:scale-105'}`}
             style={{ 
-              backgroundColor: hasAudioError ? themeColors.textSecondary : themeColors.primary,
-              color: '#ffffff',
+              backgroundColor: hasAudioError ? themeColors.textSecondary : themeColors.background,
+              color: themeColors.text,
+              border: `2px solid ${themeColors.border}`,
               cursor: hasAudioError ? 'not-allowed' : 'pointer',
             }}
             onClick={(e) => {
@@ -240,9 +241,9 @@ export default function BeatCard({
                 disabled
                 onClick={(e) => e.stopPropagation()}
                 style={{ 
-                  backgroundColor: themeColors.primary + '20',
-                  color: themeColors.primary,
-                  borderColor: themeColors.primary,
+                  backgroundColor: themeColors.background,
+                  color: themeColors.text,
+                  borderColor: themeColors.border,
                   cursor: 'not-allowed'
                 }}
                 aria-label={`${beat.title} is already owned`}
@@ -259,9 +260,9 @@ export default function BeatCard({
                 disabled
                 onClick={(e) => e.stopPropagation()}
                 style={{ 
-                  backgroundColor: themeColors.primary + '20',
-                  color: themeColors.primary,
-                  borderColor: themeColors.primary,
+                  backgroundColor: themeColors.background,
+                  color: themeColors.text,
+                  borderColor: themeColors.border,
                   cursor: 'not-allowed'
                 }}
                 aria-label={`${beat.title} is already in cart`}

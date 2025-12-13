@@ -5,11 +5,12 @@ import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
-import { CartProvider } from "@/contexts/CartContext";
+import { CartProvider, useCart } from "@/contexts/CartContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AudioProvider } from "@/contexts/AudioContext";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
 import PasswordChangeModal from "@/components/PasswordChangeModal";
+import CartSidebar from "@/components/CartSidebar";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Home from "@/pages/Home";
 import Login from "@/pages/Login";
@@ -75,6 +76,7 @@ function Router() {
 
 function AppContent() {
   const { showPasswordChangeModal, setShowPasswordChangeModal, user } = useAuth();
+  const { isCartOpen, closeCart } = useCart();
 
   const handlePasswordChangeSuccess = () => {
     setShowPasswordChangeModal(false);
@@ -90,6 +92,10 @@ function AppContent() {
         onClose={() => setShowPasswordChangeModal(false)}
         onSuccess={handlePasswordChangeSuccess}
         isRequired={user?.passwordChangeRequired}
+      />
+      <CartSidebar
+        isOpen={isCartOpen}
+        onClose={closeCart}
       />
     </>
   );
