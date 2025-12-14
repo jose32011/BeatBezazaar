@@ -11,6 +11,7 @@ import { AudioProvider } from "@/contexts/AudioContext";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
 import PasswordChangeModal from "@/components/PasswordChangeModal";
 import CartSidebar from "@/components/CartSidebar";
+import AudioPlayerFooter from "@/components/AudioPlayerFooter";
 import ErrorBoundary from "@/components/ErrorBoundary";
 import Home from "@/pages/Home";
 import Login from "@/pages/Login";
@@ -24,6 +25,7 @@ import Contact from "@/pages/Contact";
 import Bio from "@/pages/Bio";
 import Plans from "@/pages/Plans";
 import ExclusiveMusic from "@/pages/ExclusiveMusic";
+import Checkout from "@/pages/Checkout";
 import NotFound from "@/pages/not-found";
 import Setup from "@/pages/Setup";
 
@@ -48,6 +50,7 @@ function Router() {
       <Route path="/bio" component={Bio} />
       <Route path="/plans" component={Plans} />
       <Route path="/exclusive-music" component={ExclusiveMusic} />
+      <Route path="/checkout" component={Checkout} />
       <Route path="/music">
         <ErrorBoundary>
           <Suspense fallback={<div className="min-h-screen flex items-center justify-center">Loading...</div>}>
@@ -97,6 +100,7 @@ function AppContent() {
         isOpen={isCartOpen}
         onClose={closeCart}
       />
+      <AudioPlayerFooter />
     </>
   );
 }

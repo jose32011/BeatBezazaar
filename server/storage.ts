@@ -5,10 +5,11 @@ import AdmZip from "adm-zip";
 import { 
   stripeSettings,
   stripeTransactions,
-  homeSettings
+  homeSettings,
+  paypalSettings
 } from "@shared/schema";
 // import types from schema as needed below to avoid circular/type noise
-import type { StripeSettings, InsertStripeSettings, StripeTransaction, InsertStripeTransaction } from "@shared/schema";
+import type { StripeSettings, InsertStripeSettings, StripeTransaction, InsertStripeTransaction, PayPalSettings, InsertPayPalSettings } from "@shared/schema";
 import { 
   type User, 
   type InsertUser,
@@ -235,6 +236,10 @@ export interface IStorage {
   // Stripe settings operations
   getStripeSettings(): Promise<StripeSettings | undefined>;
   updateStripeSettings(settings: Partial<InsertStripeSettings>): Promise<StripeSettings>;
+  
+  // PayPal settings operations
+  getPayPalSettings(): Promise<PayPalSettings | undefined>;
+  updatePayPalSettings(settings: Partial<InsertPayPalSettings>): Promise<PayPalSettings>;
   
   // Stripe transaction operations
   createStripeTransaction(transaction: InsertStripeTransaction): Promise<StripeTransaction>;
@@ -1641,9 +1646,9 @@ export class DatabaseStorage implements IStorage {
   // Playlist operations
   async getUserPlaylist(userId: string): Promise<Beat[]> {
     try {
-      // Get all beats that the user has purchased
+      // Get all beats that the user has purchased (distinct to avoid duplicates)
       const result = await db
-        .select({
+        .selectDistinct({
           id: beats.id,
           title: beats.title,
           producer: beats.producer,
@@ -1657,7 +1662,7 @@ export class DatabaseStorage implements IStorage {
         .from(beats)
         .innerJoin(purchases, eq(beats.id, purchases.beatId))
         .where(eq(purchases.userId, userId))
-        .orderBy(desc(purchases.purchasedAt));
+        .orderBy(desc(beats.createdAt)); // Order by beat creation date since we can't use purchases.purchasedAt with distinct
       
       return result as Beat[];
     } catch (error) {
@@ -2643,6 +2648,63 @@ private async deleteAllUploadedFiles(): Promise<void> {
       }
     } catch (error) {
       console.error("Error updating Stripe settings:", error);
+      throw error;
+    }
+  }
+
+  // PayPal Settings Operations
+  async getPayPalSettings(): Promise<PayPalSettings | undefined> {
+    try {
+      if (!postgresConfigured) {
+        return {
+          id: 'default',
+          enabled: false,
+          clientId: '',
+          clientSecret: '',
+          sandbox: true,
+          webhookId: '',
+          createdAt: new Date(),
+          updatedAt: new Date(),
+        } as PayPalSettings;
+      }
+
+      const result = await db.select().from(paypalSettings).limit(1);
+      return result[0];
+    } catch (error) {
+      console.error("Error getting PayPal settings:", error);
+      return undefined;
+    }
+  }
+
+  async updatePayPalSettings(settings: Partial<InsertPayPalSettings>): Promise<PayPalSettings> {
+    try {
+      const existing = await this.getPayPalSettings();
+      const now = new Date();
+
+      if (existing) {
+        const updated = await db
+          .update(paypalSettings)
+          .set({ ...settings, updatedAt: now })
+          .where(eq(paypalSettings.id, existing.id))
+          .returning();
+        return updated[0];
+      } else {
+        const newSettings: InsertPayPalSettings = {
+          id: randomUUID(),
+          enabled: false,
+          clientId: "",
+          clientSecret: "",
+          sandbox: true,
+          webhookId: "",
+          ...settings,
+          createdAt: now,
+          updatedAt: now,
+        };
+        const created = await db.insert(paypalSettings).values(newSettings).returning();
+        return created[0];
+      }
+    } catch (error) {
+      console.error("Error updating PayPal settings:", error);
       throw error;
     }
   }

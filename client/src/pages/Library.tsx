@@ -5,7 +5,6 @@ import { useLocation } from "wouter";
 import { useState, useMemo } from "react";
 import Header from "@/components/Header";
 import BeatCard from "@/components/BeatCard";
-import AudioPlayerFooter from "@/components/AudioPlayerFooter";
 import { Button } from "@/components/ui/button";
 import { Music, ChevronLeft, ChevronRight } from "lucide-react";
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
@@ -333,8 +332,6 @@ export default function Library() {
           )}
         </div>
       </div>
-
-      <AudioPlayerFooter />
     </>
   );
 }

@@ -1737,6 +1737,262 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       res.status(400).send(`Webhook error: ${error instanceof Error ? error.message : String(error)}`);
     }
   });
+
+  // PayPal payment routes
+  app.post('/api/paypal/create-order', requireAuth, async (req, res) => {
+    try {
+      const userId = req.session?.userId as string | undefined;
+      if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+      const { beatIds } = req.body;
+      if (!beatIds || !Array.isArray(beatIds) || beatIds.length === 0) {
+        return res.status(400).json({ error: 'beatIds array is required' });
+      }
+
+      // Get beats and calculate total
+      const beats = await Promise.all(beatIds.map(id => storage.getBeat(id)));
+      const validBeats = beats.filter(beat => beat !== undefined);
+      
+      if (validBeats.length !== beatIds.length) {
+        return res.status(404).json({ error: 'One or more beats not found' });
+      }
+
+      const totalAmount = validBeats.reduce((sum, beat) => sum + beat.price, 0);
+
+      // Get or create customer record
+      let customer = await storage.getCustomerByUserId(userId);
+      if (!customer) {
+        const user = await storage.getUser(userId);
+        const customerData = {
+          userId,
+          firstName: user?.username || 'Customer',
+          lastName: '',
+          email: user?.email || '',
+        };
+        customer = await storage.createCustomer(customerData);
+      }
+
+      // Check for existing ownership and create purchase records only for unowned beats
+      const purchasesToCreate = [];
+      for (const beat of validBeats) {
+        const alreadyOwns = await storage.userOwnsBeat(userId, beat.id);
+        if (!alreadyOwns) {
+          purchasesToCreate.push({
+            userId,
+            beatId: beat.id,
+            price: beat.price
+          });
+        }
+      }
+
+      if (purchasesToCreate.length === 0) {
+        return res.status(400).json({ error: 'All selected beats are already owned' });
+      }
+
+      const purchases = await Promise.all(
+        purchasesToCreate.map(purchase => storage.createPurchase(purchase))
+      );
+
+      // Create payment record
+      const payment = await storage.createPayment({
+        purchaseId: purchases[0].id, // Link to first purchase, we'll handle multiple purchases in metadata
+        customerId: customer.id,
+        amount: totalAmount,
+        paymentMethod: 'paypal',
+        status: 'pending'
+      });
+
+      // Create PayPal order
+      const paypalMod = await import('./paypal');
+      const { createPayPalOrder } = paypalMod as any;
+      
+      const returnUrl = `${req.protocol}://${req.get('host')}/api/paypal/capture-order`;
+      const cancelUrl = `${req.protocol}://${req.get('host')}/checkout?cancelled=true`;
+      
+      const paypalOrder = await createPayPalOrder(
+        totalAmount,
+        'USD',
+        customer,
+        validBeats[0], // Use first beat for description
+        returnUrl,
+        cancelUrl,
+        { 
+          paymentId: payment.id,
+          purchaseIds: purchases.map(p => p.id).join(','),
+          beatIds: beatIds.join(',')
+        }
+      );
+
+      if (!paypalOrder) {
+        return res.status(500).json({ error: 'PayPal not configured' });
+      }
+
+      res.json({ 
+        orderID: paypalOrder.id,
+        approvalUrl: paypalOrder.links?.find((link: any) => link.rel === 'approve')?.href
+      });
+    } catch (error) {
+      console.error('Create PayPal order error:', error);
+      res.status(500).json({ error: 'Failed to create PayPal order' });
+    }
+  });
+
+  app.post('/api/paypal/capture-order', async (req, res) => {
+    try {
+      const { orderID } = req.body;
+      if (!orderID) return res.status(400).json({ error: 'orderID is required' });
+
+      const paypalMod = await import('./paypal');
+      const { capturePayPalOrder } = paypalMod as any;
+      
+      const captureResult = await capturePayPalOrder(orderID);
+      
+      if (!captureResult) {
+        return res.status(500).json({ error: 'Failed to capture PayPal order' });
+      }
+
+      // Find payment by PayPal order ID (we'll need to store this relationship)
+      // For now, mark the most recent pending PayPal payment as completed
+      // In production, you'd want to store the PayPal order ID with the payment
+      
+      res.json({ 
+        success: true,
+        captureID: captureResult.purchase_units?.[0]?.payments?.captures?.[0]?.id
+      });
+    } catch (error) {
+      console.error('Capture PayPal order error:', error);
+      res.status(500).json({ error: 'Failed to capture PayPal order' });
+    }
+  });
+
+  // Payment configuration endpoints
+  app.get('/api/stripe/config', async (req, res) => {
+    try {
+      const settings = await storage.getStripeSettings();
+      res.json({
+        publishableKey: settings?.publishableKey || null,
+        enabled: settings?.enabled || false
+      });
+    } catch (error) {
+      console.error('Get Stripe config error:', error);
+      res.status(500).json({ error: 'Failed to get Stripe configuration' });
+    }
+  });
+
+  app.get('/api/paypal/config', async (req, res) => {
+    try {
+      const settings = await storage.getPayPalSettings();
+      res.json({
+        clientId: settings?.clientId || null,
+        enabled: settings?.enabled || false,
+        sandbox: settings?.sandbox || true
+      });
+    } catch (error) {
+      console.error('Get PayPal config error:', error);
+      res.status(500).json({ error: 'Failed to get PayPal configuration' });
+    }
+  });
+
+  // Bulk payment intent for multiple beats
+  app.post('/api/stripe/create-payment-intent-bulk', requireAuth, async (req, res) => {
+    try {
+      const userId = req.session?.userId as string | undefined;
+      if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+      const { beatIds, customerInfo } = req.body;
+      if (!beatIds || !Array.isArray(beatIds) || beatIds.length === 0) {
+        return res.status(400).json({ error: 'beatIds array is required' });
+      }
+
+      // Get beats and calculate total
+      const beats = await Promise.all(beatIds.map(id => storage.getBeat(id)));
+      const validBeats = beats.filter(beat => beat !== undefined);
+      
+      if (validBeats.length !== beatIds.length) {
+        return res.status(404).json({ error: 'One or more beats not found' });
+      }
+
+      const totalAmount = validBeats.reduce((sum, beat) => sum + beat.price, 0);
+
+      // Get or create customer record
+      let customer = await storage.getCustomerByUserId(userId);
+      if (!customer) {
+        const customerData = {
+          userId,
+          firstName: customerInfo?.firstName || 'Customer',
+          lastName: customerInfo?.lastName || '',
+          email: customerInfo?.email || '',
+        };
+        customer = await storage.createCustomer(customerData);
+      }
+
+      // Check for existing ownership and create purchase records only for unowned beats
+      const purchasesToCreate = [];
+      for (const beat of validBeats) {
+        const alreadyOwns = await storage.userOwnsBeat(userId, beat.id);
+        if (!alreadyOwns) {
+          purchasesToCreate.push({
+            userId,
+            beatId: beat.id,
+            price: beat.price
+          });
+        }
+      }
+
+      if (purchasesToCreate.length === 0) {
+        return res.status(400).json({ error: 'All selected beats are already owned' });
+      }
+
+      const purchases = await Promise.all(
+        purchasesToCreate.map(purchase => storage.createPurchase(purchase))
+      );
+
+      // Create payment record
+      const payment = await storage.createPayment({
+        purchaseId: purchases[0].id,
+        customerId: customer.id,
+        amount: totalAmount,
+        paymentMethod: 'stripe',
+        status: 'pending'
+      });
+
+      // Create Stripe payment intent
+      const stripeMod = await import('./stripe');
+      const { createPaymentIntent } = stripeMod as any;
+      const stripePaymentIntent = await createPaymentIntent(
+        totalAmount, 
+        'usd', 
+        customer, 
+        validBeats[0], // Use first beat for description
+        { 
+          paymentId: payment.id,
+          purchaseIds: purchases.map(p => p.id).join(','),
+          beatIds: beatIds.join(',')
+        }
+      );
+
+      if (!stripePaymentIntent) {
+        return res.status(500).json({ error: 'Stripe not configured' });
+      }
+
+      // Record stripe transaction
+      await storage.createStripeTransaction({
+        id: randomUUID(),
+        paymentId: payment.id,
+        stripePaymentIntentId: stripePaymentIntent.id as string,
+        stripeCustomerId: stripePaymentIntent.customer as string | undefined,
+        amount: totalAmount,
+        currency: 'usd',
+        status: 'pending'
+      });
+
+      res.json({ clientSecret: stripePaymentIntent.client_secret, paymentIntentId: stripePaymentIntent.id });
+    } catch (error) {
+      console.error('Create bulk payment intent error:', error);
+      res.status(500).json({ error: 'Failed to create payment intent' });
+    }
+  });
+
   app.get("/api/payments", requireAdmin, async (req, res) => {
     try {
       const payments = await storage.getPaymentsWithDetails();

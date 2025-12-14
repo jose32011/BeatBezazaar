@@ -10,7 +10,6 @@ import { useAppBranding } from "@/hooks/useAppBranding";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useQuery } from "@tanstack/react-query";
 import Header from "@/components/Header";
-import AudioPlayerFooter from "@/components/AudioPlayerFooter";
 
 interface SocialMediaSettings {
   facebookUrl: string;
@@ -268,7 +267,11 @@ function Contact() {
                   {socialSettings?.facebookUrl && (
                     <Button
                       asChild
-                      className="bg-blue-600 hover:bg-blue-700 text-white flex-1"
+                      className="flex-1"
+                      style={{
+                        backgroundColor: themeColors.primary,
+                        color: 'white'
+                      }}
                     >
                       <a
                         href={socialSettings.facebookUrl}
@@ -284,7 +287,11 @@ function Contact() {
                   {socialSettings?.instagramUrl && (
                     <Button
                       asChild
-                      className="bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600 text-white flex-1"
+                      className="flex-1"
+                      style={{
+                        background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.accent})`,
+                        color: 'white'
+                      }}
                     >
                       <a
                         href={socialSettings.instagramUrl}
@@ -432,7 +439,6 @@ function Contact() {
           </Card>
         </div>
       </div>
-      <AudioPlayerFooter />
     </div>
   );
 }

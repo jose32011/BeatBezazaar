@@ -85,13 +85,9 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   // Remove from cart mutation
   const removeFromCartMutation = useMutation({
     mutationFn: async (beatId: string) => {
-      const response = await fetch("/api/cart/remove", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+      const response = await fetch(`/api/cart/remove/${beatId}`, {
+        method: "DELETE",
         credentials: "include",
-        body: JSON.stringify({ beatId }),
       });
 
       if (!response.ok) {
@@ -122,7 +118,7 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
   const clearCartMutation = useMutation({
     mutationFn: async () => {
       const response = await fetch("/api/cart/clear", {
-        method: "POST",
+        method: "DELETE",
         credentials: "include",
       });
 

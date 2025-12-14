@@ -4,6 +4,7 @@ import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { toast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
+import { useTheme } from "@/contexts/ThemeContext";
 import { Check, X, Clock, CreditCard, Building2, Eye, Search, ChevronLeft, ChevronRight, Menu } from "lucide-react";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
@@ -41,6 +42,8 @@ interface PaymentWithDetails {
 
 export default function PaymentManagement() {
   const queryClient = useQueryClient();
+  const { getThemeColors } = useTheme();
+  const themeColors = getThemeColors();
 
   // Search and pagination state
   const [searchTerm, setSearchTerm] = useState("");
@@ -235,13 +238,50 @@ export default function PaymentManagement() {
   const getStatusBadge = (status: string) => {
     switch (status) {
       case 'pending':
-        return <Badge variant="outline" className="text-red-800 border-red-200"><Clock className="h-3 w-3 mr-1" />Pending</Badge>;
+        return (
+          <Badge 
+            variant="outline" 
+            style={{ 
+              color: '#ef4444', 
+              borderColor: '#ef4444' 
+            }}
+          >
+            <Clock className="h-3 w-3 mr-1" />Pending
+          </Badge>
+        );
       case 'approved':
-        return <Badge variant="default" className="bg-green-600 text-white hover:bg-green-700"><Check className="h-3 w-3 mr-1" />Approved</Badge>;
+        return (
+          <Badge 
+            style={{ 
+              backgroundColor: themeColors.primary, 
+              color: 'white' 
+            }}
+          >
+            <Check className="h-3 w-3 mr-1" />Approved
+          </Badge>
+        );
       case 'rejected':
-        return <Badge variant="destructive" className="bg-red-600 text-white hover:bg-red-700"><X className="h-3 w-3 mr-1" />Rejected</Badge>;
+        return (
+          <Badge 
+            style={{ 
+              backgroundColor: '#ef4444', 
+              color: 'white' 
+            }}
+          >
+            <X className="h-3 w-3 mr-1" />Rejected
+          </Badge>
+        );
       case 'completed':
-        return <Badge variant="secondary" className="bg-blue-600 text-white hover:bg-blue-700"><Check className="h-3 w-3 mr-1" />Completed</Badge>;
+        return (
+          <Badge 
+            style={{ 
+              backgroundColor: themeColors.accent, 
+              color: 'white' 
+            }}
+          >
+            <Check className="h-3 w-3 mr-1" />Completed
+          </Badge>
+        );
       default:
         return <Badge variant="outline">Unknown</Badge>;
     }

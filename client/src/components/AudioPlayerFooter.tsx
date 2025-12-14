@@ -45,7 +45,7 @@ export default function AudioPlayerFooter() {
 
   return (
     <div
-      className="audio-player-footer fixed bottom-0 left-0 right-0 z-50 border-t backdrop-blur-md"
+      className="fixed bottom-0 left-0 right-0 z-50 border-t backdrop-blur-md"
       style={{
         backgroundColor: themeColors.secondary, // Use solid secondary color
         borderColor: themeColors.border,

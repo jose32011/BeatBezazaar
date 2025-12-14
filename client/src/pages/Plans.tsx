@@ -6,7 +6,6 @@ import { Check, Star, Music, Crown, Zap, Shield, Users, Download, Headphones } f
 import { useTheme } from "@/contexts/ThemeContext";
 import { useQuery } from "@tanstack/react-query";
 import Header from "@/components/Header";
-import AudioPlayerFooter from "@/components/AudioPlayerFooter";
 
 interface PlansSettings {
   id?: string;
@@ -136,7 +135,7 @@ function Plans() {
       features: plansSettings.basicPlan.features,
       popular: false,
       icon: <Music className="h-8 w-8" />,
-      color: "bg-blue-500",
+      colorStyle: { backgroundColor: themeColors.primary },
       isActive: plansSettings.basicPlan.isActive
     },
     {
@@ -147,7 +146,7 @@ function Plans() {
       features: plansSettings.premiumPlan.features,
       popular: plansSettings.premiumPlan.isPopular,
       icon: <Crown className="h-8 w-8" />,
-      color: "bg-purple-500",
+      colorStyle: { backgroundColor: themeColors.accent },
       isActive: plansSettings.premiumPlan.isActive
     },
     {
@@ -158,7 +157,9 @@ function Plans() {
       features: plansSettings.exclusivePlan.features,
       popular: false,
       icon: <Star className="h-8 w-8" />,
-      color: "bg-gradient-to-r from-yellow-400 to-orange-500",
+      colorStyle: { 
+        background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.accent})`
+      },
       isActive: plansSettings.exclusivePlan.isActive
     }
   ];
@@ -219,11 +220,12 @@ function Plans() {
             <Card 
               key={plan.id}
               className={`relative group hover:shadow-2xl transition-all duration-300 ${
-                plan.popular ? 'ring-2 ring-purple-500 scale-105' : ''
+                plan.popular ? 'scale-105' : ''
               }`}
               style={{
                 backgroundColor: themeColors.card,
-                borderColor: plan.popular ? themeColors.primary : themeColors.border
+                borderColor: plan.popular ? themeColors.primary : themeColors.border,
+                border: plan.popular ? `2px solid ${themeColors.primary}` : `1px solid ${themeColors.border}`
               }}
             >
               {plan.popular && (
@@ -243,7 +245,10 @@ function Plans() {
               )}
               
               <CardHeader className="text-center pb-4">
-                <div className={`w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center text-white ${plan.color}`}>
+                <div 
+                  className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center text-white"
+                  style={plan.colorStyle}
+                >
                   {plan.icon}
                 </div>
                 <CardTitle 
@@ -381,7 +386,6 @@ function Plans() {
           </div>
         </div>
       </div>
-      <AudioPlayerFooter />
     </div>
   );
 }

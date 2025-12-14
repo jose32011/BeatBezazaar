@@ -158,7 +158,7 @@ export default function Cart({
                       onChange={(e) => setSelectedPaymentMethod(e.target.value)}
                       className="h-4 w-4"
                     />
-                    <Building2 className="h-5 w-5 text-blue-600" />
+                    <Building2 className="h-5 w-5" style={{ color: themeColors.primary }} />
                     <span className="flex-1">Bank Transfer</span>
                     <span className="text-sm text-muted-foreground">Manual approval</span>
                   </label>

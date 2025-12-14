@@ -51,7 +51,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
       
       {/* Sidebar */}
       <div
-        className="fixed right-0 top-0 h-full w-full max-w-md z-50 transform transition-transform duration-300 ease-in-out shadow-2xl"
+        className="fixed right-0 top-0 h-full w-full max-w-md z-50 transform transition-transform duration-300 ease-in-out shadow-2xl flex flex-col"
         style={{
           backgroundColor: themeColors.background,
           borderLeft: `1px solid ${themeColors.border}`,
@@ -84,7 +84,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
         </div>
 
         {/* Cart Content */}
-        <div className="flex flex-col h-full">
+        <div className="flex flex-col flex-1 min-h-0">
           {cart.length === 0 ? (
             /* Empty Cart */
             <div className="flex-1 flex flex-col items-center justify-center p-8 text-center">
@@ -178,7 +178,7 @@ export default function CartSidebar({ isOpen, onClose }: CartSidebarProps) {
 
               {/* Cart Footer */}
               <div
-                className="border-t p-4 space-y-4"
+                className="border-t p-4 space-y-4 pb-32"
                 style={{ borderColor: themeColors.border }}
               >
                 {/* Total */}

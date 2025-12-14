@@ -4,7 +4,6 @@ import { useLocation } from "wouter";
 import Header from "@/components/Header";
 import BeatCard from "@/components/BeatCard";
 import GenreCard from "@/components/GenreCard";
-import AudioPlayerFooter from "@/components/AudioPlayerFooter";
 import { useAuth } from "@/contexts/AuthContext";
 import { useCart } from "@/contexts/CartContext";
 import { useTheme } from "@/contexts/ThemeContext";
@@ -353,9 +352,19 @@ export default function ExclusiveMusic() {
             </h2>
             <div className="grid grid-cols-1 md:grid-cols-3 gap-6 max-w-4xl mx-auto">
               {/* Basic Plan */}
-              <Card className={`text-center ${userPlan?.plan === 'basic' ? 'ring-2 ring-blue-500' : ''}`}>
+              <Card 
+                className="text-center"
+                style={{
+                  backgroundColor: themeColors.card,
+                  borderColor: userPlan?.plan === 'basic' ? themeColors.primary : themeColors.border,
+                  border: userPlan?.plan === 'basic' ? `2px solid ${themeColors.primary}` : `1px solid ${themeColors.border}`
+                }}
+              >
                 <CardHeader>
-                  <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-blue-500 flex items-center justify-center">
+                  <div 
+                    className="w-12 h-12 mx-auto mb-2 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: themeColors.primary }}
+                  >
                     <Music className="h-6 w-6 text-white" />
                   </div>
                   <CardTitle>{plansSettings.basicPlan.name}</CardTitle>
@@ -369,9 +378,19 @@ export default function ExclusiveMusic() {
               </Card>
 
               {/* Premium Plan */}
-              <Card className={`text-center ${userPlan?.plan === 'premium' ? 'ring-2 ring-purple-500' : ''}`}>
+              <Card 
+                className="text-center"
+                style={{
+                  backgroundColor: themeColors.card,
+                  borderColor: userPlan?.plan === 'premium' ? themeColors.primary : themeColors.border,
+                  border: userPlan?.plan === 'premium' ? `2px solid ${themeColors.primary}` : `1px solid ${themeColors.border}`
+                }}
+              >
                 <CardHeader>
-                  <div className="w-12 h-12 mx-auto mb-2 rounded-full bg-purple-500 flex items-center justify-center">
+                  <div 
+                    className="w-12 h-12 mx-auto mb-2 rounded-full flex items-center justify-center"
+                    style={{ backgroundColor: themeColors.accent }}
+                  >
                     <Crown className="h-6 w-6 text-white" />
                   </div>
                   <CardTitle>{plansSettings.premiumPlan.name}</CardTitle>
@@ -576,8 +595,6 @@ export default function ExclusiveMusic() {
           </div>
         </section>
       )}
-      
-      <AudioPlayerFooter />
     </div>
   );
 }

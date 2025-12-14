@@ -1,12 +1,12 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
+import { Card, CardContent } from "@/components/ui/card";
 import { useToast } from "@/hooks/use-toast";
 import { Instagram, Twitter, Youtube, Music, ExternalLink } from "lucide-react";
 import { useAppBranding } from "@/hooks/useAppBranding";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useQuery } from "@tanstack/react-query";
 import Header from "@/components/Header";
-import AudioPlayerFooter from "@/components/AudioPlayerFooter";
 
 interface ArtistBio {
   id: string;
@@ -61,18 +61,8 @@ function Bio() {
   };
 
   const getSocialColor = (platform: string) => {
-    switch (platform) {
-      case 'instagram':
-        return 'bg-gradient-to-r from-purple-500 to-pink-500 hover:from-purple-600 hover:to-pink-600';
-      case 'twitter':
-        return 'bg-blue-400 hover:bg-blue-500';
-      case 'youtube':
-        return 'bg-red-600 hover:bg-red-700';
-      case 'spotify':
-        return 'bg-green-500 hover:bg-green-600';
-      default:
-        return 'bg-gray-600 hover:bg-gray-700';
-    }
+    // Use background color for all social buttons to match theme
+    return '';
   };
 
   if (isLoading) {
@@ -149,28 +139,28 @@ function Bio() {
         ) : (
           <div className="space-y-12 w-4/5 mx-auto">
             {artistBios.map((artist) => (
-              <div 
+              <Card 
                 key={artist.id}
-                className="group hover:opacity-90 transition-all duration-300"
+                className={`group hover:shadow-xl transition-all duration-300 transform hover:-translate-y-2 ${themeColors.cardBackground} border`}
+                style={{
+                  borderColor: themeColors.border
+                }}
               >
-                <div className="flex flex-col md:flex-row items-center md:items-start gap-8 p-6 rounded-lg"
-                     style={{
-                       backgroundColor: themeColors.secondary,
-                       borderColor: themeColors.border,
-                       border: `1px solid ${themeColors.border}`
-                     }}>
+                <CardContent className="flex flex-col md:flex-row items-center md:items-start gap-8 p-6">
                   {/* Artist Image */}
                   <div className="flex-shrink-0">
                     <div className="relative">
                       <div className="w-40 h-40 rounded-full overflow-hidden border-4 shadow-lg group-hover:scale-105 transition-transform duration-300"
-                           style={{ borderColor: themeColors.primary }}>
+                           style={{ borderColor: themeColors.border }}>
                         {artist.imageUrl ? (
                           <img
                             src={artist.imageUrl}
                             alt={artist.name}
                             className="w-full h-full object-cover"
                             onError={(e) => {
-                              e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Crect width='160' height='160' fill='%236366f1'/%3E%3Ctext x='80' y='90' text-anchor='middle' fill='white' font-size='60' font-family='Arial'%3E🎵%3C/text%3E%3C/svg%3E";
+                              const bgColor = encodeURIComponent(themeColors.background);
+                              const textColor = encodeURIComponent(themeColors.text);
+                              e.currentTarget.src = `data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='160' height='160' viewBox='0 0 160 160'%3E%3Crect width='160' height='160' fill='${bgColor}'/%3E%3Ctext x='80' y='90' text-anchor='middle' fill='${textColor}' font-size='60' font-family='Arial'%3E🎵%3C/text%3E%3C/svg%3E`;
                             }}
                           />
                         ) : (
@@ -199,7 +189,7 @@ function Bio() {
                     </h3>
                     <p 
                       className="text-xl font-medium mb-4"
-                      style={{ color: themeColors.primary }}
+                      style={{ color: themeColors.text }}
                     >
                       {artist.role}
                     </p>
@@ -219,7 +209,12 @@ function Bio() {
                             key={platform}
                             asChild
                             size="sm"
-                            className={`${getSocialColor(platform)} text-white`}
+                            className="border"
+                            style={{
+                              backgroundColor: themeColors.background,
+                              color: themeColors.text,
+                              borderColor: themeColors.border
+                            }}
                           >
                             <a
                               href={url}
@@ -235,13 +230,12 @@ function Bio() {
                       })}
                     </div>
                   </div>
-                </div>
-              </div>
+                </CardContent>
+              </Card>
             ))}
           </div>
         )}
       </div>
-      <AudioPlayerFooter />
     </div>
   );
 }

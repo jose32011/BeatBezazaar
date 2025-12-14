@@ -8,7 +8,6 @@ import { useEffect, useState, useMemo } from "react";
 import Header from "@/components/Header";
 import BeatCard from "@/components/BeatCard";
 import GenreCard from "@/components/GenreCard";
-import AudioPlayerFooter from "@/components/AudioPlayerFooter";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -482,7 +481,6 @@ export default function MusicPage() {
           </section>
         </div>
       </div>
-      <AudioPlayerFooter />
     </>
   );
 }

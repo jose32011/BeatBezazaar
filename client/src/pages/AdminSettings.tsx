@@ -1798,25 +1798,57 @@ function AdminSettingsContent() {
                         </p>
                         <div className="flex flex-wrap gap-2">
                           {contactSettings.facebookUrl && (
-                            <Button size="sm" variant="outline" className="bg-blue-600 text-white hover:bg-blue-700">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              style={{
+                                backgroundColor: themeColors.primary,
+                                color: 'white',
+                                borderColor: themeColors.primary
+                              }}
+                            >
                               <Facebook className="h-4 w-4 mr-2" />
                               Facebook
                             </Button>
                           )}
                           {contactSettings.instagramUrl && (
-                            <Button size="sm" variant="outline" className="bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              style={{
+                                background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.accent})`,
+                                color: 'white',
+                                borderColor: themeColors.primary
+                              }}
+                            >
                               <Instagram className="h-4 w-4 mr-2" />
                               Instagram
                             </Button>
                           )}
                           {contactSettings.twitterUrl && (
-                            <Button size="sm" variant="outline" className="bg-blue-400 text-white hover:bg-blue-500">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              style={{
+                                backgroundColor: themeColors.primary,
+                                color: 'white',
+                                borderColor: themeColors.primary
+                              }}
+                            >
                               <Twitter className="h-4 w-4 mr-2" />
                               Twitter
                             </Button>
                           )}
                           {contactSettings.youtubeUrl && (
-                            <Button size="sm" variant="outline" className="bg-red-600 text-white hover:bg-red-700">
+                            <Button 
+                              size="sm" 
+                              variant="outline"
+                              style={{
+                                backgroundColor: '#ef4444',
+                                color: 'white',
+                                borderColor: '#ef4444'
+                              }}
+                            >
                               <Youtube className="h-4 w-4 mr-2" />
                               YouTube
                             </Button>
@@ -3162,19 +3194,43 @@ function AdminSettingsContent() {
                         </Button>
                       )}
                       {contactSettings.instagramUrl && (
-                        <Button size="sm" variant="outline" className="bg-gradient-to-r from-purple-500 to-pink-500 text-white hover:from-purple-600 hover:to-pink-600">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          style={{
+                            background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.accent})`,
+                            color: 'white',
+                            borderColor: themeColors.primary
+                          }}
+                        >
                           <Instagram className="h-4 w-4 mr-2" />
                           Instagram
                         </Button>
                       )}
                       {contactSettings.twitterUrl && (
-                        <Button size="sm" variant="outline" className="bg-blue-400 text-white hover:bg-blue-500">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          style={{
+                            backgroundColor: themeColors.primary,
+                            color: 'white',
+                            borderColor: themeColors.primary
+                          }}
+                        >
                           <Twitter className="h-4 w-4 mr-2" />
                           Twitter
                         </Button>
                       )}
                       {contactSettings.youtubeUrl && (
-                        <Button size="sm" variant="outline" className="bg-red-600 text-white hover:bg-red-700">
+                        <Button 
+                          size="sm" 
+                          variant="outline"
+                          style={{
+                            backgroundColor: '#ef4444',
+                            color: 'white',
+                            borderColor: '#ef4444'
+                          }}
+                        >
                           <Youtube className="h-4 w-4 mr-2" />
                           YouTube
                         </Button>

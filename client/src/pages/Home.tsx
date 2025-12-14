@@ -493,13 +493,13 @@ export default function Home() {
               <ul className="space-y-3">
                 {homeSettings.feature1 && (
                   <li className="flex items-start gap-3">
-                    <span style={{ color: themeColors.primary }}>✓</span>
+                    <span style={{ color: themeColors.text }}>✓</span>
                     <span style={{ color: themeColors.text }}>{homeSettings.feature1}</span>
                   </li>
                 )}
                 {homeSettings.feature2 && (
                   <li className="flex items-start gap-3">
-                    <span style={{ color: themeColors.primary }}>✓</span>
+                    <span style={{ color: themeColors.text }}>✓</span>
                     <span style={{ color: themeColors.text }}>{homeSettings.feature2}</span>
                   </li>
                 )}

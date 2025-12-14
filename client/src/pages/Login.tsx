@@ -281,9 +281,9 @@ export default function Login() {
                     type="submit"
                     className="w-full h-10 sm:h-11 text-sm sm:text-base"
                     style={{
-                      backgroundColor: themeColors.primary,
-                      color: '#ffffff',
-                      border: 'none'
+                      backgroundColor: themeColors.background,
+                      color: themeColors.text,
+                      border: `1px solid ${themeColors.border}`
                     }}
                     disabled={isLoading}
                   >
@@ -294,7 +294,8 @@ export default function Login() {
                     <button
                       type="button"
                       onClick={() => setLocation("/forgot-password")}
-                      className="text-sm text-blue-400 hover:text-blue-300 underline"
+                      className="text-sm underline hover:opacity-80"
+                      style={{ color: themeColors.text }}
                     >
                       Forgot your password?
                     </button>
@@ -311,64 +312,96 @@ export default function Login() {
                   )}
                   
                   <div className="space-y-2">
-                    <Label htmlFor="register-username" className="text-white">Username</Label>
+                    <Label 
+                      htmlFor="register-username"
+                      style={{ color: themeColors.text }}
+                    >
+                      Username
+                    </Label>
                     <div className="relative">
-                      <User className="absolute left-3 top-3 h-4 w-4 text-white/60" />
+                      <User 
+                        className="absolute left-3 top-3 h-4 w-4" 
+                        style={{ color: themeColors.textSecondary }}
+                      />
                       <Input
                         id="register-username"
                         type="text"
                         placeholder="Choose a username"
                         value={registerData.username}
                         onChange={(e) => setRegisterData({ ...registerData, username: e.target.value })}
-                        className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/60"
+                        className="pl-10"
                         required
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="register-email" className="text-white">Email</Label>
+                    <Label 
+                      htmlFor="register-email"
+                      style={{ color: themeColors.text }}
+                    >
+                      Email
+                    </Label>
                     <div className="relative">
-                      <Mail className="absolute left-3 top-3 h-4 w-4 text-white/60" />
+                      <Mail 
+                        className="absolute left-3 top-3 h-4 w-4" 
+                        style={{ color: themeColors.textSecondary }}
+                      />
                       <Input
                         id="register-email"
                         type="email"
                         placeholder="Enter your email"
                         value={registerData.email}
                         onChange={(e) => setRegisterData({ ...registerData, email: e.target.value })}
-                        className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/60"
+                        className="pl-10"
                         required
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="register-password" className="text-white">Password</Label>
+                    <Label 
+                      htmlFor="register-password"
+                      style={{ color: themeColors.text }}
+                    >
+                      Password
+                    </Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-white/60" />
+                      <Lock 
+                        className="absolute left-3 top-3 h-4 w-4" 
+                        style={{ color: themeColors.textSecondary }}
+                      />
                       <Input
                         id="register-password"
                         type="password"
                         placeholder="Create a password"
                         value={registerData.password}
                         onChange={(e) => setRegisterData({ ...registerData, password: e.target.value })}
-                        className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/60"
+                        className="pl-10"
                         required
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="register-confirm-password" className="text-white">Confirm Password</Label>
+                    <Label 
+                      htmlFor="register-confirm-password"
+                      style={{ color: themeColors.text }}
+                    >
+                      Confirm Password
+                    </Label>
                     <div className="relative">
-                      <Lock className="absolute left-3 top-3 h-4 w-4 text-white/60" />
+                      <Lock 
+                        className="absolute left-3 top-3 h-4 w-4" 
+                        style={{ color: themeColors.textSecondary }}
+                      />
                       <Input
                         id="register-confirm-password"
                         type="password"
                         placeholder="Confirm your password"
                         value={registerData.confirmPassword}
                         onChange={(e) => setRegisterData({ ...registerData, confirmPassword: e.target.value })}
-                        className="pl-10 bg-white/10 border-white/20 text-white placeholder:text-white/60"
+                        className="pl-10"
                         required
                       />
                     </div>
@@ -376,40 +409,52 @@ export default function Login() {
 
                   <div className="grid grid-cols-2 gap-4">
                     <div className="space-y-2">
-                      <Label htmlFor="register-first-name" className="text-white">First Name</Label>
+                      <Label 
+                        htmlFor="register-first-name"
+                        style={{ color: themeColors.text }}
+                      >
+                        First Name
+                      </Label>
                       <Input
                         id="register-first-name"
                         type="text"
                         placeholder="First name"
                         value={registerData.firstName}
                         onChange={(e) => setRegisterData({ ...registerData, firstName: e.target.value })}
-                        className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
                         required
                       />
                     </div>
                     <div className="space-y-2">
-                      <Label htmlFor="register-last-name" className="text-white">Last Name</Label>
+                      <Label 
+                        htmlFor="register-last-name"
+                        style={{ color: themeColors.text }}
+                      >
+                        Last Name
+                      </Label>
                       <Input
                         id="register-last-name"
                         type="text"
                         placeholder="Last name"
                         value={registerData.lastName}
                         onChange={(e) => setRegisterData({ ...registerData, lastName: e.target.value })}
-                        className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
                         required
                       />
                     </div>
                   </div>
 
                   <div className="space-y-2">
-                    <Label htmlFor="register-phone" className="text-white">Phone (Optional)</Label>
+                    <Label 
+                      htmlFor="register-phone"
+                      style={{ color: themeColors.text }}
+                    >
+                      Phone (Optional)
+                    </Label>
                     <Input
                       id="register-phone"
                       type="tel"
                       placeholder="Phone number"
                       value={registerData.phone}
                       onChange={(e) => setRegisterData({ ...registerData, phone: e.target.value })}
-                      className="bg-white/10 border-white/20 text-white placeholder:text-white/60"
                     />
                   </div>
 
@@ -423,9 +468,9 @@ export default function Login() {
                     type="submit"
                     className="w-full h-10 sm:h-11 text-sm sm:text-base"
                     style={{
-                      backgroundColor: themeColors.primary,
-                      color: '#ffffff',
-                      border: 'none'
+                      backgroundColor: themeColors.background,
+                      color: themeColors.text,
+                      border: `1px solid ${themeColors.border}`
                     }}
                     disabled={isLoading}
                   >
@@ -437,7 +482,13 @@ export default function Login() {
             </Tabs>
           </CardContent>
           <div className="text-center mt-2 mb-5">
-            <a href="/" className="text-white/80 text-sm">Home</a>
+            <a 
+              href="/" 
+              className="text-sm hover:opacity-80"
+              style={{ color: themeColors.textSecondary }}
+            >
+              Home
+            </a>
           </div>
         </Card>
 

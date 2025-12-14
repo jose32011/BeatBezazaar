@@ -104,3 +104,24 @@ export const insertAppBrandingSettingsSchema = createInsertSchema(appBrandingSet
 
 export type InsertAppBrandingSettings = typeof appBrandingSettings.$inferInsert;
 export type AppBrandingSettings = typeof appBrandingSettings.$inferSelect;
+
+// PayPal Settings
+export const paypalSettings = pgTable("paypal_settings", {
+  id: text("id").primaryKey().$defaultFn(() => crypto.randomUUID()),
+  enabled: boolean("enabled").notNull().default(false),
+  clientId: text("client_id").notNull().default(""),
+  clientSecret: text("client_secret").notNull().default(""),
+  sandbox: boolean("sandbox").notNull().default(true),
+  webhookId: text("webhook_id").notNull().default(""),
+  createdAt: timestamp("created_at").defaultNow().notNull(),
+  updatedAt: timestamp("updated_at").defaultNow().notNull(),
+});
+
+export const insertPayPalSettingsSchema = createInsertSchema(paypalSettings).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+});
+
+export type InsertPayPalSettings = typeof paypalSettings.$inferInsert;
+export type PayPalSettings = typeof paypalSettings.$inferSelect;

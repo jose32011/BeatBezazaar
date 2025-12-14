@@ -72,8 +72,9 @@ export default function Hero() {
               size="sm" 
               className="sm:size-lg text-sm sm:text-base px-4 sm:px-6 py-2 sm:py-3 drop-shadow-lg shadow-xl border-0"
               style={{
-                backgroundColor: themeColors.primary,
-                color: themeColors.text
+                backgroundColor: themeColors.background,
+                color: themeColors.text,
+                border: `1px solid ${themeColors.border}`
               }}
               data-testid="button-browse-beats"
             >
