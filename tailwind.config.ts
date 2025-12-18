@@ -87,6 +87,13 @@ export default {
         serif: ["var(--font-serif)"],
         mono: ["var(--font-mono)"],
         display: ["var(--font-display)"],
+        poppins: ["var(--font-poppins)"],
+        montserrat: ["var(--font-montserrat)"],
+        roboto: ["var(--font-roboto)"],
+        nunito: ["var(--font-nunito)"],
+        lato: ["var(--font-lato)"],
+        source: ["var(--font-source)"],
+        raleway: ["var(--font-raleway)"],
       },
       keyframes: {
         "accordion-down": {

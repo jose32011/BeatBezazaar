@@ -28,7 +28,7 @@ export default function Header({}: HeaderProps = {}) {
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
   // Get app branding settings
-  const { appName, appLogo } = useAppBranding();
+  const { appName, appLogo, isLoading } = useAppBranding();
 
   return (
     <header 
@@ -45,20 +45,31 @@ export default function Header({}: HeaderProps = {}) {
           <div className="flex items-center gap-4">
             <Link href="/">
               <div className="flex items-center gap-2">
-                {appLogo && (
-                  <img 
-                    src={appLogo} 
-                    alt="Logo" 
-                    className="h-8 w-8 object-contain"
-                  />
+                {isLoading ? (
+                  <>
+                    {/* Loading skeleton for logo */}
+                    <div className="h-8 w-8 bg-gray-300 rounded animate-pulse"></div>
+                    {/* Loading skeleton for app name */}
+                    <div className="h-6 w-32 bg-gray-300 rounded animate-pulse"></div>
+                  </>
+                ) : (
+                  <>
+                    {appLogo && (
+                      <img 
+                        src={appLogo} 
+                        alt="Logo" 
+                        className="h-8 w-8 object-contain"
+                      />
+                    )}
+                    <h1 
+                      className="text-xl sm:text-2xl font-bold font-display cursor-pointer" 
+                      data-testid="text-logo"
+                      style={{ color: themeColors.primary }}
+                    >
+                      {appName}
+                    </h1>
+                  </>
                 )}
-                <h1 
-                  className="text-xl sm:text-2xl font-bold font-display cursor-pointer" 
-                  data-testid="text-logo"
-                  style={{ color: themeColors.primary }}
-                >
-                  {appName}
-                </h1>
               </div>
             </Link>
           </div>

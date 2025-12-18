@@ -89,6 +89,7 @@ export const appBrandingSettings = pgTable("app_branding_settings", {
   heroImage: text("hero_image").notNull().default(""),
   heroButtonText: text("hero_button_text").notNull().default("Start Creating"),
   heroButtonLink: text("hero_button_link").notNull().default("/beats"),
+  heroBannerData: text("hero_banner_data").default(""), // JSON string of banner elements
   loginTitle: text("login_title").notNull().default("Welcome Back"),
   loginSubtitle: text("login_subtitle").notNull().default("Sign in to your account to continue"),
   loginImage: text("login_image").notNull().default(""),

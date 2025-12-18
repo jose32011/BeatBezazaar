@@ -2452,22 +2452,25 @@ export class DatabaseStorage implements IStorage {
   // App Branding Settings
   async getAppBrandingSettings(): Promise<AppBrandingSettings | null> {
     try {
+      const defaultSettings = {
+        id: `app-branding-default`,
+        appName: 'BeatBazaar',
+        appLogo: '',
+        heroTitle: 'Discover Your Sound',
+        heroSubtitle: 'Premium beats for every artist. Find your perfect sound and bring your music to life.',
+        heroImage: '',
+        heroButtonText: 'Start Creating',
+        heroButtonLink: '/beats',
+        heroBannerData: '',
+        loginTitle: 'Welcome Back',
+        loginSubtitle: 'Sign in to your account to continue',
+        loginImage: '',
+        createdAt: new Date(),
+        updatedAt: new Date()
+      } as AppBrandingSettings;
+
       if (!postgresConfigured) {
-        return {
-          id: `app-branding-default`,
-          appName: 'BeatBazaar',
-          appLogo: '',
-          heroTitle: 'Discover Your Sound',
-          heroSubtitle: 'Premium beats for every artist. Find your perfect sound and bring your music to life.',
-          heroImage: '',
-          heroButtonText: 'Start Creating',
-          heroButtonLink: '/beats',
-          loginTitle: 'Welcome Back',
-          loginSubtitle: 'Sign in to your account to continue',
-          loginImage: '',
-          createdAt: new Date(),
-          updatedAt: new Date()
-        } as AppBrandingSettings;
+        return defaultSettings;
       }
 
       const result = await db
@@ -2475,7 +2478,7 @@ export class DatabaseStorage implements IStorage {
         .from(appBrandingSettings)
         .limit(1);
 
-      return result[0] || null;
+      return result[0] || defaultSettings;
     } catch (error) {
       console.error("Get app branding settings error:", error);
       throw error;
@@ -2487,11 +2490,14 @@ export class DatabaseStorage implements IStorage {
       const existing = await this.getAppBrandingSettings();
       const now = new Date();
 
+      // Remove timestamp fields from settings to avoid conflicts
+      const { createdAt, updatedAt, id, ...cleanSettings } = settings as any;
+
       if (existing) {
         await db
           .update(appBrandingSettings)
           .set({
-            ...settings,
+            ...cleanSettings,
             updatedAt: now
           })
           .where(eq(appBrandingSettings.id, existing.id));
@@ -2508,7 +2514,7 @@ export class DatabaseStorage implements IStorage {
           .insert(appBrandingSettings)
           .values({
             id: newId as any,
-            ...settings,
+            ...cleanSettings,
             createdAt: now,
             updatedAt: now
           });

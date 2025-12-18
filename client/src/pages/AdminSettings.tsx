@@ -56,10 +56,10 @@ import {
   Globe,
   Type
 } from "lucide-react";
-import GenreManagement from "@/components/GenreManagement";
 import ThemeSelector from "@/components/ThemeSelector";
 import ThemePreview from "@/components/ThemePreview";
 import BackupRestoreManager from "@/components/BackupRestoreManager";
+import HeroBannerCreator from "@/components/HeroBannerCreator";
 
 interface ArtistBio {
   id: string;
@@ -206,8 +206,15 @@ function AdminSettingsContent() {
   const urlParams = new URLSearchParams(location.split('?')[1] || '');
   const tabFromUrl = urlParams.get('tab');
   
-  const [activeTab, setActiveTab] = useState(tabFromUrl || "branding");
+  const [activeTab, setActiveTab] = useState(tabFromUrl || "site-settings");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
+
+  // Reset to first tab when component mounts (when accessed from admin dashboard)
+  useEffect(() => {
+    if (!tabFromUrl) {
+      setActiveTab("site-settings");
+    }
+  }, [tabFromUrl]);
   const [settings, setSettings] = useState<PaymentSettings>({
     paypal: {
       enabled: false,
@@ -423,15 +430,11 @@ function AdminSettingsContent() {
 
   // Navigation menu items
   const menuItems = [
-    { id: "branding", label: "App Branding", icon: Globe, shortLabel: "Branding" },
-    { id: "home-settings", label: "Home Page", icon: Star, shortLabel: "Home" },
-    { id: "site-settings", label: "Site Settings", icon: MessageSquare, shortLabel: "Site" },
-    { id: "paypal", label: "PayPal", icon: CreditCard, shortLabel: "PayPal" },
-    { id: "stripe", label: "Stripe", icon: CreditCard, shortLabel: "Stripe" },
-    { id: "bank", label: "Bank Account", icon: Building2, shortLabel: "Bank" },
+    { id: "site-settings", label: "Site Settings", icon: Globe, shortLabel: "Site" },
+    { id: "banner-creator", label: "Banner Creator", icon: Image, shortLabel: "Banners" },
+    { id: "payment-settings", label: "Payment Settings", icon: CreditCard, shortLabel: "Payments" },
     { id: "email", label: "Email Settings", icon: Mail, shortLabel: "Email" },
     { id: "users", label: "Admin Users", icon: Users, shortLabel: "Users" },
-    { id: "genres", label: "Genre Management", icon: Music, shortLabel: "Genres" },
     { id: "themes", label: "Themes", icon: Palette, shortLabel: "Themes" },
     { id: "backup", label: "Backup & Restore", icon: Database, shortLabel: "Backup" },
     { id: "database", label: "Database", icon: Database, shortLabel: "DB" }
@@ -1331,275 +1334,289 @@ function AdminSettingsContent() {
         {/* Content Area */}
         <div className="space-y-6">
 
-          {/* App Branding Settings */}
-          {activeTab === "branding" && (
-            <div className="space-y-6">
-              {/* App Information */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Globe className="h-5 w-5" />
-                    App Information
-                  </CardTitle>
-                  <CardDescription>
-                    Configure your app name and logo that will appear throughout the application
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="appName">App Name</Label>
-                      <Input
-                        id="appName"
-                        value={appBrandingSettings.appName}
-                        onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, appName: e.target.value }))}
-                        placeholder="Enter your app name"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="appLogo">App Logo URL</Label>
-                      <Input
-                        id="appLogo"
-                        value={appBrandingSettings.appLogo}
-                        onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, appLogo: e.target.value }))}
-                        placeholder="https://example.com/logo.png"
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Hero Section */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Type className="h-5 w-5" />
-                    Hero Section
-                  </CardTitle>
-                  <CardDescription>
-                    Customize the main hero section on your homepage
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="heroTitle">Hero Title</Label>
-                      <Input
-                        id="heroTitle"
-                        value={appBrandingSettings.heroTitle}
-                        onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, heroTitle: e.target.value }))}
-                        placeholder="Enter hero title"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="heroSubtitle">Hero Subtitle</Label>
-                      <Textarea
-                        id="heroSubtitle"
-                        value={appBrandingSettings.heroSubtitle}
-                        onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, heroSubtitle: e.target.value }))}
-                        placeholder="Enter hero subtitle"
-                        rows={3}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="heroImage">Hero Image URL</Label>
-                      <Input
-                        id="heroImage"
-                        value={appBrandingSettings.heroImage}
-                        onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, heroImage: e.target.value }))}
-                        placeholder="https://example.com/hero-image.jpg"
-                      />
-                    </div>
-                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="heroButtonText">Button Text</Label>
-                        <Input
-                          id="heroButtonText"
-                          value={appBrandingSettings.heroButtonText}
-                          onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, heroButtonText: e.target.value }))}
-                          placeholder="Enter button text"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="heroButtonLink">Button Link</Label>
-                        <Input
-                          id="heroButtonLink"
-                          value={appBrandingSettings.heroButtonLink}
-                          onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, heroButtonLink: e.target.value }))}
-                          placeholder="/beats"
-                        />
-                      </div>
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-              {/* Login Page */}
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <User className="h-5 w-5" />
-                    Login Page
-                  </CardTitle>
-                  <CardDescription>
-                    Customize the login page appearance and content
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="loginTitle">Login Title</Label>
-                      <Input
-                        id="loginTitle"
-                        value={appBrandingSettings.loginTitle}
-                        onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, loginTitle: e.target.value }))}
-                        placeholder="Enter login title"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="loginSubtitle">Login Subtitle</Label>
-                      <Input
-                        id="loginSubtitle"
-                        value={appBrandingSettings.loginSubtitle}
-                        onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, loginSubtitle: e.target.value }))}
-                        placeholder="Enter login subtitle"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="loginImage">Login Image URL</Label>
-                      <Input
-                        id="loginImage"
-                        value={appBrandingSettings.loginImage}
-                        onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, loginImage: e.target.value }))}
-                        placeholder="https://example.com/login-image.jpg"
-                      />
-                    </div>
-                  </div>
-                </CardContent>
-              </Card>
-
-            </div>
-          )}
-
-          {/* Home Settings */}
-          {activeTab === "home-settings" && (
-            <div className="space-y-6">
-              <Card>
-                <CardHeader>
-                  <CardTitle className="flex items-center gap-2">
-                    <Star className="h-5 w-5" />
-                    Featured Section
-                  </CardTitle>
-                  <CardDescription>
-                    Customize the featured section on your home page with title, description, features, and image
-                  </CardDescription>
-                </CardHeader>
-                <CardContent className="space-y-4">
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label htmlFor="home-title">Section Title</Label>
-                      <Input
-                        id="home-title"
-                        value={homeSettings.title}
-                        onChange={(e) => setHomeSettings(prev => ({ ...prev, title: e.target.value }))}
-                        placeholder="Premium Beats for Your Next Hit"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="home-description">Section Description</Label>
-                      <Textarea
-                        id="home-description"
-                        value={homeSettings.description}
-                        onChange={(e) => setHomeSettings(prev => ({ ...prev, description: e.target.value }))}
-                        placeholder="Discover high-quality beats crafted by professional producers."
-                        rows={3}
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="home-feature1">Feature 1</Label>
-                      <Input
-                        id="home-feature1"
-                        value={homeSettings.feature1}
-                        onChange={(e) => setHomeSettings(prev => ({ ...prev, feature1: e.target.value }))}
-                        placeholder="Instant download after purchase"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="home-feature2">Feature 2</Label>
-                      <Input
-                        id="home-feature2"
-                        value={homeSettings.feature2}
-                        onChange={(e) => setHomeSettings(prev => ({ ...prev, feature2: e.target.value }))}
-                        placeholder="High-quality WAV & MP3 files"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="home-feature3">Feature 3</Label>
-                      <Input
-                        id="home-feature3"
-                        value={homeSettings.feature3}
-                        onChange={(e) => setHomeSettings(prev => ({ ...prev, feature3: e.target.value }))}
-                        placeholder="Professional mixing and mastering"
-                      />
-                    </div>
-                    <div className="space-y-2">
-                      <Label htmlFor="home-image">Featured Image URL</Label>
-                      <Input
-                        id="home-image"
-                        value={homeSettings.imageUrl}
-                        onChange={(e) => setHomeSettings(prev => ({ ...prev, imageUrl: e.target.value }))}
-                        placeholder="https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=600&h=400&fit=crop"
-                      />
-                    </div>
-                    {homeSettings.imageUrl && (
-                      <div className="mt-4">
-                        <Label>Image Preview</Label>
-                        <div className="mt-2 rounded-lg overflow-hidden border max-w-md">
-                          <img
-                            src={homeSettings.imageUrl}
-                            alt="Featured section preview"
-                            className="w-full h-auto object-cover"
-                            onError={(e) => {
-                              e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='400' viewBox='0 0 600 400'%3E%3Crect width='600' height='400' fill='%236366f1'/%3E%3Ctext x='300' y='200' text-anchor='middle' fill='white' font-size='24' font-family='Arial'%3EImage not found%3C/text%3E%3C/svg%3E";
-                            }}
-                          />
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                  <div className="pt-4">
-                    <Button 
-                      onClick={() => saveHomeSettingsMutation.mutate(homeSettings)}
-                      disabled={saveHomeSettingsMutation.isPending}
-                      className="w-full sm:w-auto"
-                    >
-                      <Save className="h-4 w-4 mr-2" />
-                      {saveHomeSettingsMutation.isPending ? 'Saving...' : 'Save Home Settings'}
-                    </Button>
-                  </div>
-                </CardContent>
-              </Card>
-            </div>
-          )}
-
           {/* Site Settings */}
           {activeTab === "site-settings" && (
             <div className="space-y-6">
-              <Tabs defaultValue="contact" className="w-full">
-                <TabsList className="grid w-full grid-cols-3">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold" style={{ color: themeColors.text }}>
+                    Site Settings
+                  </h2>
+                  <p style={{ color: themeColors.textSecondary }}>
+                    Configure your site branding, pages, and content
+                  </p>
+                </div>
+              </div>
+
+              <Tabs defaultValue="branding" className="w-full">
+                <TabsList className="grid w-full grid-cols-2 md:grid-cols-5">
+                  <TabsTrigger value="branding" className="flex items-center gap-2">
+                    <Globe className="h-4 w-4" />
+                    Branding
+                  </TabsTrigger>
+                  <TabsTrigger value="homepage" className="flex items-center gap-2">
+                    <Star className="h-4 w-4" />
+                    Homepage
+                  </TabsTrigger>
                   <TabsTrigger value="contact" className="flex items-center gap-2">
                     <MessageSquare className="h-4 w-4" />
-                    Contact Page
+                    Contact
                   </TabsTrigger>
                   <TabsTrigger value="plans" className="flex items-center gap-2">
                     <Crown className="h-4 w-4" />
-                    Plans Page
+                    Plans
                   </TabsTrigger>
                   <TabsTrigger value="artists" className="flex items-center gap-2">
                     <Users2 className="h-4 w-4" />
-                    Artist Bios
+                    Artists
                   </TabsTrigger>
                 </TabsList>
+
+                {/* App Branding Tab */}
+                <TabsContent value="branding" className="space-y-6 mt-6">
+                  {/* App Information */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Globe className="h-5 w-5" />
+                        App Information
+                      </CardTitle>
+                      <CardDescription>
+                        Configure your app name and logo that will appear throughout the application
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="appName">App Name</Label>
+                          <Input
+                            id="appName"
+                            value={appBrandingSettings.appName}
+                            onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, appName: e.target.value }))}
+                            placeholder="Enter your app name"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="appLogo">App Logo URL</Label>
+                          <Input
+                            id="appLogo"
+                            value={appBrandingSettings.appLogo}
+                            onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, appLogo: e.target.value }))}
+                            placeholder="https://example.com/logo.png"
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Hero Section */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Type className="h-5 w-5" />
+                        Hero Section
+                      </CardTitle>
+                      <CardDescription>
+                        Customize the main hero section on your homepage
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="heroTitle">Hero Title</Label>
+                          <Input
+                            id="heroTitle"
+                            value={appBrandingSettings.heroTitle}
+                            onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, heroTitle: e.target.value }))}
+                            placeholder="Enter hero title"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="heroSubtitle">Hero Subtitle</Label>
+                          <Textarea
+                            id="heroSubtitle"
+                            value={appBrandingSettings.heroSubtitle}
+                            onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, heroSubtitle: e.target.value }))}
+                            placeholder="Enter hero subtitle"
+                            rows={3}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="heroImage">Hero Image URL</Label>
+                          <Input
+                            id="heroImage"
+                            value={appBrandingSettings.heroImage}
+                            onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, heroImage: e.target.value }))}
+                            placeholder="https://example.com/hero-image.jpg"
+                          />
+                        </div>
+                        <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                          <div className="space-y-2">
+                            <Label htmlFor="heroButtonText">Button Text</Label>
+                            <Input
+                              id="heroButtonText"
+                              value={appBrandingSettings.heroButtonText}
+                              onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, heroButtonText: e.target.value }))}
+                              placeholder="Enter button text"
+                            />
+                          </div>
+                          <div className="space-y-2">
+                            <Label htmlFor="heroButtonLink">Button Link</Label>
+                            <Input
+                              id="heroButtonLink"
+                              value={appBrandingSettings.heroButtonLink}
+                              onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, heroButtonLink: e.target.value }))}
+                              placeholder="/beats"
+                            />
+                          </div>
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+
+                  {/* Login Page */}
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <User className="h-5 w-5" />
+                        Login Page
+                      </CardTitle>
+                      <CardDescription>
+                        Customize the login page appearance and content
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="loginTitle">Login Title</Label>
+                          <Input
+                            id="loginTitle"
+                            value={appBrandingSettings.loginTitle}
+                            onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, loginTitle: e.target.value }))}
+                            placeholder="Enter login title"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="loginSubtitle">Login Subtitle</Label>
+                          <Input
+                            id="loginSubtitle"
+                            value={appBrandingSettings.loginSubtitle}
+                            onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, loginSubtitle: e.target.value }))}
+                            placeholder="Enter login subtitle"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="loginImage">Login Image URL</Label>
+                          <Input
+                            id="loginImage"
+                            value={appBrandingSettings.loginImage}
+                            onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, loginImage: e.target.value }))}
+                            placeholder="https://example.com/login-image.jpg"
+                          />
+                        </div>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                {/* Homepage Settings Tab */}
+                <TabsContent value="homepage" className="space-y-6 mt-6">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Star className="h-5 w-5" />
+                        Featured Section
+                      </CardTitle>
+                      <CardDescription>
+                        Customize the featured section on your home page with title, description, features, and image
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-4">
+                      <div className="space-y-4">
+                        <div className="space-y-2">
+                          <Label htmlFor="home-title">Section Title</Label>
+                          <Input
+                            id="home-title"
+                            value={homeSettings.title}
+                            onChange={(e) => setHomeSettings(prev => ({ ...prev, title: e.target.value }))}
+                            placeholder="Premium Beats for Your Next Hit"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="home-description">Section Description</Label>
+                          <Textarea
+                            id="home-description"
+                            value={homeSettings.description}
+                            onChange={(e) => setHomeSettings(prev => ({ ...prev, description: e.target.value }))}
+                            placeholder="Discover high-quality beats crafted by professional producers."
+                            rows={3}
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="home-feature1">Feature 1</Label>
+                          <Input
+                            id="home-feature1"
+                            value={homeSettings.feature1}
+                            onChange={(e) => setHomeSettings(prev => ({ ...prev, feature1: e.target.value }))}
+                            placeholder="Instant download after purchase"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="home-feature2">Feature 2</Label>
+                          <Input
+                            id="home-feature2"
+                            value={homeSettings.feature2}
+                            onChange={(e) => setHomeSettings(prev => ({ ...prev, feature2: e.target.value }))}
+                            placeholder="High-quality WAV & MP3 files"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="home-feature3">Feature 3</Label>
+                          <Input
+                            id="home-feature3"
+                            value={homeSettings.feature3}
+                            onChange={(e) => setHomeSettings(prev => ({ ...prev, feature3: e.target.value }))}
+                            placeholder="Professional mixing and mastering"
+                          />
+                        </div>
+                        <div className="space-y-2">
+                          <Label htmlFor="home-image">Featured Image URL</Label>
+                          <Input
+                            id="home-image"
+                            value={homeSettings.imageUrl}
+                            onChange={(e) => setHomeSettings(prev => ({ ...prev, imageUrl: e.target.value }))}
+                            placeholder="https://images.unsplash.com/photo-1598488035139-bdbb2231ce04?w=600&h=400&fit=crop"
+                          />
+                        </div>
+                        {homeSettings.imageUrl && (
+                          <div className="mt-4">
+                            <Label>Image Preview</Label>
+                            <div className="mt-2 rounded-lg overflow-hidden border max-w-md">
+                              <img
+                                src={homeSettings.imageUrl}
+                                alt="Featured section preview"
+                                className="w-full h-auto object-cover"
+                                onError={(e) => {
+                                  e.currentTarget.src = "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='600' height='400' viewBox='0 0 600 400'%3E%3Crect width='600' height='400' fill='%236366f1'/%3E%3Ctext x='300' y='200' text-anchor='middle' fill='white' font-size='24' font-family='Arial'%3EImage not found%3C/text%3E%3C/svg%3E";
+                                }}
+                              />
+                            </div>
+                          </div>
+                        )}
+                      </div>
+                      <div className="pt-4">
+                        <Button 
+                          onClick={() => saveHomeSettingsMutation.mutate(homeSettings)}
+                          disabled={saveHomeSettingsMutation.isPending}
+                          className="w-full sm:w-auto"
+                        >
+                          <Save className="h-4 w-4 mr-2" />
+                          {saveHomeSettingsMutation.isPending ? 'Saving...' : 'Save Home Settings'}
+                        </Button>
+                      </div>
+                    </CardContent>
+                  </Card>
+                </TabsContent>
 
                 {/* Contact Page Tab */}
                 <TabsContent value="contact" className="space-y-6 mt-6">
@@ -2377,356 +2394,382 @@ function AdminSettingsContent() {
             </div>
           )}
 
-          {/* PayPal Settings */}
-          {activeTab === "paypal" && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5" />
-                  PayPal Configuration
-                </CardTitle>
-                <CardDescription>
-                  Configure PayPal payment processing settings
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">Enable PayPal Payments</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Allow customers to pay using PayPal
-                    </p>
-                  </div>
-                  <Switch
-                    checked={settings.paypal.enabled}
-                    onCheckedChange={(checked) => updatePaypalSetting('enabled', checked)}
-                  />
-                </div>
-
-                {settings.paypal.enabled && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="paypal-client-id">Client ID *</Label>
-                        <Input
-                          id="paypal-client-id"
-                          type="text"
-                          value={settings.paypal.clientId}
-                          onChange={(e) => updatePaypalSetting('clientId', e.target.value)}
-                          placeholder="Enter PayPal Client ID"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="paypal-environment">Environment *</Label>
-                        <select
-                          id="paypal-environment"
-                          value={settings.paypal.environment}
-                          onChange={(e) => updatePaypalSetting('environment', e.target.value)}
-                          className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
-                        >
-                          <option value="sandbox">Sandbox (Testing)</option>
-                          <option value="live">Live (Production)</option>
-                        </select>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="paypal-client-secret">Client Secret *</Label>
-                      <div className="relative">
-                        <Input
-                          id="paypal-client-secret"
-                          type={showSecrets ? "text" : "password"}
-                          value={settings.paypal.clientSecret}
-                          onChange={(e) => updatePaypalSetting('clientSecret', e.target.value)}
-                          placeholder="Enter PayPal Client Secret"
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => setShowSecrets(!showSecrets)}
-                        >
-                          {showSecrets ? (
-                            <EyeOff className="h-4 w-4" />
-                          ) : (
-                            <Eye className="h-4 w-4" />
-                          )}
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="paypal-webhook-id">Webhook ID</Label>
-                      <Input
-                        id="paypal-webhook-id"
-                        type="text"
-                        value={settings.paypal.webhookId}
-                        onChange={(e) => updatePaypalSetting('webhookId', e.target.value)}
-                        placeholder="Enter PayPal Webhook ID (optional)"
-                      />
-                    </div>
-
-                    <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                      <div className="flex items-start gap-2">
-                        <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
-                            PayPal Setup Instructions
-                          </p>
-                          <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
-                            <li>• Create a PayPal Developer account at developer.paypal.com</li>
-                            <li>• Create a new application to get your Client ID and Secret</li>
-                            <li>• Use Sandbox for testing, Live for production</li>
-                            <li>• Configure webhooks for payment notifications</li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+          {/* Banner Creator */}
+          {activeTab === "banner-creator" && (
+            <HeroBannerCreator />
           )}
 
-          {/* Stripe Settings */}
-          {activeTab === "stripe" && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <CreditCard className="h-5 w-5" />
-                  Stripe Configuration
-                </CardTitle>
-                <CardDescription>
-                  Configure Stripe payment processing settings
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">Enable Stripe</Label>
-                    <p className="text-sm text-muted-foreground">Allow customers to pay using Stripe</p>
-                  </div>
-                  <Switch
-                    checked={!!settings.stripe?.enabled}
-                    onCheckedChange={(checked) => updateStripeSetting('enabled', checked)}
-                  />
+          {/* Payment Settings */}
+          {activeTab === "payment-settings" && (
+            <div className="space-y-6">
+              <div className="flex items-center justify-between">
+                <div>
+                  <h2 className="text-2xl font-bold" style={{ color: themeColors.text }}>
+                    Payment Settings
+                  </h2>
+                  <p style={{ color: themeColors.textSecondary }}>
+                    Configure payment methods and processing options
+                  </p>
                 </div>
+              </div>
 
-                {settings.stripe?.enabled && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="stripe-publishable">Publishable Key *</Label>
-                        <Input
-                          id="stripe-publishable"
-                          type="text"
-                          value={settings.stripe?.publishableKey || ''}
-                          onChange={(e) => updateStripeSetting('publishableKey', e.target.value)}
-                          placeholder="pk_test_..."
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="stripe-currency">Currency</Label>
-                        <Input
-                          id="stripe-currency"
-                          type="text"
-                          value={settings.stripe?.currency || 'usd'}
-                          onChange={(e) => updateStripeSetting('currency', e.target.value)}
-                          placeholder="usd"
-                        />
-                      </div>
-                    </div>
+              <Tabs defaultValue="paypal" className="space-y-6">
+                <TabsList className="grid w-full grid-cols-3">
+                  <TabsTrigger value="paypal">PayPal</TabsTrigger>
+                  <TabsTrigger value="stripe">Stripe</TabsTrigger>
+                  <TabsTrigger value="bank">Bank Transfer</TabsTrigger>
+                </TabsList>
 
-                    <div className="space-y-2">
-                      <Label htmlFor="stripe-secret">Secret Key *</Label>
-                      <div className="relative">
-                        <Input
-                          id="stripe-secret"
-                          type={showSecrets ? 'text' : 'password'}
-                          value={settings.stripe?.secretKey || ''}
-                          onChange={(e) => updateStripeSetting('secretKey', e.target.value)}
-                          placeholder="sk_test_..."
-                        />
-                        <Button
-                          type="button"
-                          variant="ghost"
-                          size="sm"
-                          className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
-                          onClick={() => setShowSecrets(!showSecrets)}
-                        >
-                          {showSecrets ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
-                        </Button>
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="stripe-webhook">Webhook Signing Secret</Label>
-                      <Input
-                        id="stripe-webhook"
-                        type="text"
-                        value={settings.stripe?.webhookSecret || ''}
-                        onChange={(e) => updateStripeSetting('webhookSecret', e.target.value)}
-                        placeholder="whsec_..."
-                      />
-                    </div>
-
-                    <div className="flex items-center space-x-2">
-                      <Switch
-                        id="stripe-test-mode"
-                        checked={!!settings.stripe?.testMode}
-                        onCheckedChange={(checked) => updateStripeSetting('testMode', checked)}
-                      />
-                      <Label htmlFor="stripe-test-mode">Test Mode</Label>
-                    </div>
-
-                    <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
-                      <div className="flex items-start gap-2">
-                        <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Stripe Setup Instructions</p>
-                          <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
-                            <li>• Create a Stripe account at dashboard.stripe.com</li>
-                            <li>• Get your Publishable and Secret keys from Developers → API keys</li>
-                            <li>• Use test keys for development and live keys in production</li>
-                            <li>• Configure a webhook endpoint for <code>payment_intent.succeeded</code></li>
-                          </ul>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
-          )}
-
-          {/* Bank Account Settings */}
-          {activeTab === "bank" && (
-            <Card>
-              <CardHeader>
-                <CardTitle className="flex items-center gap-2">
-                  <Building2 className="h-5 w-5" />
-                  Bank Account Configuration
-                </CardTitle>
-                <CardDescription>
-                  Configure bank account details for wire transfers and ACH payments
-                </CardDescription>
-              </CardHeader>
-              <CardContent className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <div className="space-y-0.5">
-                    <Label className="text-base">Enable Bank Transfers</Label>
-                    <p className="text-sm text-muted-foreground">
-                      Allow customers to pay via bank transfer
-                    </p>
-                  </div>
-                  <Switch
-                    checked={settings.bank.enabled}
-                    onCheckedChange={(checked) => updateBankSetting('enabled', checked)}
-                  />
-                </div>
-
-                {settings.bank.enabled && (
-                  <div className="space-y-4">
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="bank-name">Bank Name *</Label>
-                        <Input
-                          id="bank-name"
-                          type="text"
-                          value={settings.bank.bankName}
-                          onChange={(e) => updateBankSetting('bankName', e.target.value)}
-                          placeholder="Enter bank name"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="account-holder">Account Holder Name *</Label>
-                        <Input
-                          id="account-holder"
-                          type="text"
-                          value={settings.bank.accountHolderName}
-                          onChange={(e) => updateBankSetting('accountHolderName', e.target.value)}
-                          placeholder="Enter account holder name"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="account-number">Account Number *</Label>
-                        <Input
-                          id="account-number"
-                          type="text"
-                          value={settings.bank.accountNumber}
-                          onChange={(e) => updateBankSetting('accountNumber', e.target.value)}
-                          placeholder="Enter account number"
-                        />
-                      </div>
-                      <div className="space-y-2">
-                        <Label htmlFor="routing-number">Routing Number *</Label>
-                        <Input
-                          id="routing-number"
-                          type="text"
-                          value={settings.bank.routingNumber}
-                          onChange={(e) => updateBankSetting('routingNumber', e.target.value)}
-                          placeholder="Enter routing number"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="bank-address">Bank Address *</Label>
-                      <Textarea
-                        id="bank-address"
-                        value={settings.bank.bankAddress}
-                        onChange={(e) => updateBankSetting('bankAddress', e.target.value)}
-                        placeholder="Enter complete bank address"
-                        rows={3}
-                      />
-                    </div>
-
-                    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                      <div className="space-y-2">
-                        <Label htmlFor="swift-code">SWIFT Code</Label>
-                        <Input
-                          id="swift-code"
-                          type="text"
-                          value={settings.bank.swiftCode}
-                          onChange={(e) => updateBankSetting('swiftCode', e.target.value)}
-                          placeholder="Enter SWIFT code (for international transfers)"
-                        />
-                      </div>
-                    </div>
-
-                    <div className="space-y-2">
-                      <Label htmlFor="transfer-instructions">Transfer Instructions</Label>
-                      <Textarea
-                        id="transfer-instructions"
-                        value={settings.bank.instructions}
-                        onChange={(e) => updateBankSetting('instructions', e.target.value)}
-                        placeholder="Enter specific instructions for customers making bank transfers"
-                        rows={4}
-                      />
-                    </div>
-
-                    <div className="p-4 bg-amber-50 dark:bg-amber-950/20 rounded-lg">
-                      <div className="flex items-start gap-2">
-                        <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
-                        <div className="space-y-1">
-                          <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
-                            Security Notice
-                          </p>
-                          <p className="text-sm text-amber-800 dark:text-amber-200">
-                            Bank account information is sensitive. Ensure this data is encrypted and stored securely.
-                            Consider using a secure payment processor for handling bank details.
+                <TabsContent value="paypal">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <CreditCard className="h-5 w-5" />
+                        PayPal Configuration
+                      </CardTitle>
+                      <CardDescription>
+                        Configure PayPal payment processing settings
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <Label className="text-base">Enable PayPal Payments</Label>
+                          <p className="text-sm text-muted-foreground">
+                            Allow customers to pay using PayPal
                           </p>
                         </div>
+                        <Switch
+                          checked={settings.paypal.enabled}
+                          onCheckedChange={(checked) => updatePaypalSetting('enabled', checked)}
+                        />
                       </div>
-                    </div>
-                  </div>
-                )}
-              </CardContent>
-            </Card>
+
+                      {settings.paypal.enabled && (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="paypal-client-id">Client ID *</Label>
+                              <Input
+                                id="paypal-client-id"
+                                type="text"
+                                value={settings.paypal.clientId}
+                                onChange={(e) => updatePaypalSetting('clientId', e.target.value)}
+                                placeholder="Enter PayPal Client ID"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="paypal-environment">Environment *</Label>
+                              <select
+                                id="paypal-environment"
+                                value={settings.paypal.environment}
+                                onChange={(e) => updatePaypalSetting('environment', e.target.value)}
+                                className="flex h-10 w-full rounded-md border border-input bg-background px-3 py-2 text-sm ring-offset-background file:border-0 file:bg-transparent file:text-sm file:font-medium placeholder:text-muted-foreground focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-ring focus-visible:ring-offset-2 disabled:cursor-not-allowed disabled:opacity-50"
+                              >
+                                <option value="sandbox">Sandbox (Testing)</option>
+                                <option value="live">Live (Production)</option>
+                              </select>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="paypal-client-secret">Client Secret *</Label>
+                            <div className="relative">
+                              <Input
+                                id="paypal-client-secret"
+                                type={showSecrets ? "text" : "password"}
+                                value={settings.paypal.clientSecret}
+                                onChange={(e) => updatePaypalSetting('clientSecret', e.target.value)}
+                                placeholder="Enter PayPal Client Secret"
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                onClick={() => setShowSecrets(!showSecrets)}
+                              >
+                                {showSecrets ? (
+                                  <EyeOff className="h-4 w-4" />
+                                ) : (
+                                  <Eye className="h-4 w-4" />
+                                )}
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="paypal-webhook-id">Webhook ID</Label>
+                            <Input
+                              id="paypal-webhook-id"
+                              type="text"
+                              value={settings.paypal.webhookId}
+                              onChange={(e) => updatePaypalSetting('webhookId', e.target.value)}
+                              placeholder="Enter PayPal Webhook ID (optional)"
+                            />
+                          </div>
+
+                          <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                            <div className="flex items-start gap-2">
+                              <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                              <div className="space-y-1">
+                                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">
+                                  PayPal Setup Instructions
+                                </p>
+                                <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                                  <li>• Create a PayPal Developer account at developer.paypal.com</li>
+                                  <li>• Create a new application to get your Client ID and Secret</li>
+                                  <li>• Use Sandbox for testing, Live for production</li>
+                                  <li>• Configure webhooks for payment notifications</li>
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="stripe">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <CreditCard className="h-5 w-5" />
+                        Stripe Configuration
+                      </CardTitle>
+                      <CardDescription>
+                        Configure Stripe payment processing settings
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <Label className="text-base">Enable Stripe</Label>
+                          <p className="text-sm text-muted-foreground">Allow customers to pay using Stripe</p>
+                        </div>
+                        <Switch
+                          checked={!!settings.stripe?.enabled}
+                          onCheckedChange={(checked) => updateStripeSetting('enabled', checked)}
+                        />
+                      </div>
+
+                      {settings.stripe?.enabled && (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="stripe-publishable">Publishable Key *</Label>
+                              <Input
+                                id="stripe-publishable"
+                                type="text"
+                                value={settings.stripe?.publishableKey || ''}
+                                onChange={(e) => updateStripeSetting('publishableKey', e.target.value)}
+                                placeholder="pk_test_..."
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="stripe-currency">Currency</Label>
+                              <Input
+                                id="stripe-currency"
+                                type="text"
+                                value={settings.stripe?.currency || 'usd'}
+                                onChange={(e) => updateStripeSetting('currency', e.target.value)}
+                                placeholder="usd"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="stripe-secret">Secret Key *</Label>
+                            <div className="relative">
+                              <Input
+                                id="stripe-secret"
+                                type={showSecrets ? 'text' : 'password'}
+                                value={settings.stripe?.secretKey || ''}
+                                onChange={(e) => updateStripeSetting('secretKey', e.target.value)}
+                                placeholder="sk_test_..."
+                              />
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="absolute right-0 top-0 h-full px-3 py-2 hover:bg-transparent"
+                                onClick={() => setShowSecrets(!showSecrets)}
+                              >
+                                {showSecrets ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                              </Button>
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="stripe-webhook">Webhook Signing Secret</Label>
+                            <Input
+                              id="stripe-webhook"
+                              type="text"
+                              value={settings.stripe?.webhookSecret || ''}
+                              onChange={(e) => updateStripeSetting('webhookSecret', e.target.value)}
+                              placeholder="whsec_..."
+                            />
+                          </div>
+
+                          <div className="flex items-center space-x-2">
+                            <Switch
+                              id="stripe-test-mode"
+                              checked={!!settings.stripe?.testMode}
+                              onCheckedChange={(checked) => updateStripeSetting('testMode', checked)}
+                            />
+                            <Label htmlFor="stripe-test-mode">Test Mode</Label>
+                          </div>
+
+                          <div className="p-4 bg-blue-50 dark:bg-blue-950/20 rounded-lg">
+                            <div className="flex items-start gap-2">
+                              <AlertCircle className="h-5 w-5 text-blue-600 mt-0.5" />
+                              <div className="space-y-1">
+                                <p className="text-sm font-medium text-blue-900 dark:text-blue-100">Stripe Setup Instructions</p>
+                                <ul className="text-sm text-blue-800 dark:text-blue-200 space-y-1">
+                                  <li>• Create a Stripe account at dashboard.stripe.com</li>
+                                  <li>• Get your Publishable and Secret keys from Developers → API keys</li>
+                                  <li>• Use test keys for development and live keys in production</li>
+                                  <li>• Configure a webhook endpoint for <code>payment_intent.succeeded</code></li>
+                                </ul>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+
+                <TabsContent value="bank">
+                  <Card>
+                    <CardHeader>
+                      <CardTitle className="flex items-center gap-2">
+                        <Building2 className="h-5 w-5" />
+                        Bank Account Configuration
+                      </CardTitle>
+                      <CardDescription>
+                        Configure bank account details for wire transfers and ACH payments
+                      </CardDescription>
+                    </CardHeader>
+                    <CardContent className="space-y-6">
+                      <div className="flex items-center justify-between">
+                        <div className="space-y-0.5">
+                          <Label className="text-base">Enable Bank Transfers</Label>
+                          <p className="text-sm text-muted-foreground">
+                            Allow customers to pay via bank transfer
+                          </p>
+                        </div>
+                        <Switch
+                          checked={settings.bank.enabled}
+                          onCheckedChange={(checked) => updateBankSetting('enabled', checked)}
+                        />
+                      </div>
+
+                      {settings.bank.enabled && (
+                        <div className="space-y-4">
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="bank-name">Bank Name *</Label>
+                              <Input
+                                id="bank-name"
+                                type="text"
+                                value={settings.bank.bankName}
+                                onChange={(e) => updateBankSetting('bankName', e.target.value)}
+                                placeholder="Enter bank name"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="account-holder">Account Holder Name *</Label>
+                              <Input
+                                id="account-holder"
+                                type="text"
+                                value={settings.bank.accountHolderName}
+                                onChange={(e) => updateBankSetting('accountHolderName', e.target.value)}
+                                placeholder="Enter account holder name"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="account-number">Account Number *</Label>
+                              <Input
+                                id="account-number"
+                                type="text"
+                                value={settings.bank.accountNumber}
+                                onChange={(e) => updateBankSetting('accountNumber', e.target.value)}
+                                placeholder="Enter account number"
+                              />
+                            </div>
+                            <div className="space-y-2">
+                              <Label htmlFor="routing-number">Routing Number *</Label>
+                              <Input
+                                id="routing-number"
+                                type="text"
+                                value={settings.bank.routingNumber}
+                                onChange={(e) => updateBankSetting('routingNumber', e.target.value)}
+                                placeholder="Enter routing number"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="bank-address">Bank Address *</Label>
+                            <Textarea
+                              id="bank-address"
+                              value={settings.bank.bankAddress}
+                              onChange={(e) => updateBankSetting('bankAddress', e.target.value)}
+                              placeholder="Enter complete bank address"
+                              rows={3}
+                            />
+                          </div>
+
+                          <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                            <div className="space-y-2">
+                              <Label htmlFor="swift-code">SWIFT Code</Label>
+                              <Input
+                                id="swift-code"
+                                type="text"
+                                value={settings.bank.swiftCode}
+                                onChange={(e) => updateBankSetting('swiftCode', e.target.value)}
+                                placeholder="Enter SWIFT code (for international transfers)"
+                              />
+                            </div>
+                          </div>
+
+                          <div className="space-y-2">
+                            <Label htmlFor="transfer-instructions">Transfer Instructions</Label>
+                            <Textarea
+                              id="transfer-instructions"
+                              value={settings.bank.instructions}
+                              onChange={(e) => updateBankSetting('instructions', e.target.value)}
+                              placeholder="Enter specific instructions for customers making bank transfers"
+                              rows={4}
+                            />
+                          </div>
+
+                          <div className="p-4 bg-amber-50 dark:bg-amber-950/20 rounded-lg">
+                            <div className="flex items-start gap-2">
+                              <AlertCircle className="h-5 w-5 text-amber-600 mt-0.5" />
+                              <div className="space-y-1">
+                                <p className="text-sm font-medium text-amber-900 dark:text-amber-100">
+                                  Security Notice
+                                </p>
+                                <p className="text-sm text-amber-800 dark:text-amber-200">
+                                  Bank account information is sensitive. Ensure this data is encrypted and stored securely.
+                                  Consider using a secure payment processor for handling bank details.
+                                </p>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+                      )}
+                    </CardContent>
+                  </Card>
+                </TabsContent>
+              </Tabs>
+            </div>
           )}
 
           {/* Email Settings */}
@@ -3925,10 +3968,7 @@ function AdminSettingsContent() {
             </Card>
           )}
 
-          {/* Genre Management */}
-          {activeTab === "genres" && (
-            <GenreManagement />
-          )}
+
 
           {/* Theme Selection */}
           {activeTab === "themes" && (

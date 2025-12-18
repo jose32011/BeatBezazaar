@@ -2296,6 +2296,10 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
   app.get("/api/app-branding-settings", async (req, res) => {
     try {
       const settings = await storage.getAppBrandingSettings();
+      console.log('🎨 Server: Getting app branding settings:', {
+        hasHeroBannerData: !!settings?.heroBannerData,
+        heroBannerDataLength: settings?.heroBannerData?.length || 0
+      });
       res.json(settings);
     } catch (error) {
       console.error("Get app branding settings error:", error);
@@ -2305,7 +2309,16 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
 
   app.put("/api/admin/app-branding-settings", requireAdmin, async (req, res) => {
     try {
+      console.log('🎨 Server: Updating app branding settings:', {
+        hasHeroBannerData: !!req.body.heroBannerData,
+        heroBannerDataLength: req.body.heroBannerData?.length || 0,
+        heroBannerDataPreview: req.body.heroBannerData ? req.body.heroBannerData.substring(0, 100) + '...' : 'empty'
+      });
       const settings = await storage.updateAppBrandingSettings(req.body);
+      console.log('🎨 Server: Updated settings:', {
+        hasHeroBannerData: !!settings?.heroBannerData,
+        heroBannerDataLength: settings?.heroBannerData?.length || 0
+      });
       res.json(settings);
     } catch (error) {
       console.error("Update app branding settings error:", error);

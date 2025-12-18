@@ -1,5 +1,5 @@
 import { Switch, Route } from "wouter";
-import { lazy, Suspense } from "react";
+import { lazy, Suspense, useEffect } from "react";
 import { queryClient } from "./lib/queryClient";
 import { QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
@@ -9,6 +9,7 @@ import { CartProvider, useCart } from "@/contexts/CartContext";
 import { ThemeProvider } from "@/contexts/ThemeContext";
 import { AudioProvider } from "@/contexts/AudioContext";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
+import { useAppBranding } from "@/hooks/useAppBranding";
 import PasswordChangeModal from "@/components/PasswordChangeModal";
 import CartSidebar from "@/components/CartSidebar";
 import AudioPlayerFooter from "@/components/AudioPlayerFooter";
@@ -80,6 +81,9 @@ function Router() {
 function AppContent() {
   const { showPasswordChangeModal, setShowPasswordChangeModal, user } = useAuth();
   const { isCartOpen, closeCart } = useCart();
+  const { appName, isLoading } = useAppBranding();
+
+  // Document title is now handled in useAppBranding hook
 
   const handlePasswordChangeSuccess = () => {
     setShowPasswordChangeModal(false);

@@ -22,6 +22,7 @@ import BannerCreator from "@/components/BannerCreator";
 import CustomerManagement from "@/components/CustomerManagement";
 import PaymentManagement from "@/components/PaymentManagement";
 import ExclusivePurchaseManager from "@/components/ExclusivePurchaseManager";
+import GenreManagement from "@/components/GenreManagement";
 import AudioPlayer from "@/components/AudioPlayer";
 import AdminSettings from "@/pages/AdminSettings";
 import { useToast } from "@/hooks/use-toast";
@@ -30,7 +31,7 @@ import type { Analytics, Purchase, Beat } from "@shared/schema";
 
 
 interface PurchaseWithDetails extends Purchase {
-  beatTitle?: string;
+  beatTitle: string | null;
   username?: string;
   customerName?: string;
   customerEmail?: string;
@@ -55,6 +56,7 @@ function AdminDashboardContent() {
     { id: "customers", label: "Customers", icon: CustomerIcon, shortLabel: "Customers" },
     { id: "payments", label: "Payments", icon: PaymentIcon, shortLabel: "Payments" },
     { id: "beats", label: "Beat Management", icon: BeatIcon, shortLabel: "Beats" },
+    { id: "genres", label: "Genre Management", icon: Music, shortLabel: "Genres" },
     { id: "settings", label: "Settings", icon: Settings, shortLabel: "Settings" }
   ];
 
@@ -197,12 +199,9 @@ function AdminDashboardContent() {
     queryKey: ['/api/analytics'],
     refetchInterval: 5000, // Refetch every 5 seconds to get updated data
     staleTime: 0, // Always consider data stale
-    cacheTime: 0, // Don't cache data
+    gcTime: 0, // Don't cache data
     refetchOnMount: true, // Always refetch on mount
     refetchOnWindowFocus: true, // Refetch when window gains focus
-    onSuccess: (data) => {
-      console.log('Analytics data received:', data);
-    }
   });
 
   // Debug analytics data changes
@@ -214,7 +213,7 @@ function AdminDashboardContent() {
   const { data: purchases } = useQuery<Purchase[]>({
     queryKey: ['/api/purchases'],
     staleTime: 0, // Always consider data stale
-    cacheTime: 0, // Don't cache data
+    gcTime: 0, // Don't cache data
     refetchOnMount: true, // Always refetch on mount
     refetchOnWindowFocus: true, // Refetch when window gains focus
   });
@@ -222,15 +221,15 @@ function AdminDashboardContent() {
   const { data: beats } = useQuery<Beat[]>({
     queryKey: ['/api/beats'],
     staleTime: 0, // Always consider data stale
-    cacheTime: 0, // Don't cache data
+    gcTime: 0, // Don't cache data
     refetchOnMount: true, // Always refetch on mount
     refetchOnWindowFocus: true, // Refetch when window gains focus
   });
 
-  const { data: customers } = useQuery({
+  const { data: customers } = useQuery<any[]>({
     queryKey: ['/api/customers'],
     staleTime: 0, // Always consider data stale
-    cacheTime: 0, // Don't cache data
+    gcTime: 0, // Don't cache data
     refetchOnMount: true, // Always refetch on mount
     refetchOnWindowFocus: true, // Refetch when window gains focus
   });
@@ -1040,6 +1039,11 @@ function AdminDashboardContent() {
                 </Table>
               </CardContent>
             </Card>
+          )}
+
+          {/* Genre Management */}
+          {activeTab === "genres" && (
+            <GenreManagement />
           )}
 
           {/* Customers */}

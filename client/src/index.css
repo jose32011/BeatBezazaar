@@ -76,10 +76,17 @@
   --chart-4: 30 85% 50%;
   --chart-5: 340 75% 50%;
 
-  --font-sans: Inter, Open Sans, sans-serif;
+  --font-sans: Inter, 'Open Sans', Poppins, Roboto, sans-serif;
   --font-serif: Georgia, serif;
   --font-mono: Menlo, monospace;
-  --font-display: 'Space Grotesk', sans-serif;
+  --font-display: 'Space Grotesk', Montserrat, Raleway, sans-serif;
+  --font-poppins: Poppins, sans-serif;
+  --font-montserrat: Montserrat, sans-serif;
+  --font-roboto: Roboto, sans-serif;
+  --font-nunito: Nunito, sans-serif;
+  --font-lato: Lato, sans-serif;
+  --font-source: 'Source Sans Pro', sans-serif;
+  --font-raleway: Raleway, sans-serif;
   --radius: .5rem;
   --shadow-2xs: 0px 1px 2px 0px hsl(210 20% 10% / 0.05);
   --shadow-xs: 0px 1px 3px 0px hsl(210 20% 10% / 0.08);
@@ -603,19 +610,60 @@
     color: var(--theme-text, #ffffff) !important;
   }
 
-  .dark [data-radix-select-trigger]:hover,
-  .theme-original [data-radix-select-trigger]:hover,
-  .theme-default [data-radix-select-trigger]:hover,
-  .theme-card-match [data-radix-select-trigger]:hover,
-  .theme-black-white [data-radix-select-trigger]:hover,
-  .theme-red-black [data-radix-select-trigger]:hover,
-  .theme-blue-purple [data-radix-select-trigger]:hover,
-  .theme-green-dark [data-radix-select-trigger]:hover,
-  .theme-orange-dark [data-radix-select-trigger]:hover,
-  .theme-pink-purple [data-radix-select-trigger]:hover,
+  /* Theme-specific hover styles for select triggers */
+  .dark [data-radix-select-trigger]:hover {
+    background: rgba(0, 0, 0, 0.4) !important;
+    border-color: #3b82f6 !important;
+  }
+
+  .theme-original [data-radix-select-trigger]:hover {
+    background: rgba(0, 0, 0, 0.3) !important;
+    border-color: #667eea !important;
+  }
+
+  .theme-default [data-radix-select-trigger]:hover {
+    background: rgba(0, 0, 0, 0.2) !important;
+    border-color: #667eea !important;
+  }
+
+  .theme-card-match [data-radix-select-trigger]:hover {
+    background: rgba(0, 0, 0, 0.3) !important;
+    border-color: #667eea !important;
+  }
+
+  .theme-black-white [data-radix-select-trigger]:hover {
+    background: rgba(255, 255, 255, 0.1) !important;
+    border-color: #ffffff !important;
+  }
+
+  .theme-red-black [data-radix-select-trigger]:hover {
+    background: rgba(220, 38, 38, 0.2) !important;
+    border-color: #dc2626 !important;
+  }
+
+  .theme-blue-purple [data-radix-select-trigger]:hover {
+    background: rgba(59, 130, 246, 0.2) !important;
+    border-color: #3b82f6 !important;
+  }
+
+  .theme-green-dark [data-radix-select-trigger]:hover {
+    background: rgba(16, 185, 129, 0.2) !important;
+    border-color: #10b981 !important;
+  }
+
+  .theme-orange-dark [data-radix-select-trigger]:hover {
+    background: rgba(245, 158, 11, 0.2) !important;
+    border-color: #f59e0b !important;
+  }
+
+  .theme-pink-purple [data-radix-select-trigger]:hover {
+    background: rgba(236, 72, 153, 0.2) !important;
+    border-color: #ec4899 !important;
+  }
+
   .theme-cyan-dark [data-radix-select-trigger]:hover {
-    background: var(--theme-surface, rgba(255, 255, 255, 0.15)) !important;
-    border-color: var(--theme-accent, #3b82f6) !important;
+    background: rgba(6, 182, 212, 0.2) !important;
+    border-color: #06b6d4 !important;
   }
 
   /* Dark backgrounds and text for select items */
@@ -691,19 +739,107 @@
     color: #ffffff !important;
   }
 
-  /* Universal select item dark background */
-  [data-radix-select-item] {
+  /* Universal select item dark background - MAXIMUM SPECIFICITY */
+  [data-radix-select-item],
+  [role="option"],
+  .select-item,
+  [data-radix-combobox-item] {
     background: #1f2937 !important;
+    background-color: #1f2937 !important;
     color: #ffffff !important;
   }
 
-  [data-radix-select-item]:hover {
+  [data-radix-select-item]:hover,
+  [data-radix-select-item]:focus,
+  [data-radix-select-item]:active,
+  [role="option"]:hover,
+  [role="option"]:focus,
+  [role="option"]:active,
+  .select-item:hover,
+  .select-item:focus,
+  .select-item:active,
+  [data-radix-combobox-item]:hover,
+  [data-radix-combobox-item]:focus,
+  [data-radix-combobox-item]:active {
     background: #374151 !important;
+    background-color: #374151 !important;
     color: #ffffff !important;
   }
 
-  [data-radix-select-item][data-highlighted] {
+  [data-radix-select-item][data-highlighted],
+  [data-radix-select-item][data-state="checked"],
+  [data-radix-select-item][aria-selected="true"],
+  [role="option"][data-highlighted],
+  [role="option"][data-state="checked"],
+  [role="option"][aria-selected="true"] {
     background: #374151 !important;
+    background-color: #374151 !important;
+    color: #ffffff !important;
+  }
+
+  /* NUCLEAR OPTION - Override ANY white backgrounds in select components */
+  [data-radix-select-content] [style*="background: white"],
+  [data-radix-select-content] [style*="background-color: white"],
+  [data-radix-select-content] [style*="background: #ffffff"],
+  [data-radix-select-content] [style*="background-color: #ffffff"],
+  [data-radix-select-content] [style*="background: #fff"],
+  [data-radix-select-content] [style*="background-color: #fff"] {
+    background: #1f2937 !important;
+    background-color: #1f2937 !important;
+    color: #ffffff !important;
+  }
+
+  [data-radix-select-content] [style*="background: white"]:hover,
+  [data-radix-select-content] [style*="background-color: white"]:hover,
+  [data-radix-select-content] [style*="background: #ffffff"]:hover,
+  [data-radix-select-content] [style*="background-color: #ffffff"]:hover,
+  [data-radix-select-content] [style*="background: #fff"]:hover,
+  [data-radix-select-content] [style*="background-color: #fff"]:hover {
+    background: #374151 !important;
+    background-color: #374151 !important;
+    color: #ffffff !important;
+  }
+
+  /* Prevent any white backgrounds on combo box elements */
+  [data-radix-select-trigger]:hover,
+  [data-radix-combobox-trigger]:hover,
+  .combobox-trigger:hover,
+  .select-trigger:hover {
+    background: rgba(0, 0, 0, 0.3) !important;
+  }
+
+  /* Override any potential white backgrounds */
+  [style*="background: white"]:hover,
+  [style*="background-color: white"]:hover,
+  [style*="background: #ffffff"]:hover,
+  [style*="background-color: #ffffff"]:hover {
+    background: rgba(0, 0, 0, 0.2) !important;
+  }
+
+  /* ULTIMATE FALLBACK - Force all select-related elements to have dark backgrounds */
+  * [data-radix-select-item],
+  * [role="option"],
+  * .select-item,
+  * [data-radix-combobox-item],
+  body [data-radix-select-item],
+  body [role="option"],
+  body .select-item,
+  body [data-radix-combobox-item] {
+    background: #1f2937 !important;
+    background-color: #1f2937 !important;
+    color: #ffffff !important;
+  }
+
+  * [data-radix-select-item]:hover,
+  * [role="option"]:hover,
+  * .select-item:hover,
+  * [data-radix-combobox-item]:hover,
+  body [data-radix-select-item]:hover,
+  body [role="option"]:hover,
+  body .select-item:hover,
+  body [data-radix-combobox-item]:hover {
+    background: #374151 !important;
+    background-color: #374151 !important;
     color: #ffffff !important;
   }
 
@@ -1882,4 +2018,214 @@ body {
   body {
     padding-bottom: 100px; /* Height for mobile player */
   }
+}/* Fon
+t Family Background Fixes - Prevent white backgrounds on font elements */
+.font-poppins,
+.font-montserrat,
+.font-roboto,
+.font-nunito,
+.font-lato,
+.font-source,
+.font-raleway,
+.font-display,
+.font-sans,
+.font-serif,
+.font-mono {
+  background: transparent !important;
+}
+
+/* Ensure font elements inherit theme colors properly */
+.theme-original .font-poppins,
+.theme-original .font-montserrat,
+.theme-original .font-roboto,
+.theme-original .font-nunito,
+.theme-original .font-lato,
+.theme-original .font-source,
+.theme-original .font-raleway,
+.theme-original .font-display,
+.theme-original .font-sans,
+.theme-original .font-serif,
+.theme-original .font-mono,
+.theme-default .font-poppins,
+.theme-default .font-montserrat,
+.theme-default .font-roboto,
+.theme-default .font-nunito,
+.theme-default .font-lato,
+.theme-default .font-source,
+.theme-default .font-raleway,
+.theme-default .font-display,
+.theme-default .font-sans,
+.theme-default .font-serif,
+.theme-default .font-mono,
+.theme-card-match .font-poppins,
+.theme-card-match .font-montserrat,
+.theme-card-match .font-roboto,
+.theme-card-match .font-nunito,
+.theme-card-match .font-lato,
+.theme-card-match .font-source,
+.theme-card-match .font-raleway,
+.theme-card-match .font-display,
+.theme-card-match .font-sans,
+.theme-card-match .font-serif,
+.theme-card-match .font-mono,
+.theme-black-white .font-poppins,
+.theme-black-white .font-montserrat,
+.theme-black-white .font-roboto,
+.theme-black-white .font-nunito,
+.theme-black-white .font-lato,
+.theme-black-white .font-source,
+.theme-black-white .font-raleway,
+.theme-black-white .font-display,
+.theme-black-white .font-sans,
+.theme-black-white .font-serif,
+.theme-black-white .font-mono,
+.theme-red-black .font-poppins,
+.theme-red-black .font-montserrat,
+.theme-red-black .font-roboto,
+.theme-red-black .font-nunito,
+.theme-red-black .font-lato,
+.theme-red-black .font-source,
+.theme-red-black .font-raleway,
+.theme-red-black .font-display,
+.theme-red-black .font-sans,
+.theme-red-black .font-serif,
+.theme-red-black .font-mono,
+.theme-blue-purple .font-poppins,
+.theme-blue-purple .font-montserrat,
+.theme-blue-purple .font-roboto,
+.theme-blue-purple .font-nunito,
+.theme-blue-purple .font-lato,
+.theme-blue-purple .font-source,
+.theme-blue-purple .font-raleway,
+.theme-blue-purple .font-display,
+.theme-blue-purple .font-sans,
+.theme-blue-purple .font-serif,
+.theme-blue-purple .font-mono,
+.theme-green-dark .font-poppins,
+.theme-green-dark .font-montserrat,
+.theme-green-dark .font-roboto,
+.theme-green-dark .font-nunito,
+.theme-green-dark .font-lato,
+.theme-green-dark .font-source,
+.theme-green-dark .font-raleway,
+.theme-green-dark .font-display,
+.theme-green-dark .font-sans,
+.theme-green-dark .font-serif,
+.theme-green-dark .font-mono,
+.theme-orange-dark .font-poppins,
+.theme-orange-dark .font-montserrat,
+.theme-orange-dark .font-roboto,
+.theme-orange-dark .font-nunito,
+.theme-orange-dark .font-lato,
+.theme-orange-dark .font-source,
+.theme-orange-dark .font-raleway,
+.theme-orange-dark .font-display,
+.theme-orange-dark .font-sans,
+.theme-orange-dark .font-serif,
+.theme-orange-dark .font-mono,
+.theme-pink-purple .font-poppins,
+.theme-pink-purple .font-montserrat,
+.theme-pink-purple .font-roboto,
+.theme-pink-purple .font-nunito,
+.theme-pink-purple .font-lato,
+.theme-pink-purple .font-source,
+.theme-pink-purple .font-raleway,
+.theme-pink-purple .font-display,
+.theme-pink-purple .font-sans,
+.theme-pink-purple .font-serif,
+.theme-pink-purple .font-mono,
+.theme-cyan-dark .font-poppins,
+.theme-cyan-dark .font-montserrat,
+.theme-cyan-dark .font-roboto,
+.theme-cyan-dark .font-nunito,
+.theme-cyan-dark .font-lato,
+.theme-cyan-dark .font-source,
+.theme-cyan-dark .font-raleway,
+.theme-cyan-dark .font-display,
+.theme-cyan-dark .font-sans,
+.theme-cyan-dark .font-serif,
+.theme-cyan-dark .font-mono {
+  background: transparent !important;
+  color: var(--theme-text) !important;
+}
+
+/* Override any potential white backgrounds on font elements */
+[class*="font-"] {
+  background: transparent !important;
+}
+
+/* Ensure font elements don't inherit white backgrounds from parent elements */
+[class*="font-"]:not([class*="bg-"]) {
+  background: transparent !important;
+}
+
+/* Force transparent backgrounds on any element with font classes */
+.font-poppins:not([class*="bg-"]),
+.font-montserrat:not([class*="bg-"]),
+.font-roboto:not([class*="bg-"]),
+.font-nunito:not([class*="bg-"]),
+.font-lato:not([class*="bg-"]),
+.font-source:not([class*="bg-"]),
+.font-raleway:not([class*="bg-"]),
+.font-display:not([class*="bg-"]),
+.font-sans:not([class*="bg-"]),
+.font-serif:not([class*="bg-"]),
+.font-mono:not([class*="bg-"]) {
+  background: transparent !important;
+}/* Univ
+ersal text color inheritance for all themes */
+.theme-original,
+.theme-default,
+.theme-card-match,
+.theme-black-white,
+.theme-red-black,
+.theme-blue-purple,
+.theme-green-dark,
+.theme-orange-dark,
+.theme-pink-purple,
+.theme-cyan-dark {
+  color: var(--theme-text) !important;
+}
+
+/* Ensure all text elements inherit theme colors */
+.theme-original *:not([class*="text-"]):not([class*="bg-"]),
+.theme-default *:not([class*="text-"]):not([class*="bg-"]),
+.theme-card-match *:not([class*="text-"]):not([class*="bg-"]),
+.theme-black-white *:not([class*="text-"]):not([class*="bg-"]),
+.theme-red-black *:not([class*="text-"]):not([class*="bg-"]),
+.theme-blue-purple *:not([class*="text-"]):not([class*="bg-"]),
+.theme-green-dark *:not([class*="text-"]):not([class*="bg-"]),
+.theme-orange-dark *:not([class*="text-"]):not([class*="bg-"]),
+.theme-pink-purple *:not([class*="text-"]):not([class*="bg-"]),
+.theme-cyan-dark *:not([class*="text-"]):not([class*="bg-"]) {
+  color: inherit !important;
+}
+
+/* Force theme text color on all font elements */
+[class*="font-"] {
+  color: var(--theme-text) !important;
+}
+
+/* Override any hardcoded text colors that might interfere */
+.theme-original [class*="font-"],
+.theme-default [class*="font-"],
+.theme-card-match [class*="font-"],
+.theme-black-white [class*="font-"],
+.theme-red-black [class*="font-"],
+.theme-blue-purple [class*="font-"],
+.theme-green-dark [class*="font-"],
+.theme-orange-dark [class*="font-"],
+.theme-pink-purple [class*="font-"],
+.theme-cyan-dark [class*="font-"] {
+  color: var(--theme-text) !important;
+}
+
+/* Ensure text color changes are applied immediately */
+* {
+  transition: color 0.2s ease !important;
+}
+
+/* Make sure theme text variable is always available */
+:root {
+  --theme-text: #ffffff;
 }
