@@ -60,20 +60,32 @@ export default function Library() {
       });
       
       if (!response.ok) {
-        throw new Error("Failed to download");
+        const errorData = await response.json().catch(() => ({}));
+        throw new Error(errorData.error || "Failed to download");
       }
 
       const blob = await response.blob();
       const url = window.URL.createObjectURL(blob);
       const a = document.createElement("a");
       a.href = url;
-      a.download = `${beat.title} - ${beat.producer}.mp3`;
+      // Clean filename to remove invalid characters
+      const cleanTitle = beat.title.replace(/[<>:"/\\|?*]/g, '');
+      const cleanProducer = beat.producer.replace(/[<>:"/\\|?*]/g, '');
+      a.download = `${cleanProducer} - ${cleanTitle}.mp3`;
       document.body.appendChild(a);
       a.click();
       window.URL.revokeObjectURL(url);
       document.body.removeChild(a);
+      
+      // Track download analytics
+      fetch('/api/analytics/download', { 
+        method: 'POST',
+        credentials: 'include'
+      }).catch(console.error);
+      
     } catch (error) {
       console.error("Download error:", error);
+      // You could add a toast notification here if you have access to it
     }
   };
 

@@ -606,6 +606,26 @@ export default function HeroBannerCreator() {
       }))
     };
     
+    // Auto-detect background type based on banner properties
+    if (bannerCopy.backgroundImage) {
+      setBackgroundType('image');
+    } else if (bannerCopy.backgroundGradient) {
+      setBackgroundType('gradient');
+      // Extract gradient colors if possible
+      const gradientMatch = bannerCopy.backgroundGradient.match(/linear-gradient\(([^,]+),\s*([^,\s]+)[^,]*,\s*([^,\s]+)/);
+      if (gradientMatch) {
+        const direction = gradientMatch[1].trim();
+        const color1 = gradientMatch[2].trim();
+        const color2 = gradientMatch[3].trim();
+        
+        setGradientDirection(direction);
+        setGradientColor1(color1);
+        setGradientColor2(color2);
+      }
+    } else {
+      setBackgroundType('solid');
+    }
+    
     setCurrentBanner(bannerCopy);
     setBannerName(bannerCopy.name);
     setSelectedElement(null);

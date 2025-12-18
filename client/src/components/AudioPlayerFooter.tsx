@@ -13,6 +13,11 @@ export default function AudioPlayerFooter() {
 
   const currentBeat = audioPlayer.currentBeat;
 
+  // Debug logging
+  useEffect(() => {
+    console.log('AudioPlayerFooter render:', { currentBeat, hasCurrentBeat: !!currentBeat });
+  }, [currentBeat]);
+
   // Hide player if no beat is loaded
   if (!currentBeat) {
     return null;
