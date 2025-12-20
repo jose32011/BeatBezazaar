@@ -194,10 +194,12 @@ export default function HeroBannerCreator() {
   const [gradientColor1, setGradientColor1] = useState('#667eea');
   const [gradientColor2, setGradientColor2] = useState('#764ba2');
   const [isUploadingImage, setIsUploadingImage] = useState(false);
+  const [storageUsage, setStorageUsage] = useState({ used: 0, percentage: 0 });
   const canvasRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const backgroundFileInputRef = useRef<HTMLInputElement>(null);
   const elementImageInputRef = useRef<HTMLInputElement>(null);
+  const importFileInputRef = useRef<HTMLInputElement>(null);
 
   // Mutation for updating app branding settings
   const updateAppBrandingMutation = useMutation({
@@ -458,10 +460,279 @@ export default function HeroBannerCreator() {
     return () => window.removeEventListener('storage', handleStorageChange);
   }, []);
 
-  // Save banners to localStorage whenever banners change
+  // Storage monitoring and automatic cleanup scheduler
   React.useEffect(() => {
-    localStorage.setItem('heroBanners', JSON.stringify(banners));
-  }, [banners]); 
+    const updateStorageUsage = () => {
+      const used = getLocalStorageUsage();
+      const quota = getEstimatedQuota();
+      const percentage = (used / quota) * 100;
+      setStorageUsage({ used, percentage });
+    };
+
+    // Update storage usage immediately
+    updateStorageUsage();
+
+    // Set up periodic monitoring
+    const monitoringInterval = setInterval(updateStorageUsage, 30000); // Every 30 seconds
+
+    // Set up automatic cleanup scheduler
+    const cleanupInterval = setInterval(() => {
+      const currentUsage = getLocalStorageUsage();
+      const quota = getEstimatedQuota();
+      const percentage = (currentUsage / quota) * 100;
+
+      // Automatic cleanup when usage exceeds 75%
+      if (percentage > 75) {
+        console.log('Automatic storage cleanup triggered at', percentage.toFixed(1), '% usage');
+        
+        // Clean up temporary and cache items
+        const keysToClean = [];
+        for (let key in localStorage) {
+          if (key.startsWith('temp_') || 
+              key.startsWith('cache_') || 
+              key.includes('_backup_') ||
+              key.includes('_old_') ||
+              key.includes('_draft_')) {
+            keysToClean.push(key);
+          }
+        }
+        
+        keysToClean.forEach(key => {
+          try {
+            localStorage.removeItem(key);
+            console.log('Cleaned up localStorage key:', key);
+          } catch (e) {
+            console.warn('Failed to clean up key:', key, e);
+          }
+        });
+
+        // If still high usage, trigger banner optimization
+        const newUsage = getLocalStorageUsage();
+        const newPercentage = (newUsage / quota) * 100;
+        if (newPercentage > 70) {
+          // Force re-save with optimization
+          setBanners(prevBanners => [...prevBanners]);
+        }
+      }
+    }, 60000); // Every minute
+
+    return () => {
+      clearInterval(monitoringInterval);
+      clearInterval(cleanupInterval);
+    };
+  }, []);
+
+  // Comprehensive localStorage housekeeping utilities
+  const getLocalStorageUsage = () => {
+    let totalSize = 0;
+    for (let key in localStorage) {
+      if (localStorage.hasOwnProperty(key)) {
+        totalSize += localStorage[key].length + key.length;
+      }
+    }
+    return totalSize;
+  };
+
+  const getEstimatedQuota = () => {
+    // Most browsers have 5-10MB localStorage quota
+    // We'll be conservative and assume 5MB
+    return 5 * 1024 * 1024;
+  };
+
+  const performHousekeeping = (bannersToSave: Banner[]) => {
+    const currentUsage = getLocalStorageUsage();
+    const estimatedQuota = getEstimatedQuota();
+    const usagePercentage = (currentUsage / estimatedQuota) * 100;
+
+    console.log(`LocalStorage usage: ${(currentUsage / 1024).toFixed(1)}KB (${usagePercentage.toFixed(1)}%)`);
+
+    // Aggressive housekeeping based on usage levels
+    let optimizedBanners = [...bannersToSave];
+
+    // Level 1: Basic optimization (>60% usage)
+    if (usagePercentage > 60) {
+      optimizedBanners = optimizedBanners.map(banner => ({
+        ...banner,
+        elements: banner.elements.map(element => {
+          if (element.type === 'image' && element.content.startsWith('data:image/')) {
+            // Compress images more aggressively
+            const maxSize = usagePercentage > 80 ? 50000 : 75000;
+            return {
+              ...element,
+              content: element.content.length > maxSize ? 
+                element.content.substring(0, maxSize) + '...[compressed]' : 
+                element.content
+            };
+          }
+          return element;
+        })
+      }));
+    }
+
+    // Level 2: Limit banner count (>70% usage)
+    if (usagePercentage > 70) {
+      const maxBanners = usagePercentage > 85 ? 3 : 5;
+      // Always keep default banner and current banner, then most recent ones
+      const defaultBanner = optimizedBanners.find(b => b.id === 'default-banner');
+      const currentBannerObj = optimizedBanners.find(b => b.id === currentBanner?.id);
+      const otherBanners = optimizedBanners
+        .filter(b => b.id !== 'default-banner' && b.id !== currentBanner?.id)
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+        .slice(0, maxBanners - (defaultBanner ? 1 : 0) - (currentBannerObj ? 1 : 0));
+
+      optimizedBanners = [
+        ...(defaultBanner ? [defaultBanner] : []),
+        ...(currentBannerObj ? [currentBannerObj] : []),
+        ...otherBanners
+      ];
+    }
+
+    // Level 3: Emergency cleanup (>80% usage)
+    if (usagePercentage > 80) {
+      // Clean up other localStorage items that might be taking space
+      const keysToClean = [];
+      for (let key in localStorage) {
+        if (key.startsWith('temp_') || 
+            key.startsWith('cache_') || 
+            key.includes('old_') ||
+            key.includes('backup_')) {
+          keysToClean.push(key);
+        }
+      }
+      keysToClean.forEach(key => {
+        try {
+          localStorage.removeItem(key);
+        } catch (e) {
+          console.warn(`Failed to remove ${key}:`, e);
+        }
+      });
+
+      // Further reduce banner data
+      optimizedBanners = optimizedBanners.map(banner => ({
+        ...banner,
+        elements: banner.elements.map(element => {
+          // Remove non-essential properties
+          const essential: any = {
+            id: element.id,
+            type: element.type,
+            content: element.type === 'image' && element.content.startsWith('data:image/') ?
+              element.content.substring(0, 30000) + '...[emergency-compressed]' :
+              element.content,
+            x: element.x,
+            y: element.y,
+            width: element.width,
+            height: element.height,
+            zIndex: element.zIndex
+          };
+
+          // Only keep essential styling for text/button elements
+          if (element.type !== 'image') {
+            essential.fontSize = element.fontSize;
+            essential.color = element.color;
+            essential.backgroundColor = element.backgroundColor;
+          }
+
+          return essential;
+        })
+      }));
+    }
+
+    return optimizedBanners;
+  };
+
+  // Save banners to localStorage with comprehensive housekeeping
+  React.useEffect(() => {
+    try {
+      // Perform proactive housekeeping
+      const housekeepedBanners = performHousekeeping(banners);
+      const dataToSave = JSON.stringify(housekeepedBanners);
+      
+      // Final size check before saving
+      const currentUsage = getLocalStorageUsage();
+      const estimatedQuota = getEstimatedQuota();
+      const dataSize = dataToSave.length;
+      const projectedUsage = currentUsage + dataSize;
+      const projectedPercentage = (projectedUsage / estimatedQuota) * 100;
+
+      if (projectedPercentage > 90) {
+        // Emergency mode: save only absolute essentials
+        const emergencyBanners = housekeepedBanners
+          .filter(banner => banner.id === 'default-banner' || banner.id === currentBanner?.id)
+          .slice(0, 2)
+          .map(banner => ({
+            id: banner.id,
+            name: banner.name,
+            width: banner.width,
+            height: banner.height,
+            backgroundColor: banner.backgroundColor,
+            elements: banner.elements.slice(0, 3).map(element => ({
+              id: element.id,
+              type: element.type,
+              content: element.type === 'image' ? '[image-removed]' : element.content,
+              x: element.x,
+              y: element.y,
+              width: element.width,
+              height: element.height,
+              zIndex: element.zIndex
+            })),
+            createdAt: banner.createdAt,
+            updatedAt: banner.updatedAt
+          }));
+
+        localStorage.setItem('heroBanners', JSON.stringify(emergencyBanners));
+        
+        toast({
+          title: "Emergency Storage Cleanup",
+          description: "Storage critically full. Saved only essential data. Please export your work immediately.",
+          variant: "destructive"
+        });
+      } else {
+        localStorage.setItem('heroBanners', dataToSave);
+        
+        // Notify user of housekeeping actions
+        if (housekeepedBanners.length < banners.length) {
+          toast({
+            title: "Storage Optimized",
+            description: `Kept ${housekeepedBanners.length} most recent banners to maintain performance.`,
+            variant: "default"
+          });
+        }
+      }
+    } catch (error) {
+      console.error('Failed to save banners to localStorage:', error);
+      
+      if (error instanceof DOMException && error.name === 'QuotaExceededError') {
+        // Final fallback: save only current banner metadata
+        try {
+          const fallbackData = currentBanner ? [{
+            id: currentBanner.id,
+            name: currentBanner.name,
+            width: currentBanner.width,
+            height: currentBanner.height,
+            backgroundColor: currentBanner.backgroundColor,
+            elements: [], // Remove all elements in emergency
+            createdAt: currentBanner.createdAt,
+            updatedAt: currentBanner.updatedAt
+          }] : [];
+          
+          localStorage.setItem('heroBanners', JSON.stringify(fallbackData));
+          
+          toast({
+            title: "Critical Storage Error",
+            description: "Storage completely full. Saved only banner structure. Export your work now!",
+            variant: "destructive"
+          });
+        } catch (finalError) {
+          console.error('Complete localStorage failure:', finalError);
+          toast({
+            title: "Storage Failure",
+            description: "Cannot save to browser storage. Please export your work immediately.",
+            variant: "destructive"
+          });
+        }
+      }
+    }
+  }, [banners, currentBanner?.id, toast]); 
  const createNewBanner = () => {
     const newBanner: Banner = {
       id: Date.now().toString(),
@@ -667,6 +938,275 @@ export default function HeroBannerCreator() {
     });
   };
 
+  const exportBanners = () => {
+    try {
+      const dataToExport = {
+        banners: banners.filter(banner => banner.id !== 'default-banner'), // Don't export default banner
+        exportDate: new Date().toISOString(),
+        version: '1.0'
+      };
+      
+      const dataStr = JSON.stringify(dataToExport, null, 2);
+      const dataBlob = new Blob([dataStr], { type: 'application/json' });
+      const url = URL.createObjectURL(dataBlob);
+      
+      const link = document.createElement('a');
+      link.href = url;
+      link.download = `hero-banners-${new Date().toISOString().split('T')[0]}.json`;
+      document.body.appendChild(link);
+      link.click();
+      document.body.removeChild(link);
+      URL.revokeObjectURL(url);
+      
+      toast({
+        title: "Banners Exported",
+        description: "Your banners have been exported successfully."
+      });
+    } catch (error) {
+      console.error('Export failed:', error);
+      toast({
+        title: "Export Failed",
+        description: "Failed to export banners. Please try again.",
+        variant: "destructive"
+      });
+    }
+  };
+
+  const importBanners = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    if (!file.name.endsWith('.json')) {
+      toast({
+        title: "Invalid File Type",
+        description: "Please select a JSON file exported from this tool.",
+        variant: "destructive"
+      });
+      e.target.value = '';
+      return;
+    }
+
+    const reader = new FileReader();
+    reader.onload = (event) => {
+      try {
+        const importData = JSON.parse(event.target?.result as string);
+        
+        if (!importData.banners || !Array.isArray(importData.banners)) {
+          throw new Error('Invalid file format');
+        }
+
+        // Validate and clean imported banners
+        const validBanners = importData.banners.filter((banner: any) => {
+          return banner.id && banner.name && banner.elements && Array.isArray(banner.elements);
+        }).map((banner: any) => ({
+          ...banner,
+          id: `imported-${Date.now()}-${Math.random().toString(36).substr(2, 9)}`, // Generate new ID to avoid conflicts
+          createdAt: new Date().toISOString(),
+          updatedAt: new Date().toISOString()
+        }));
+
+        if (validBanners.length === 0) {
+          throw new Error('No valid banners found in file');
+        }
+
+        // Add imported banners to existing ones
+        setBanners(prevBanners => [...prevBanners, ...validBanners]);
+        
+        toast({
+          title: "Banners Imported",
+          description: `Successfully imported ${validBanners.length} banner(s).`
+        });
+      } catch (error) {
+        console.error('Import failed:', error);
+        toast({
+          title: "Import Failed",
+          description: "Failed to import banners. Please check the file format.",
+          variant: "destructive"
+        });
+      }
+    };
+    
+    reader.onerror = () => {
+      toast({
+        title: "File Read Error",
+        description: "Failed to read the file. Please try again.",
+        variant: "destructive"
+      });
+    };
+    
+    reader.readAsText(file);
+    e.target.value = '';
+  };
+
+  const clearAllBanners = () => {
+    if (window.confirm('Are you sure you want to clear all saved banners? This action cannot be undone.')) {
+      const defaultBanner = banners.find(b => b.id === 'default-banner');
+      setBanners(defaultBanner ? [defaultBanner] : []);
+      setCurrentBanner(null);
+      
+      toast({
+        title: "Banners Cleared",
+        description: "All saved banners have been cleared."
+      });
+    }
+  };
+
+  // Automatic storage optimization when adding new banners
+  const addBannerWithHousekeeping = (newBanner: Banner) => {
+    const currentUsage = getLocalStorageUsage();
+    const quota = getEstimatedQuota();
+    const usagePercentage = (currentUsage / quota) * 100;
+
+    let bannersToKeep = [...banners];
+
+    // If storage is getting full, proactively remove old banners
+    if (usagePercentage > 60) {
+      const maxBanners = usagePercentage > 80 ? 3 : usagePercentage > 70 ? 5 : 8;
+      
+      // Always keep default banner and current banner
+      const defaultBanner = bannersToKeep.find(b => b.id === 'default-banner');
+      const currentBannerObj = bannersToKeep.find(b => b.id === currentBanner?.id);
+      
+      // Sort other banners by last updated, keep most recent
+      const otherBanners = bannersToKeep
+        .filter(b => b.id !== 'default-banner' && b.id !== currentBanner?.id && b.id !== newBanner.id)
+        .sort((a, b) => new Date(b.updatedAt).getTime() - new Date(a.updatedAt).getTime())
+        .slice(0, maxBanners - 1); // -1 for the new banner we're adding
+
+      bannersToKeep = [
+        ...(defaultBanner ? [defaultBanner] : []),
+        ...(currentBannerObj && currentBannerObj.id !== newBanner.id ? [currentBannerObj] : []),
+        ...otherBanners
+      ];
+
+      if (bannersToKeep.length < banners.length) {
+        toast({
+          title: "Storage Optimized",
+          description: `Removed ${banners.length - bannersToKeep.length} older banner(s) to make room.`,
+          variant: "default"
+        });
+      }
+    }
+
+    // Add the new banner
+    setBanners([...bannersToKeep, newBanner]);
+  };
+
+  // Enhanced save function with automatic housekeeping
+  const saveBannerWithHousekeeping = () => {
+    if (!currentBanner) return;
+
+    const bannerToSave = cleanupBannerElements({
+      ...currentBanner,
+      name: bannerName || currentBanner.name,
+      updatedAt: new Date().toISOString()
+    });
+
+    const existingIndex = banners.findIndex(b => b.id === currentBanner.id);
+    if (existingIndex >= 0) {
+      // Update existing banner
+      setBanners(banners.map((b, i) => i === existingIndex ? bannerToSave : b));
+    } else {
+      // Add new banner with housekeeping
+      addBannerWithHousekeeping(bannerToSave);
+    }
+
+    setCurrentBanner(bannerToSave);
+    toast({
+      title: "Banner Saved",
+      description: `Banner "${bannerToSave.name}" has been saved successfully.`
+    });
+  };
+
+  // Image compression utility
+  const compressImage = (imageDataUrl: string, maxSizeKB: number = 100): Promise<string> => {
+    return new Promise((resolve) => {
+      const canvas = document.createElement('canvas');
+      const ctx = canvas.getContext('2d');
+      const img = new Image();
+      
+      img.onload = () => {
+        // Calculate new dimensions to keep image under size limit
+        let { width, height } = img;
+        const maxDimension = 800; // Max width or height
+        
+        if (width > maxDimension || height > maxDimension) {
+          if (width > height) {
+            height = (height * maxDimension) / width;
+            width = maxDimension;
+          } else {
+            width = (width * maxDimension) / height;
+            height = maxDimension;
+          }
+        }
+        
+        canvas.width = width;
+        canvas.height = height;
+        
+        // Draw and compress
+        ctx?.drawImage(img, 0, 0, width, height);
+        
+        // Try different quality levels to get under size limit
+        let quality = 0.8;
+        let compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        
+        while (compressedDataUrl.length > maxSizeKB * 1024 && quality > 0.1) {
+          quality -= 0.1;
+          compressedDataUrl = canvas.toDataURL('image/jpeg', quality);
+        }
+        
+        resolve(compressedDataUrl);
+      };
+      
+      img.src = imageDataUrl;
+    });
+  };
+
+  const performManualCleanup = () => {
+    const beforeUsage = getLocalStorageUsage();
+    const beforePercentage = (beforeUsage / getEstimatedQuota()) * 100;
+
+    // Clean up temporary localStorage items
+    const keysToClean = [];
+    for (let key in localStorage) {
+      if (key.startsWith('temp_') || 
+          key.startsWith('cache_') || 
+          key.includes('_backup_') ||
+          key.includes('_old_') ||
+          key.includes('_draft_') ||
+          key.includes('_tmp_') ||
+          key.startsWith('debug_') ||
+          key.startsWith('test_')) {
+        keysToClean.push(key);
+      }
+    }
+
+    keysToClean.forEach(key => {
+      try {
+        localStorage.removeItem(key);
+      } catch (e) {
+        console.warn('Failed to clean up key:', key);
+      }
+    });
+
+    // Optimize current banners
+    const optimizedBanners = performHousekeeping(banners);
+    if (optimizedBanners.length !== banners.length) {
+      setBanners(optimizedBanners);
+    }
+
+    const afterUsage = getLocalStorageUsage();
+    const afterPercentage = (afterUsage / getEstimatedQuota()) * 100;
+    const savedBytes = beforeUsage - afterUsage;
+    const savedKB = (savedBytes / 1024).toFixed(1);
+
+    toast({
+      title: "Storage Optimized",
+      description: `Freed ${savedKB}KB of storage. Usage: ${beforePercentage.toFixed(1)}% → ${afterPercentage.toFixed(1)}%`,
+      variant: "default"
+    });
+  };
+
   const handleMouseDown = (e: React.MouseEvent, elementId: string) => {
     if (isResizing) return;
     
@@ -830,8 +1370,26 @@ export default function HeroBannerCreator() {
       setIsUploadingImage(true);
       const reader = new FileReader();
       
-      reader.onload = (event) => {
-        const imageUrl = event.target?.result as string;
+      reader.onload = async (event) => {
+        const originalImageUrl = event.target?.result as string;
+        
+        // Check storage usage and compress accordingly
+        const currentUsage = getLocalStorageUsage();
+        const usagePercentage = (currentUsage / getEstimatedQuota()) * 100;
+        
+        let imageUrl = originalImageUrl;
+        
+        // Compress image based on storage usage
+        if (usagePercentage > 50 || originalImageUrl.length > 200000) {
+          const maxSize = usagePercentage > 75 ? 50 : usagePercentage > 60 ? 75 : 100;
+          try {
+            imageUrl = await compressImage(originalImageUrl, maxSize);
+            console.log(`Image compressed: ${(originalImageUrl.length/1024).toFixed(1)}KB → ${(imageUrl.length/1024).toFixed(1)}KB`);
+          } catch (error) {
+            console.warn('Image compression failed, using original:', error);
+            imageUrl = originalImageUrl;
+          }
+        }
         
         if (selectedElement) {
           updateElement(selectedElement, { content: imageUrl });
@@ -1159,14 +1717,42 @@ export default function HeroBannerCreator() {
     <div className="space-y-6">
       <div className="flex items-center justify-between">
         <div>
-          <h2 className="text-2xl font-bold" style={{ color: themeColors.text }}>
-            Hero Banner Creator
-          </h2>
+          <div className="flex items-center justify-between mb-2">
+            <h2 className="text-2xl font-bold" style={{ color: themeColors.text }}>
+              Hero Banner Creator
+            </h2>
+            {/* Storage Status Indicator */}
+            <div className="flex items-center gap-2 text-sm">
+              <div className="flex items-center gap-1">
+                <div 
+                  className={`w-3 h-3 rounded-full ${
+                    storageUsage.percentage > 85 ? 'bg-red-500' :
+                    storageUsage.percentage > 70 ? 'bg-yellow-500' :
+                    storageUsage.percentage > 50 ? 'bg-blue-500' : 'bg-green-500'
+                  }`}
+                />
+                <span style={{ color: themeColors.textSecondary }}>
+                  Storage: {storageUsage.percentage.toFixed(1)}%
+                </span>
+              </div>
+              {storageUsage.percentage > 80 && (
+                <Badge variant="destructive" className="text-xs">
+                  High Usage
+                </Badge>
+              )}
+            </div>
+          </div>
           <p style={{ color: themeColors.textSecondary }}>
             Create custom banners with drag-and-drop elements. Design your banner and apply it directly to your home page hero section.
           </p>
+          {storageUsage.percentage > 75 && (
+            <div className="mt-2 p-2 bg-yellow-50 border border-yellow-200 rounded text-sm text-yellow-800">
+              ⚠️ Storage usage is high ({storageUsage.percentage.toFixed(1)}%). 
+              Consider exporting older banners to free up space.
+            </div>
+          )}
         </div>
-        <div className="flex gap-2">
+        <div className="flex gap-2 flex-wrap">
           <Button 
             onClick={() => setShowSavedBanners(!showSavedBanners)} 
             variant="outline"
@@ -1178,6 +1764,30 @@ export default function HeroBannerCreator() {
             <Plus className="h-4 w-4 mr-2" />
             New Banner
           </Button>
+          <Button onClick={exportBanners} variant="outline" size="sm">
+            <Download className="h-4 w-4 mr-2" />
+            Export
+          </Button>
+          <Button 
+            onClick={() => importFileInputRef.current?.click()} 
+            variant="outline" 
+            size="sm"
+          >
+            <Upload className="h-4 w-4 mr-2" />
+            Import
+          </Button>
+          {storageUsage.percentage > 50 && (
+            <Button onClick={performManualCleanup} variant="outline" size="sm">
+              <Sparkles className="h-4 w-4 mr-2" />
+              Optimize Storage
+            </Button>
+          )}
+          {banners.length > 1 && (
+            <Button onClick={clearAllBanners} variant="outline" size="sm">
+              <Trash2 className="h-4 w-4 mr-2" />
+              Clear All
+            </Button>
+          )}
         </div>
       </div>
 
@@ -1492,7 +2102,7 @@ export default function HeroBannerCreator() {
 
           {/* Action Buttons */}
           <div className="flex gap-2 mt-4">
-            <Button onClick={saveBanner} variant="default">
+            <Button onClick={saveBannerWithHousekeeping} variant="default">
               <Save className="h-4 w-4 mr-2" />
               Save Banner
             </Button>
@@ -2300,6 +2910,15 @@ Canvas and Properties Grid */}
           )}
         </div>
       </div>
+      
+      {/* Hidden file input for importing banners */}
+      <input
+        ref={importFileInputRef}
+        type="file"
+        accept=".json"
+        onChange={importBanners}
+        className="hidden"
+      />
     </div>
   );
 }

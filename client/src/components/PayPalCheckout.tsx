@@ -15,6 +15,7 @@ interface PayPalCheckoutProps {
   onError: (error: string) => void;
   disabled?: boolean;
   themeColors: any;
+  planType?: string; // For plan purchases
 }
 
 export default function PayPalCheckout({
@@ -24,10 +25,12 @@ export default function PayPalCheckout({
   onSuccess,
   onError,
   disabled,
-  themeColors
+  themeColors,
+  planType
 }: PayPalCheckoutProps) {
   const [isProcessing, setIsProcessing] = useState(false);
   const [paypalLoaded, setPaypalLoaded] = useState(false);
+  const [paypalConfigured, setPaypalConfigured] = useState<boolean | null>(null);
   const { toast } = useToast();
 
   useEffect(() => {
@@ -37,17 +40,28 @@ export default function PayPalCheckout({
         // Get PayPal client ID from server
         const response = await fetch('/api/paypal/config');
         if (response.ok) {
-          const { clientId, sandbox } = await response.json();
-          if (clientId) {
+          const { clientId, enabled, sandbox } = await response.json();
+          if (clientId && enabled) {
+            setPaypalConfigured(true);
             // Load PayPal SDK script
             const script = document.createElement('script');
             script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=USD${sandbox ? '&debug=true' : ''}`;
             script.onload = () => setPaypalLoaded(true);
+            script.onerror = () => {
+              console.error('Failed to load PayPal SDK script');
+              setPaypalLoaded(false);
+            };
             document.head.appendChild(script);
+          } else {
+            console.log('PayPal not configured or not enabled');
+            setPaypalConfigured(false);
+            setPaypalLoaded(false);
           }
         }
       } catch (error) {
         console.error('Failed to load PayPal SDK:', error);
+        setPaypalConfigured(false);
+        setPaypalLoaded(false);
       }
     };
 
@@ -58,17 +72,28 @@ export default function PayPalCheckout({
     setIsProcessing(true);
 
     try {
+      // Determine if this is a plan purchase or beat purchase
+      const isPlanPurchase = beatIds.length === 0;
+      const endpoint = isPlanPurchase ? '/api/paypal/create-plan-order' : '/api/paypal/create-order';
+      
+      const requestBody = isPlanPurchase 
+        ? {
+            planType: planType || 'premium',
+            amount
+          }
+        : {
+            beatIds,
+            customerInfo
+          };
+
       // Create PayPal order
-      const response = await fetch('/api/paypal/create-order', {
+      const response = await fetch(endpoint, {
         method: 'POST',
         headers: {
           'Content-Type': 'application/json',
         },
         credentials: 'include',
-        body: JSON.stringify({
-          beatIds,
-          customerInfo
-        }),
+        body: JSON.stringify(requestBody),
       });
 
       if (!response.ok) {
@@ -99,18 +124,28 @@ export default function PayPalCheckout({
   return (
     <Button
       onClick={handlePayPalPayment}
-      disabled={disabled || isProcessing || !paypalLoaded}
+      disabled={disabled || isProcessing || !paypalLoaded || paypalConfigured === false}
       className="w-full"
       size="lg"
       style={{
-        backgroundColor: "#0070ba",
+        backgroundColor: paypalConfigured === false ? "#6b7280" : "#0070ba",
         color: 'white',
       }}
     >
-      {isProcessing ? (
+      {paypalConfigured === false ? (
+        <div className="flex items-center gap-2">
+          <SiPaypal className="h-5 w-5" />
+          PayPal Not Configured
+        </div>
+      ) : isProcessing ? (
         <div className="flex items-center gap-2">
           <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
           Redirecting to PayPal...
+        </div>
+      ) : paypalConfigured === null ? (
+        <div className="flex items-center gap-2">
+          <div className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+          Loading PayPal...
         </div>
       ) : (
         <>

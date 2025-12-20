@@ -36,6 +36,12 @@ export * from './artists.schema';
 // Plans
 export * from './plans.schema';
 
+// User Plans
+export * from './userPlans.schema';
+
+// Exclusive Purchases
+export * from './exclusivePurchases.schema';
+
 // Stripe
 export * from './stripe.schema';
 export * from './homeSettings.schema';

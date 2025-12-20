@@ -408,9 +408,9 @@ export default function MusicPage() {
                               producer: beat.producer,
                               imageUrl: beat.imageUrl,
                               audioUrl: beat.audioUrl || undefined,
-                            }, isOwned);
+                            }, isOwned, filteredBeats);
                           }
-                    }}
+                        }}
                         onAddToCart={() => addToCart(beat.id)}
                       />
                     );

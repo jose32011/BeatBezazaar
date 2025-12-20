@@ -5,7 +5,7 @@ interface Beat {
   title: string;
   producer: string;
   imageUrl?: string;
-  audioUrl?: string;
+  audioUrl?: string | null;
 }
 
 interface AudioPlayerContextType {
@@ -16,7 +16,9 @@ interface AudioPlayerContextType {
   currentTime: number;
   duration: number;
   isCurrentTrackOwned: boolean;
-  play: (beatId: string, audioUrl: string, beatInfo?: Beat, isOwned?: boolean) => void;
+  playlist: Beat[];
+  currentIndex: number;
+  play: (beatId: string, audioUrl: string, beatInfo?: Beat, isOwned?: boolean, playlist?: Beat[]) => void;
   pause: () => void;
   isPlaying: (beatId: string) => boolean;
   hasError: (beatId: string) => boolean;
@@ -24,6 +26,7 @@ interface AudioPlayerContextType {
   setVolume: (volume: number) => void;
   next: () => void;
   previous: () => void;
+  setPlaylist: (beats: Beat[], startIndex?: number) => void;
 }
 
 const AudioPlayerContext = createContext<AudioPlayerContextType | undefined>(undefined);
@@ -36,8 +39,21 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   const [errorBeatId, setErrorBeatId] = useState<string | null>(null);
   const [currentTime, setCurrentTime] = useState<number>(0);
   const [duration, setDuration] = useState<number>(0);
+  const [playlist, setPlaylistState] = useState<Beat[]>([]);
+  const [currentIndex, setCurrentIndex] = useState<number>(-1);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const isOwnedTrackRef = useRef<boolean>(false);
+  const playlistRef = useRef<Beat[]>([]);
+  const currentIndexRef = useRef<number>(-1);
+
+  // Keep refs in sync with state
+  useEffect(() => {
+    playlistRef.current = playlist;
+  }, [playlist]);
+
+  useEffect(() => {
+    currentIndexRef.current = currentIndex;
+  }, [currentIndex]);
 
   // Initialize audio element on mount
   useEffect(() => {
@@ -47,6 +63,25 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     const handleEnded = () => {
       setCurrentlyPlaying(null);
       setIsLoading(false);
+      // Auto-play next track if available - use setTimeout to avoid stale closure
+      setTimeout(() => {
+        // Use refs to access current values
+        const currentPlaylist = playlistRef.current;
+        const currentIdx = currentIndexRef.current;
+        
+        if (currentPlaylist.length > 0 && currentIdx < currentPlaylist.length - 1) {
+          const nextIndex = currentIdx + 1;
+          const nextBeat = currentPlaylist[nextIndex];
+          if (nextBeat && nextBeat.audioUrl && audioRef.current) {
+            // Play next track
+            audioRef.current.src = nextBeat.audioUrl;
+            audioRef.current.play().catch(console.error);
+            setCurrentlyPlaying(nextBeat.id);
+            setCurrentBeat(nextBeat);
+            setCurrentIndex(nextIndex);
+          }
+        }
+      }, 500);
     };
 
     // Handle audio error event
@@ -130,12 +165,25 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     };
   }, []);
 
-  const play = (beatId: string, audioUrl: string, beatInfo?: Beat, isOwned: boolean = false) => {
+  const play = (beatId: string, audioUrl: string, beatInfo?: Beat, isOwned: boolean = false, newPlaylist?: Beat[]) => {
     if (!audioRef.current) return;
 
     // Set ownership status using ref so event handlers can access it
     isOwnedTrackRef.current = isOwned;
     console.log('Playing beat:', beatId, 'isOwned:', isOwned);
+
+    // If a new playlist is provided, update it
+    if (newPlaylist) {
+      setPlaylistState(newPlaylist);
+      const index = newPlaylist.findIndex(beat => beat.id === beatId);
+      setCurrentIndex(index);
+    } else if (playlist.length > 0) {
+      // Update current index if playing from existing playlist
+      const index = playlist.findIndex(beat => beat.id === beatId);
+      if (index !== -1) {
+        setCurrentIndex(index);
+      }
+    }
 
     // If a different beat is playing, stop it first
     if (currentlyPlaying && currentlyPlaying !== beatId) {
@@ -205,13 +253,44 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
   };
 
   const next = () => {
-    // Placeholder for next functionality
-    console.log('Next track');
+    if (playlist.length === 0) {
+      console.log('No playlist available');
+      return;
+    }
+
+    const nextIndex = currentIndex + 1;
+    if (nextIndex >= playlist.length) {
+      console.log('End of playlist');
+      return;
+    }
+
+    const nextBeat = playlist[nextIndex];
+    if (nextBeat && nextBeat.audioUrl) {
+      play(nextBeat.id, nextBeat.audioUrl, nextBeat, isOwnedTrackRef.current);
+    }
   };
 
   const previous = () => {
-    // Placeholder for previous functionality
-    console.log('Previous track');
+    if (playlist.length === 0) {
+      console.log('No playlist available');
+      return;
+    }
+
+    const prevIndex = currentIndex - 1;
+    if (prevIndex < 0) {
+      console.log('Start of playlist');
+      return;
+    }
+
+    const prevBeat = playlist[prevIndex];
+    if (prevBeat && prevBeat.audioUrl) {
+      play(prevBeat.id, prevBeat.audioUrl, prevBeat, isOwnedTrackRef.current);
+    }
+  };
+
+  const setPlaylist = (beats: Beat[], startIndex: number = 0) => {
+    setPlaylistState(beats);
+    setCurrentIndex(startIndex);
   };
 
   const value: AudioPlayerContextType = {
@@ -222,6 +301,8 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     currentTime,
     duration,
     isCurrentTrackOwned: isOwnedTrackRef.current,
+    playlist,
+    currentIndex,
     play,
     pause,
     isPlaying,
@@ -230,6 +311,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     setVolume: setVolumeFunc,
     next,
     previous,
+    setPlaylist,
   };
 
   return (

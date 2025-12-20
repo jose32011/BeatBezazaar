@@ -12,6 +12,8 @@ export default function AudioPlayerFooter() {
   const [isMuted, setIsMuted] = useState(false);
 
   const currentBeat = audioPlayer.currentBeat;
+  const hasNextTrack = audioPlayer.playlist.length > 0 && audioPlayer.currentIndex < audioPlayer.playlist.length - 1;
+  const hasPreviousTrack = audioPlayer.playlist.length > 0 && audioPlayer.currentIndex > 0;
 
   // Debug logging
   useEffect(() => {
@@ -52,7 +54,7 @@ export default function AudioPlayerFooter() {
     <div
       className="fixed bottom-0 left-0 right-0 z-50 border-t backdrop-blur-md"
       style={{
-        backgroundColor: themeColors.secondary, // Use solid secondary color
+        backgroundColor: themeColors.cardBackground,
         borderColor: themeColors.border,
         boxShadow: `0 -4px 6px -1px rgba(0,0,0,0.2)`
       }}
@@ -98,7 +100,7 @@ export default function AudioPlayerFooter() {
                 onValueChange={(value) => audioPlayer.seek(value[0])}
                 className="flex-1"
                 style={{
-                  '--slider-track': themeColors.surface,
+                  '--slider-track': themeColors.inputBackground,
                   '--slider-range': themeColors.primary,
                   '--slider-thumb': themeColors.primary
                 } as React.CSSProperties & { [key: string]: string }}
@@ -118,7 +120,7 @@ export default function AudioPlayerFooter() {
               onClick={() => audioPlayer.isPlaying(currentBeat.id) ? audioPlayer.pause() : audioPlayer.play(currentBeat.id, currentBeat.audioUrl || '')}
               className="w-10 h-10 rounded-full flex items-center justify-center transition-colors"
               style={{
-                backgroundColor: themeColors.primary,
+                backgroundColor: themeColors.buttonPrimary,
                 color: 'white',
               }}
             >
@@ -166,11 +168,12 @@ export default function AudioPlayerFooter() {
               <div className="flex items-center gap-4">
                 <button
                   onClick={() => audioPlayer.previous()}
-                  className="p-2 rounded-full transition-colors"
+                  disabled={!hasPreviousTrack}
+                  className="p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ 
                     color: themeColors.text,
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${themeColors.surface}40`}
+                  onMouseEnter={(e) => !e.currentTarget.disabled && (e.currentTarget.style.backgroundColor = themeColors.hover)}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
                   <SkipBack className="w-5 h-5" />
@@ -180,7 +183,7 @@ export default function AudioPlayerFooter() {
                   onClick={() => audioPlayer.isPlaying(currentBeat.id) ? audioPlayer.pause() : audioPlayer.play(currentBeat.id, currentBeat.audioUrl || '')}
                   className="p-3 rounded-full transition-colors"
                   style={{
-                    backgroundColor: themeColors.primary,
+                    backgroundColor: themeColors.buttonPrimary,
                     color: 'white',
                   }}
                 >
@@ -193,11 +196,12 @@ export default function AudioPlayerFooter() {
 
                 <button
                   onClick={() => audioPlayer.next()}
-                  className="p-2 rounded-full transition-colors"
+                  disabled={!hasNextTrack}
+                  className="p-2 rounded-full transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
                   style={{ 
                     color: themeColors.text,
                   }}
-                  onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${themeColors.surface}40`}
+                  onMouseEnter={(e) => !e.currentTarget.disabled && (e.currentTarget.style.backgroundColor = themeColors.hover)}
                   onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
                 >
                   <SkipForward className="w-5 h-5" />
@@ -219,7 +223,7 @@ export default function AudioPlayerFooter() {
                   onValueChange={(value) => audioPlayer.seek(value[0])}
                   className="flex-1"
                   style={{
-                    '--slider-track': themeColors.surface,
+                    '--slider-track': themeColors.inputBackground,
                     '--slider-range': themeColors.primary,
                     '--slider-thumb': themeColors.primary
                   } as React.CSSProperties & { [key: string]: string }}
@@ -241,7 +245,7 @@ export default function AudioPlayerFooter() {
                 style={{ 
                   color: themeColors.text,
                 }}
-                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = `${themeColors.surface}40`}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = themeColors.hover}
                 onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
               >
                 {isMuted || volume === 0 ? (
@@ -257,7 +261,7 @@ export default function AudioPlayerFooter() {
                 onValueChange={handleVolumeChange}
                 className="w-24"
                 style={{
-                  '--slider-track': themeColors.surface,
+                  '--slider-track': themeColors.inputBackground,
                   '--slider-range': themeColors.primary,
                   '--slider-thumb': themeColors.primary
                 } as React.CSSProperties & { [key: string]: string }}

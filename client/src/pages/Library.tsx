@@ -101,7 +101,7 @@ export default function Library() {
         producer: beat.producer,
         imageUrl: beat.imageUrl,
         audioUrl: beat.audioUrl || undefined,
-      }, true); // true = owned
+      }, true, playlist); // true = owned, pass playlist for next/previous
     }
   };
 

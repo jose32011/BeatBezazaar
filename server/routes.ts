@@ -836,6 +836,33 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // PayPal settings endpoints (admin only)
+  app.get("/api/admin/paypal-settings", requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.getPayPalSettings();
+      res.json(settings || {
+        enabled: false,
+        clientId: '',
+        clientSecret: '',
+        sandbox: true,
+        webhookId: ''
+      });
+    } catch (error) {
+      console.error("Get PayPal settings error:", error);
+      res.status(500).json({ error: "Failed to get PayPal settings" });
+    }
+  });
+
+  app.put("/api/admin/paypal-settings", requireAdmin, async (req, res) => {
+    try {
+      const settings = await storage.updatePayPalSettings(req.body);
+      res.json(settings);
+    } catch (error) {
+      console.error("Update PayPal settings error:", error);
+      res.status(500).json({ error: "Failed to update PayPal settings" });
+    }
+  });
+
 // Contact settings routes
 app.get("/api/contact-settings", async (req, res) => {
   try {
@@ -1862,6 +1889,100 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
     } catch (error) {
       console.error('Capture PayPal order error:', error);
       res.status(500).json({ error: 'Failed to capture PayPal order' });
+    }
+  });
+
+  // PayPal plan purchase endpoint
+  app.post('/api/paypal/create-plan-order', requireAuth, async (req, res) => {
+    try {
+      const userId = req.session?.userId as string | undefined;
+      if (!userId) return res.status(401).json({ error: 'Not authenticated' });
+
+      const { planType, amount } = req.body;
+      if (!planType || !amount) {
+        return res.status(400).json({ error: 'planType and amount are required' });
+      }
+
+      // Get or create customer record
+      let customer = await storage.getCustomerByUserId(userId);
+      if (!customer) {
+        const user = await storage.getUser(userId);
+        const customerData = {
+          userId,
+          firstName: user?.username || 'Customer',
+          lastName: '',
+          email: user?.email || '',
+        };
+        customer = await storage.createCustomer(customerData);
+      }
+
+      // Create PayPal order for plan subscription
+      const paypalMod = await import('./paypal');
+      const { createPayPalOrder } = paypalMod as any;
+      
+      const returnUrl = `${req.protocol}://${req.get('host')}/api/paypal/capture-plan-order`;
+      const cancelUrl = `${req.protocol}://${req.get('host')}/plans?cancelled=true`;
+      
+      const planDescription = {
+        id: `plan-${planType}`,
+        title: `${planType.charAt(0).toUpperCase() + planType.slice(1)} Plan Subscription`,
+        producer: 'BeatBazaar',
+        price: amount
+      };
+      
+      const paypalOrder = await createPayPalOrder(
+        amount,
+        'USD',
+        customer,
+        planDescription,
+        returnUrl,
+        cancelUrl,
+        { 
+          planType,
+          userId,
+          amount
+        }
+      );
+
+      if (!paypalOrder) {
+        return res.status(500).json({ error: 'Failed to create PayPal order' });
+      }
+
+      res.json({
+        orderID: paypalOrder.id,
+        approvalUrl: paypalOrder.links?.find((link: any) => link.rel === 'approve')?.href
+      });
+    } catch (error) {
+      console.error('Create PayPal plan order error:', error);
+      res.status(500).json({ error: 'Failed to create PayPal plan order' });
+    }
+  });
+
+  // PayPal plan capture endpoint
+  app.post('/api/paypal/capture-plan-order', async (req, res) => {
+    try {
+      const { orderID } = req.body;
+      if (!orderID) return res.status(400).json({ error: 'orderID is required' });
+
+      const paypalMod = await import('./paypal');
+      const { capturePayPalOrder } = paypalMod as any;
+      
+      const captureResult = await capturePayPalOrder(orderID);
+      
+      if (!captureResult) {
+        return res.status(500).json({ error: 'Failed to capture PayPal plan order' });
+      }
+
+      // Extract plan information from the capture result metadata
+      // In a real implementation, you'd store this relationship when creating the order
+      
+      res.json({ 
+        success: true,
+        captureID: captureResult.purchase_units?.[0]?.payments?.captures?.[0]?.id
+      });
+    } catch (error) {
+      console.error('Capture PayPal plan order error:', error);
+      res.status(500).json({ error: 'Failed to capture PayPal plan order' });
     }
   });
 

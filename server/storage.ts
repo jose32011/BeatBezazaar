@@ -59,7 +59,8 @@ import {
   contactSettings,
   artistBios,
   plansSettings,
-  appBrandingSettings
+  appBrandingSettings,
+  userPlans
 } from "@shared/schema";
 // PostgreSQL-only runtime
 import { drizzle as drizzlePg } from "drizzle-orm/postgres-js";
@@ -308,6 +309,8 @@ export class DatabaseStorage implements IStorage {
             email: 'admin@beatbazaar.com',
             passwordChangeRequired: true,
             theme: 'original',
+            currentPlan: 'basic',
+            planStatus: 'active',
             createdAt: new Date(),
             updatedAt: new Date()
           } as any);
@@ -3237,6 +3240,125 @@ private async deleteAllUploadedFiles(): Promise<void> {
         fs.copyFileSync(srcPath, destPath);
       }
     }
+  }
+
+  // User Plan Management
+  async getUserPlan(userId: string): Promise<any> {
+    // First check if user has an active plan in user_plans table
+    const [userPlan] = await this.db.select()
+      .from(userPlans)
+      .where(and(
+        eq(userPlans.userId, userId),
+        eq(userPlans.status, 'active')
+      ))
+      .orderBy(desc(userPlans.createdAt))
+      .limit(1);
+
+    if (userPlan) {
+      // Check if plan has expired (if not lifetime)
+      if (!userPlan.isLifetime && userPlan.endDate && new Date() > userPlan.endDate) {
+        // Mark as expired and return basic plan
+        await this.db.update(userPlans)
+          .set({ status: 'expired', updatedAt: new Date() })
+          .where(eq(userPlans.id, userPlan.id));
+        
+        return {
+          id: randomUUID(),
+          userId,
+          plan: 'basic',
+          status: 'active',
+          startDate: new Date(),
+          endDate: null,
+          isLifetime: false,
+          paymentAmount: null,
+          paymentMethod: null,
+          stripeSubscriptionId: null,
+          paypalSubscriptionId: null,
+          createdAt: new Date(),
+          updatedAt: new Date()
+        };
+      }
+      return userPlan;
+    }
+
+    // If no plan found, return default basic plan
+    return {
+      id: randomUUID(),
+      userId,
+      plan: 'basic',
+      status: 'active',
+      startDate: new Date(),
+      endDate: null,
+      isLifetime: false,
+      paymentAmount: null,
+      paymentMethod: null,
+      stripeSubscriptionId: null,
+      paypalSubscriptionId: null,
+      createdAt: new Date(),
+      updatedAt: new Date()
+    };
+  }
+
+  async updateUserPlan(userId: string, planData: {
+    plan: string;
+    paymentMethod?: string;
+    paymentAmount?: number;
+    isLifetime?: boolean;
+    status?: string;
+    stripeSubscriptionId?: string;
+    paypalSubscriptionId?: string;
+  }): Promise<any> {
+    // Deactivate any existing active plans
+    await this.db.update(userPlans)
+      .set({ status: 'cancelled', updatedAt: new Date() })
+      .where(and(
+        eq(userPlans.userId, userId),
+        eq(userPlans.status, 'active')
+      ));
+
+    // Create new plan
+    const endDate = planData.isLifetime ? null : 
+      planData.plan === 'basic' ? null : 
+      new Date(Date.now() + 30 * 24 * 60 * 60 * 1000); // 30 days from now
+
+    const [newPlan] = await this.db.insert(userPlans).values({
+      userId,
+      plan: planData.plan,
+      status: planData.status || 'active',
+      startDate: new Date(),
+      endDate,
+      isLifetime: planData.isLifetime || false,
+      paymentAmount: planData.paymentAmount,
+      paymentMethod: planData.paymentMethod,
+      stripeSubscriptionId: planData.stripeSubscriptionId,
+      paypalSubscriptionId: planData.paypalSubscriptionId
+    }).returning();
+
+    // Also update the user's current plan fields for quick access
+    await this.db.update(users)
+      .set({
+        currentPlan: planData.plan,
+        planStatus: planData.status || 'active',
+        planStartDate: new Date(),
+        planEndDate: endDate,
+        updatedAt: new Date()
+      })
+      .where(eq(users.id, userId));
+
+    return newPlan;
+  }
+
+  async getUserPlanHistory(userId: string): Promise<any[]> {
+    return await this.db.select()
+      .from(userPlans)
+      .where(eq(userPlans.userId, userId))
+      .orderBy(desc(userPlans.createdAt));
+  }
+
+  async getAllUserPlans(): Promise<any[]> {
+    return await this.db.select()
+      .from(userPlans)
+      .orderBy(desc(userPlans.createdAt));
   }
 }
 

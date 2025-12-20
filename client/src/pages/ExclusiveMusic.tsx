@@ -45,7 +45,10 @@ export default function ExclusiveMusic() {
   const themeColors = getThemeColors();
   const [selectedGenre, setSelectedGenre] = useState<string | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
+  const [selectedProducer, setSelectedProducer] = useState<string>("all");
   const [sortBy, setSortBy] = useState<string>("latest");
+  const [currentPage, setCurrentPage] = useState(1);
+  const beatsPerPage = 20;
 
   // Fetch genres
   const { data: genres = [] } = useQuery<Genre[]>({
@@ -207,6 +210,11 @@ export default function ExclusiveMusic() {
       );
     }
 
+    // Filter by producer
+    if (selectedProducer !== 'all') {
+      filtered = filtered.filter(beat => beat.producer === selectedProducer);
+    }
+
     // Sort beats
     filtered = [...filtered].sort((a, b) => {
       switch (sortBy) {
@@ -224,7 +232,19 @@ export default function ExclusiveMusic() {
     });
 
     return filtered;
-  }, [exclusiveBeats, selectedGenre, searchQuery, sortBy, genres]);
+  }, [exclusiveBeats, selectedGenre, searchQuery, selectedProducer, sortBy, genres]);
+
+  // Pagination
+  const totalPages = Math.ceil(filteredExclusiveBeats.length / beatsPerPage);
+  const paginatedExclusiveBeats = useMemo(() => {
+    const startIndex = (currentPage - 1) * beatsPerPage;
+    return filteredExclusiveBeats.slice(startIndex, startIndex + beatsPerPage);
+  }, [filteredExclusiveBeats, currentPage, beatsPerPage]);
+
+  // Reset to page 1 when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [selectedGenre, searchQuery, selectedProducer, sortBy]);
 
   // Calculate exclusive beat counts for each genre
   const genresWithExclusiveCounts = genres.map(genre => {
@@ -355,7 +375,7 @@ export default function ExclusiveMusic() {
               <Card 
                 className="text-center"
                 style={{
-                  backgroundColor: themeColors.card,
+                  backgroundColor: themeColors.surface,
                   borderColor: userPlan?.plan === 'basic' ? themeColors.primary : themeColors.border,
                   border: userPlan?.plan === 'basic' ? `2px solid ${themeColors.primary}` : `1px solid ${themeColors.border}`
                 }}
@@ -381,7 +401,7 @@ export default function ExclusiveMusic() {
               <Card 
                 className="text-center"
                 style={{
-                  backgroundColor: themeColors.card,
+                  backgroundColor: themeColors.surface,
                   borderColor: userPlan?.plan === 'premium' ? themeColors.primary : themeColors.border,
                   border: userPlan?.plan === 'premium' ? `2px solid ${themeColors.primary}` : `1px solid ${themeColors.border}`
                 }}
@@ -437,7 +457,7 @@ export default function ExclusiveMusic() {
                   />
                   <Input
                     type="text"
-                    placeholder="Search exclusive beats..."
+                    placeholder="Search by title or producer..."
                     value={searchQuery}
                     onChange={(e) => setSearchQuery(e.target.value)}
                     className="pl-10"
@@ -448,6 +468,28 @@ export default function ExclusiveMusic() {
                     }}
                   />
                 </div>
+
+                {/* Producer Filter */}
+                <Select value={selectedProducer} onValueChange={setSelectedProducer}>
+                  <SelectTrigger 
+                    className="w-full md:w-[200px]"
+                    style={{
+                      backgroundColor: themeColors.surface,
+                      borderColor: themeColors.border,
+                      color: themeColors.text,
+                    }}
+                  >
+                    <SelectValue placeholder="All Producers" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="all">All Producers</SelectItem>
+                    {Array.from(new Set(exclusiveBeats.map(b => b.producer))).sort().map((producer) => (
+                      <SelectItem key={producer} value={producer}>
+                        {producer}
+                      </SelectItem>
+                    ))}
+                  </SelectContent>
+                </Select>
 
                 {/* Sort By */}
                 <Select value={sortBy} onValueChange={setSortBy}>
@@ -523,7 +565,8 @@ export default function ExclusiveMusic() {
                 {selectedGenre ? `${selectedGenre} Exclusive Beats` : 'Available Exclusive Beats'}
               </h2>
               <span style={{ color: themeColors.textSecondary }}>
-                Showing {filteredExclusiveBeats.length} {filteredExclusiveBeats.length === 1 ? 'beat' : 'beats'}
+                Showing {paginatedExclusiveBeats.length} of {filteredExclusiveBeats.length} {filteredExclusiveBeats.length === 1 ? 'beat' : 'beats'}
+                {totalPages > 1 && ` (Page ${currentPage} of ${totalPages})`}
               </span>
             </div>
             
@@ -545,7 +588,7 @@ export default function ExclusiveMusic() {
               </div>
             ) : (
               <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-6">
-                {filteredExclusiveBeats.map((beat) => {
+                {paginatedExclusiveBeats.map((beat) => {
                   // Find the genre name from the genre ID
                   const genreName = genres.find(g => g.id === beat.genre)?.name || beat.genre;
                   return (
@@ -565,7 +608,7 @@ export default function ExclusiveMusic() {
                               producer: beat.producer,
                               imageUrl: beat.imageUrl,
                               audioUrl: beat.audioUrl || undefined,
-                            }, false);
+                            }, false, filteredExclusiveBeats);
                           }
                         }}
                         onAddToCart={() => handleExclusivePurchase(beat)}
@@ -590,6 +633,66 @@ export default function ExclusiveMusic() {
                     </div>
                   );
                 })}
+              </div>
+            )}
+
+            {/* Pagination */}
+            {totalPages > 1 && (
+              <div className="flex justify-center items-center gap-2 mt-8">
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                  disabled={currentPage === 1}
+                  style={{
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.border,
+                    color: themeColors.text,
+                  }}
+                >
+                  Previous
+                </Button>
+                
+                <div className="flex gap-2">
+                  {Array.from({ length: totalPages }, (_, i) => i + 1).map((page) => {
+                    // Show first page, last page, current page, and pages around current
+                    if (
+                      page === 1 ||
+                      page === totalPages ||
+                      (page >= currentPage - 1 && page <= currentPage + 1)
+                    ) {
+                      return (
+                        <Button
+                          key={page}
+                          variant={page === currentPage ? "default" : "outline"}
+                          onClick={() => setCurrentPage(page)}
+                          style={{
+                            backgroundColor: page === currentPage ? themeColors.primary : themeColors.surface,
+                            borderColor: themeColors.border,
+                            color: page === currentPage ? 'white' : themeColors.text,
+                          }}
+                        >
+                          {page}
+                        </Button>
+                      );
+                    } else if (page === currentPage - 2 || page === currentPage + 2) {
+                      return <span key={page} style={{ color: themeColors.textSecondary }}>...</span>;
+                    }
+                    return null;
+                  })}
+                </div>
+
+                <Button
+                  variant="outline"
+                  onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                  disabled={currentPage === totalPages}
+                  style={{
+                    backgroundColor: themeColors.surface,
+                    borderColor: themeColors.border,
+                    color: themeColors.text,
+                  }}
+                >
+                  Next
+                </Button>
               </div>
             )}
           </div>

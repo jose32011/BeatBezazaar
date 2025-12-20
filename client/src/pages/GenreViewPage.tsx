@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from "@tanstack/react-query";
-import { useAudioPlayer } from "@/hooks/useAudioPlayer";
+import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useLocation, useParams } from "wouter";
@@ -357,7 +357,13 @@ export default function GenreViewPage() {
                     if (isPlaying) {
                       audioPlayer.pause();
                     } else {
-                      audioPlayer.play(beat.id, beat.audioUrl || "");
+                      audioPlayer.play(beat.id, beat.audioUrl || '', {
+                        id: beat.id,
+                        title: beat.title,
+                        producer: beat.producer,
+                        imageUrl: beat.imageUrl,
+                        audioUrl: beat.audioUrl || undefined,
+                      }, isOwned, filteredBeats);
                     }
                   }}
                   onAddToCart={() => handleAddToCart(beat.id)}

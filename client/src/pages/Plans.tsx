@@ -1,393 +1,125 @@
-import { useState } from "react";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Badge } from "@/components/ui/badge";
-import { Check, Star, Music, Crown, Zap, Shield, Users, Download, Headphones } from "lucide-react";
-import { useTheme } from "@/contexts/ThemeContext";
-import { useQuery } from "@tanstack/react-query";
+import React, { useState, useEffect } from 'react';
+import { useTheme } from '@/contexts/ThemeContext';
+import PlanUpgrade from '@/components/PlanUpgrade';
+import { useToast } from '@/hooks/use-toast';
+import { Card, CardContent, CardDescription, CardHeader, CardTitle } from '@/components/ui/card';
+import { Badge } from '@/components/ui/badge';
+import { Crown, Star, Shield, Calendar, DollarSign } from 'lucide-react';
 import Header from "@/components/Header";
 
-interface PlansSettings {
-  id?: string;
-  pageTitle: string;
-  pageSubtitle: string;
-  basicPlan: {
-    name: string;
-    price: number;
-    description: string;
-    features: string[];
-    isActive: boolean;
-  };
-  premiumPlan: {
-    name: string;
-    price: number;
-    description: string;
-    features: string[];
-    isActive: boolean;
-    isPopular: boolean;
-  };
-  exclusivePlan: {
-    name: string;
-    price: number;
-    description: string;
-    features: string[];
-    isActive: boolean;
-  };
-  additionalFeaturesTitle: string;
-  additionalFeatures: {
-    title: string;
-    description: string;
-    icon: string;
-  }[];
-  faqSection: {
-    title: string;
-    questions: {
-      question: string;
-      answer: string;
-    }[];
-  };
-  trustBadges: {
-    text: string;
-    icon: string;
-  }[];
+interface UserPlan {
+  id: string;
+  userId: string;
+  plan: string;
+  status: string;
+  startDate: string;
+  endDate?: string;
+  isLifetime: boolean;
+  paymentAmount?: number;
+  paymentMethod?: string;
 }
 
-function Plans() {
+export default function Plans() {
   const { getThemeColors } = useTheme();
   const themeColors = getThemeColors();
+  const { toast } = useToast();
+  const [currentPlan, setCurrentPlan] = useState<UserPlan | null>(null);
+  const [isLoading, setIsLoading] = useState(true);
 
-  // Fetch plans settings from API
-  const { data: plansSettings, isLoading, error } = useQuery<PlansSettings>({
-    queryKey: ["plans-settings"],
-    queryFn: async () => {
-      const response = await fetch("/api/plans-settings");
-      if (!response.ok) {
-        throw new Error("Failed to fetch plans settings");
+  useEffect(() => {
+    fetchCurrentPlan();
+  }, []);
+
+  const fetchCurrentPlan = async () => {
+    try {
+      setIsLoading(true);
+      const response = await fetch('/api/user/plan');
+      if (response.ok) {
+        const planData = await response.json();
+        setCurrentPlan(planData);
       }
-      return response.json();
-    },
-    staleTime: 5 * 60 * 1000, // 5 minutes
-  });
-
-  const getIcon = (iconName: string) => {
-    switch (iconName) {
-      case 'Shield':
-        return <Shield className="h-6 w-6" />;
-      case 'Users':
-        return <Users className="h-6 w-6" />;
-      case 'Download':
-        return <Download className="h-6 w-6" />;
-      case 'Headphones':
-        return <Headphones className="h-6 w-6" />;
-      case 'Zap':
-        return <Zap className="h-4 w-4" />;
-      default:
-        return <Shield className="h-6 w-6" />;
+    } catch (error) {
+      console.error('Failed to fetch current plan:', error);
+    } finally {
+      setIsLoading(false);
     }
+  };
+
+  const handlePlanUpdated = () => {
+    fetchCurrentPlan();
   };
 
   if (isLoading) {
     return (
-      <div 
-        className="min-h-screen flex items-center justify-center"
-        style={{
-          backgroundColor: themeColors.background,
-          color: themeColors.foreground
-        }}
-      >
+      <div className="min-h-screen flex items-center justify-center" style={{ backgroundColor: themeColors.background }}>
         <Header />
         <div className="text-center">
-          <div className="w-8 h-8 border-2 border-current border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-          <p>Loading plans...</p>
+          <div className="animate-spin rounded-full h-8 w-8 border-b-2 border-gray-900 mx-auto mb-4"></div>
+          <p style={{ color: themeColors.textSecondary }}>Loading your plan information...</p>
         </div>
       </div>
     );
   }
-
-  if (error || !plansSettings) {
-    return (
-      <div 
-        className="min-h-screen flex items-center justify-center"
-        style={{
-          backgroundColor: themeColors.background,
-          color: themeColors.foreground
-        }}
-      >
-        <Header />
-        <div className="text-center">
-          <p className="text-red-500">Failed to load plans. Please try again later.</p>
-        </div>
-      </div>
-    );
-  }
-
-  console.log('📋 Plans Settings:', plansSettings);
-  console.log('📋 Basic Plan isActive:', plansSettings.basicPlan.isActive, typeof plansSettings.basicPlan.isActive);
-  console.log('📋 Premium Plan isActive:', plansSettings.premiumPlan.isActive, typeof plansSettings.premiumPlan.isActive);
-  console.log('📋 Exclusive Plan isActive:', plansSettings.exclusivePlan.isActive, typeof plansSettings.exclusivePlan.isActive);
-
-  const allPlans = [
-    {
-      id: "basic",
-      name: plansSettings.basicPlan.name,
-      price: plansSettings.basicPlan.price,
-      description: plansSettings.basicPlan.description,
-      features: plansSettings.basicPlan.features,
-      popular: false,
-      icon: <Music className="h-8 w-8" />,
-      colorStyle: { backgroundColor: themeColors.primary },
-      isActive: plansSettings.basicPlan.isActive
-    },
-    {
-      id: "premium",
-      name: plansSettings.premiumPlan.name,
-      price: plansSettings.premiumPlan.price,
-      description: plansSettings.premiumPlan.description,
-      features: plansSettings.premiumPlan.features,
-      popular: plansSettings.premiumPlan.isPopular,
-      icon: <Crown className="h-8 w-8" />,
-      colorStyle: { backgroundColor: themeColors.accent },
-      isActive: plansSettings.premiumPlan.isActive
-    },
-    {
-      id: "exclusive",
-      name: plansSettings.exclusivePlan.name,
-      price: plansSettings.exclusivePlan.price,
-      description: plansSettings.exclusivePlan.description,
-      features: plansSettings.exclusivePlan.features,
-      popular: false,
-      icon: <Star className="h-8 w-8" />,
-      colorStyle: { 
-        background: `linear-gradient(to right, ${themeColors.primary}, ${themeColors.accent})`
-      },
-      isActive: plansSettings.exclusivePlan.isActive
-    }
-  ];
-
-  console.log('📋 All plans before filter:', allPlans);
-  
-  const plans = allPlans.filter(plan => plan.isActive === true || plan.isActive === 1);
-  
-  console.log('📋 Filtered plans:', plans);
-  console.log('📋 Number of active plans:', plans.length);
 
   return (
-    <div 
-      className="min-h-screen"
-      style={{
-        backgroundColor: themeColors.background,
-        color: themeColors.foreground
-      }}
-    >
+    <div className="min-h-screen" style={{ backgroundColor: themeColors.background }}>
       <Header />
-      
-      <div className="container mx-auto px-4 py-12">
-        {/* Header */}
-        <div className="text-center mb-16">
-          <h1 
-            className="text-4xl md:text-6xl font-bold mb-4"
-            style={{ color: themeColors.primary }}
-          >
-            {plansSettings.pageTitle}
-          </h1>
-          <p 
-            className="text-xl max-w-3xl mx-auto mb-8"
-            style={{ color: themeColors.mutedForeground }}
-          >
-            {plansSettings.pageSubtitle}
-          </p>
-          <div className="flex flex-wrap justify-center gap-4">
-            {plansSettings.trustBadges.map((badge, index) => (
-              <Badge 
-                key={index}
-                variant="secondary" 
-                className="px-4 py-2 text-sm"
-                style={{
-                  backgroundColor: themeColors.secondary,
-                  color: themeColors.secondaryForeground
-                }}
-              >
-                {getIcon(badge.icon)}
-                <span className="ml-2">{badge.text}</span>
-              </Badge>
-            ))}
-          </div>
-        </div>
-
-        {/* Pricing Plans */}
-        <div className="grid grid-cols-1 md:grid-cols-3 gap-8 max-w-7xl mx-auto mb-16">
-          {plans.map((plan) => (
-            <Card 
-              key={plan.id}
-              className={`relative group hover:shadow-2xl transition-all duration-300 ${
-                plan.popular ? 'scale-105' : ''
-              }`}
-              style={{
-                backgroundColor: themeColors.card,
-                borderColor: plan.popular ? themeColors.primary : themeColors.border,
-                border: plan.popular ? `2px solid ${themeColors.primary}` : `1px solid ${themeColors.border}`
-              }}
-            >
-              {plan.popular && (
-                <div className="absolute -top-4 left-1/2 transform -translate-x-1/2">
-                  <Badge 
-                    className="px-4 py-1 text-sm font-semibold"
-                    style={{
-                      backgroundColor: themeColors.background,
-                      color: themeColors.text,
-                      border: `1px solid ${themeColors.border}`
-                    }}
-                  >
-                    <Star className="h-3 w-3 mr-1" />
-                    Most Popular
+      <div className="container mx-auto px-4 py-8">
+        {/* Current Plan Status */}
+        {currentPlan && (
+          <div className="mb-8">
+            <Card style={{ backgroundColor: themeColors.surface, borderColor: themeColors.border }}>
+              <CardHeader>
+                <CardTitle className="flex items-center gap-3" style={{ color: themeColors.text }}>
+                  <div className="flex items-center gap-2">
+                    {currentPlan.plan === 'premium' && <Star className="h-5 w-5 text-blue-500" />}
+                    {currentPlan.plan === 'exclusive' && <Crown className="h-5 w-5 text-purple-500" />}
+                    {currentPlan.plan === 'basic' && <Shield className="h-5 w-5 text-gray-500" />}
+                    Current Plan: {currentPlan.plan.charAt(0).toUpperCase() + currentPlan.plan.slice(1)}
+                  </div>
+                  <Badge className={`${
+                    currentPlan.status === 'active' ? 'bg-green-500' :
+                    currentPlan.status === 'expired' ? 'bg-red-500' : 'bg-yellow-500'
+                  } text-white`}>
+                    {currentPlan.status}
                   </Badge>
-                </div>
-              )}
-              
-              <CardHeader className="text-center pb-4">
-                <div 
-                  className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center text-white"
-                  style={plan.colorStyle}
-                >
-                  {plan.icon}
-                </div>
-                <CardTitle 
-                  className="text-2xl font-bold mb-2"
-                  style={{ color: themeColors.foreground }}
-                >
-                  {plan.name}
                 </CardTitle>
-                <CardDescription 
-                  className="text-base mb-4"
-                  style={{ color: themeColors.mutedForeground }}
-                >
-                  {plan.description}
+                <CardDescription style={{ color: themeColors.textSecondary }}>
+                  <div className="flex items-center gap-4 mt-2">
+                    <div className="flex items-center gap-1">
+                      <Calendar className="h-4 w-4" />
+                      Started: {new Date(currentPlan.startDate).toLocaleDateString()}
+                    </div>
+                    {currentPlan.endDate && !currentPlan.isLifetime && (
+                      <div className="flex items-center gap-1">
+                        <Calendar className="h-4 w-4" />
+                        Expires: {new Date(currentPlan.endDate).toLocaleDateString()}
+                      </div>
+                    )}
+                    {currentPlan.isLifetime && (
+                      <Badge variant="outline">Lifetime Access</Badge>
+                    )}
+                    {currentPlan.paymentAmount && (
+                      <div className="flex items-center gap-1">
+                        <DollarSign className="h-4 w-4" />
+                        ${currentPlan.paymentAmount}/month
+                      </div>
+                    )}
+                  </div>
                 </CardDescription>
-                <div className="mb-4">
-                  <span 
-                    className="text-4xl font-bold"
-                    style={{ color: themeColors.primary }}
-                  >
-                    ${plan.price}
-                  </span>
-                  {plan.id !== "exclusive" && (
-                    <span 
-                      className="text-lg ml-1"
-                      style={{ color: themeColors.mutedForeground }}
-                    >
-                      /license
-                    </span>
-                  )}
-                </div>
               </CardHeader>
-              
-              <CardContent className="space-y-4">
-                <ul className="space-y-3">
-                  {plan.features.map((feature, index) => (
-                    <li key={index} className="flex items-start space-x-3">
-                      <Check 
-                        className="h-5 w-5 flex-shrink-0 mt-0.5" 
-                        style={{ color: themeColors.primary }}
-                      />
-                      <span 
-                        className="text-sm"
-                        style={{ color: themeColors.mutedForeground }}
-                      >
-                        {feature}
-                      </span>
-                    </li>
-                  ))}
-                </ul>
-                
-                <Button 
-                  className="w-full mt-6"
-                  size="lg"
-                  style={{
-                    backgroundColor: themeColors.background,
-                    color: themeColors.text,
-                    border: `1px solid ${themeColors.border}`
-                  }}
-                >
-                  {plan.id === "exclusive" ? "Get Exclusive Rights" : "Choose Plan"}
-                </Button>
-              </CardContent>
             </Card>
-          ))}
-        </div>
-
-        {/* Additional Features */}
-        <div className="max-w-6xl mx-auto">
-          <h2 
-            className="text-3xl font-bold text-center mb-12"
-            style={{ color: themeColors.foreground }}
-          >
-            {plansSettings.additionalFeaturesTitle}
-          </h2>
-          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
-            {plansSettings.additionalFeatures.map((feature, index) => (
-              <div 
-                key={index}
-                className="text-center group hover:scale-105 transition-transform duration-300"
-              >
-                <div 
-                  className="w-16 h-16 mx-auto mb-4 rounded-full flex items-center justify-center"
-                  style={{
-                    backgroundColor: themeColors.background,
-                    color: themeColors.text,
-                    border: `1px solid ${themeColors.border}`
-                  }}
-                >
-                  {getIcon(feature.icon)}
-                </div>
-                <h3 
-                  className="text-lg font-semibold mb-2"
-                  style={{ color: themeColors.foreground }}
-                >
-                  {feature.title}
-                </h3>
-                <p 
-                  className="text-sm"
-                  style={{ color: themeColors.mutedForeground }}
-                >
-                  {feature.description}
-                </p>
-              </div>
-            ))}
           </div>
-        </div>
+        )}
 
-        {/* FAQ Section */}
-        <div className="max-w-4xl mx-auto mt-20">
-          <h2 
-            className="text-3xl font-bold text-center mb-12"
-            style={{ color: themeColors.foreground }}
-          >
-            {plansSettings.faqSection.title}
-          </h2>
-          <div className="space-y-6">
-            {plansSettings.faqSection.questions.map((faq, index) => (
-              <Card key={index} style={{ backgroundColor: themeColors.card, borderColor: themeColors.border }}>
-                <CardContent className="p-6">
-                  <h3 
-                    className="text-lg font-semibold mb-2"
-                    style={{ color: themeColors.foreground }}
-                  >
-                    {faq.question}
-                  </h3>
-                  <p 
-                    className="text-sm"
-                    style={{ color: themeColors.mutedForeground }}
-                  >
-                    {faq.answer}
-                  </p>
-                </CardContent>
-              </Card>
-            ))}
-          </div>
-        </div>
+        {/* Plan Upgrade Component */}
+        <PlanUpgrade 
+          currentPlan={currentPlan} 
+          onPlanUpdated={handlePlanUpdated}
+        />
       </div>
     </div>
   );
 }
 
-export default Plans;
+

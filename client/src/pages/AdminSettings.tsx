@@ -471,6 +471,29 @@ function AdminSettingsContent() {
         console.error('Failed to load email settings:', error);
       });
 
+    // Load PayPal settings from API
+    fetch('/api/admin/paypal-settings', {
+      credentials: 'include',
+    })
+      .then(res => res.json())
+      .then(data => {
+        if (data) {
+          setSettings(prev => ({
+            ...prev,
+            paypal: {
+              enabled: data.enabled || false,
+              clientId: data.clientId || '',
+              clientSecret: data.clientSecret || '',
+              environment: data.sandbox ? 'sandbox' : 'live',
+              webhookId: data.webhookId || ''
+            }
+          }));
+        }
+      })
+      .catch(error => {
+        console.error('Failed to load PayPal settings:', error);
+      });
+
     // Load contact settings from API (including social media)
     fetch('/api/contact-settings', {
       credentials: 'include',
@@ -855,6 +878,32 @@ function AdminSettingsContent() {
     },
   });
 
+  const savePayPalSettingsMutation = useMutation({
+    mutationFn: async (paypalSettingsData: PaymentSettings['paypal']) => {
+      const response = await fetch('/api/admin/paypal-settings', {
+        method: 'PUT',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify(paypalSettingsData),
+      });
+      if (!response.ok) throw new Error('Failed to save PayPal settings');
+      return response.json();
+    },
+    onSuccess: () => {
+      toast({
+        title: "PayPal Settings Saved",
+        description: "Your PayPal configuration has been updated successfully",
+      });
+    },
+    onError: () => {
+      toast({
+        title: "Error",
+        description: "Failed to save PayPal settings",
+        variant: "destructive",
+      });
+    },
+  });
+
   const saveHomeSettingsMutation = useMutation({
     mutationFn: async (homeSettingsData: typeof homeSettings) => {
       const response = await fetch('/api/home-settings', {
@@ -1181,13 +1230,18 @@ function AdminSettingsContent() {
   };
 
   const updatePaypalSetting = (key: keyof PaymentSettings['paypal'], value: any) => {
+    const newPaypalSettings = {
+      ...settings.paypal,
+      [key]: value
+    };
+    
     setSettings(prev => ({
       ...prev,
-      paypal: {
-        ...prev.paypal,
-        [key]: value
-      }
+      paypal: newPaypalSettings
     }));
+    
+    // Save to API immediately
+    savePayPalSettingsMutation.mutate(newPaypalSettings);
   };
 
   const updateBankSetting = (key: keyof PaymentSettings['bank'], value: any) => {
@@ -1448,7 +1502,18 @@ function AdminSettingsContent() {
                             value={appBrandingSettings.heroImage}
                             onChange={(e) => setAppBrandingSettings(prev => ({ ...prev, heroImage: e.target.value }))}
                             placeholder="https://example.com/hero-image.jpg"
+                            className="font-mono text-sm"
                           />
+                          {appBrandingSettings.heroImage && (
+                            <div className="text-xs text-muted-foreground">
+                              {appBrandingSettings.heroImage.startsWith('data:') 
+                                ? `Data URL (${Math.round(appBrandingSettings.heroImage.length / 1024)}KB)`
+                                : appBrandingSettings.heroImage.length > 50 
+                                  ? `${appBrandingSettings.heroImage.substring(0, 50)}...`
+                                  : appBrandingSettings.heroImage
+                              }
+                            </div>
+                          )}
                         </div>
                         <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                           <div className="space-y-2">

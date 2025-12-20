@@ -17,13 +17,13 @@ import { Link } from "wouter";
 import { ProtectedRoute } from "@/contexts/AuthContext";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
+import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 import AlbumArtGenerator from "@/components/AlbumArtGenerator";
 import BannerCreator from "@/components/BannerCreator";
 import CustomerManagement from "@/components/CustomerManagement";
 import PaymentManagement from "@/components/PaymentManagement";
 import ExclusivePurchaseManager from "@/components/ExclusivePurchaseManager";
 import GenreManagement from "@/components/GenreManagement";
-import AudioPlayer from "@/components/AudioPlayer";
 import AdminSettings from "@/pages/AdminSettings";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -43,6 +43,7 @@ function AdminDashboardContent() {
   const themeColors = getThemeColors();
   const { toast } = useToast();
   const queryClient = useQueryClient();
+  const audioPlayer = useAudioPlayer();
   const [activeTab, setActiveTab] = useState("overview");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
@@ -282,10 +283,6 @@ function AdminDashboardContent() {
   const [editImagePreview, setEditImagePreview] = useState<string | null>(null);
   const [editImageUrl, setEditImageUrl] = useState<string>("");
 
-  // Audio player state
-  const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
-  const [playerBeat, setPlayerBeat] = useState<Beat | null>(null);
-
   const updateBeatMutation = useMutation({
     mutationFn: async ({ id, formData }: { id: string; formData: FormData }) => {
       const res = await fetch(`/api/beats/${id}`, {
@@ -378,12 +375,16 @@ function AdminDashboardContent() {
 
   // Audio player handlers
   const handlePlayPause = (beat: Beat) => {
-    if (currentlyPlaying === beat.id) {
-      setCurrentlyPlaying(null);
-      setPlayerBeat(null);
+    if (audioPlayer.isPlaying(beat.id)) {
+      audioPlayer.pause();
     } else {
-      setCurrentlyPlaying(beat.id);
-      setPlayerBeat(beat);
+      audioPlayer.play(beat.id, beat.audioUrl || '', {
+        id: beat.id,
+        title: beat.title,
+        producer: beat.producer,
+        imageUrl: beat.imageUrl,
+        audioUrl: beat.audioUrl || undefined
+      }, true, beats || []); // true indicates this is an owned track (admin can play full songs), pass beats as playlist
     }
   };
 
@@ -1004,7 +1005,7 @@ function AdminDashboardContent() {
                               onClick={() => handlePlayPause(beat)}
                               disabled={!beat.audioUrl}
                             >
-                              {currentlyPlaying === beat.id ? (
+                              {audioPlayer.isPlaying(beat.id) ? (
                                 <Pause className="h-4 w-4" />
                               ) : (
                                 <Play className="h-4 w-4" />
@@ -1200,18 +1201,6 @@ function AdminDashboardContent() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      {/* Audio Player */}
-      {playerBeat && (
-        <AudioPlayer
-          beatTitle={playerBeat.title}
-          producer={playerBeat.producer}
-          imageUrl={playerBeat.imageUrl}
-          audioUrl={playerBeat.audioUrl ?? ''}
-          duration={30}
-          isFullSong={true}
-        />
-      )}
     </div>
     </div>
   );

@@ -1,6 +1,5 @@
-import { ShoppingCart, Search, User, LayoutDashboard, LogIn, Menu, X } from "lucide-react";
+import { ShoppingCart, User, LayoutDashboard, LogIn, Menu, X } from "lucide-react";
 import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
 import { Badge } from "@/components/ui/badge";
 import { Link } from "wouter";
 import { useAuth } from "@/contexts/AuthContext";
@@ -123,26 +122,7 @@ export default function Header({}: HeaderProps = {}) {
             )}
           </nav>
 
-          {/* Search Bar - Hidden on mobile */}
-          <div className="hidden md:flex items-center gap-4 flex-1 max-w-md mx-4">
-            <div className="relative flex-1">
-              <Search 
-                className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" 
-                style={{ color: themeColors.textSecondary }}
-              />
-              <Input
-                type="search"
-                placeholder="Search beats..."
-                className="pl-10"
-                data-testid="input-search"
-                style={{
-                  backgroundColor: themeColors.inputBackground,
-                  borderColor: themeColors.border,
-                  color: themeColors.text
-                }}
-              />
-            </div>
-          </div>
+
 
           {/* Right Side Actions */}
           <div className="flex items-center gap-2 sm:gap-4">
@@ -244,26 +224,7 @@ export default function Header({}: HeaderProps = {}) {
           </div>
         </div>
 
-        {/* Mobile Search Bar */}
-        <div className="md:hidden mt-4">
-          <div className="relative">
-            <Search 
-              className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4" 
-              style={{ color: themeColors.textSecondary }}
-            />
-            <Input
-              type="search"
-              placeholder="Search beats..."
-              className="pl-10"
-              data-testid="input-search-mobile"
-              style={{
-                backgroundColor: themeColors.inputBackground,
-                borderColor: themeColors.border,
-                color: themeColors.text
-              }}
-            />
-          </div>
-        </div>
+
 
         {/* Mobile Navigation Menu */}
         {isMobileMenuOpen && (
