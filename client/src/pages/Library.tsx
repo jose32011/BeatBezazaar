@@ -84,7 +84,6 @@ export default function Library() {
       }).catch(console.error);
       
     } catch (error) {
-      console.error("Download error:", error);
       // You could add a toast notification here if you have access to it
     }
   };

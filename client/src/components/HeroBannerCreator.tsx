@@ -216,8 +216,6 @@ export default function HeroBannerCreator() {
       return response.json();
     },
     onSuccess: async (data) => {
-      console.log('🎨 BannerCreator: Banner applied successfully, response:', data);
-      
       queryClient.invalidateQueries({ queryKey: ['/api/app-branding-settings'] });
       
       // Force refetch to ensure data is updated
@@ -234,8 +232,6 @@ export default function HeroBannerCreator() {
       // Trigger storage event to notify other components
       localStorage.setItem('app-branding-updated', Date.now().toString());
       window.dispatchEvent(new StorageEvent('storage', { key: 'app-branding-updated' }));
-      
-      console.log('🎨 BannerCreator: Query invalidated and refetched');
       
       toast({
         title: "Hero Banner Applied",
@@ -272,8 +268,7 @@ export default function HeroBannerCreator() {
         heroBannerData = settings.heroBannerData || '';
       }
     } catch (error) {
-      console.log('Using default hero content');
-    }
+      }
 
     // If there's existing banner data, use it
     if (heroBannerData && heroBannerData.trim()) {
@@ -292,8 +287,7 @@ export default function HeroBannerCreator() {
           updatedAt: new Date().toISOString()
         };
       } catch (error) {
-        console.warn('Failed to parse existing banner data, creating default');
-      }
+        }
     }
 
     // Create default banner with current hero settings
@@ -417,8 +411,7 @@ export default function HeroBannerCreator() {
           const parsedBanners = JSON.parse(savedBanners);
           loadedBanners = parsedBanners.map(cleanupBannerElements);
         } catch (error) {
-          console.error('Error loading saved banners:', error);
-        }
+          }
       }
 
       const defaultBanner = await createDefaultBanner();
@@ -483,8 +476,6 @@ export default function HeroBannerCreator() {
 
       // Automatic cleanup when usage exceeds 75%
       if (percentage > 75) {
-        console.log('Automatic storage cleanup triggered at', percentage.toFixed(1), '% usage');
-        
         // Clean up temporary and cache items
         const keysToClean = [];
         for (let key in localStorage) {
@@ -500,10 +491,8 @@ export default function HeroBannerCreator() {
         keysToClean.forEach(key => {
           try {
             localStorage.removeItem(key);
-            console.log('Cleaned up localStorage key:', key);
-          } catch (e) {
-            console.warn('Failed to clean up key:', key, e);
-          }
+            } catch (e) {
+            }
         });
 
         // If still high usage, trigger banner optimization
@@ -543,8 +532,6 @@ export default function HeroBannerCreator() {
     const currentUsage = getLocalStorageUsage();
     const estimatedQuota = getEstimatedQuota();
     const usagePercentage = (currentUsage / estimatedQuota) * 100;
-
-    console.log(`LocalStorage usage: ${(currentUsage / 1024).toFixed(1)}KB (${usagePercentage.toFixed(1)}%)`);
 
     // Aggressive housekeeping based on usage levels
     let optimizedBanners = [...bannersToSave];
@@ -603,8 +590,7 @@ export default function HeroBannerCreator() {
         try {
           localStorage.removeItem(key);
         } catch (e) {
-          console.warn(`Failed to remove ${key}:`, e);
-        }
+          }
       });
 
       // Further reduce banner data
@@ -699,8 +685,6 @@ export default function HeroBannerCreator() {
         }
       }
     } catch (error) {
-      console.error('Failed to save banners to localStorage:', error);
-      
       if (error instanceof DOMException && error.name === 'QuotaExceededError') {
         // Final fallback: save only current banner metadata
         try {
@@ -723,7 +707,6 @@ export default function HeroBannerCreator() {
             variant: "destructive"
           });
         } catch (finalError) {
-          console.error('Complete localStorage failure:', finalError);
           toast({
             title: "Storage Failure",
             description: "Cannot save to browser storage. Please export your work immediately.",
@@ -963,7 +946,6 @@ export default function HeroBannerCreator() {
         description: "Your banners have been exported successfully."
       });
     } catch (error) {
-      console.error('Export failed:', error);
       toast({
         title: "Export Failed",
         description: "Failed to export banners. Please try again.",
@@ -1017,7 +999,6 @@ export default function HeroBannerCreator() {
           description: `Successfully imported ${validBanners.length} banner(s).`
         });
       } catch (error) {
-        console.error('Import failed:', error);
         toast({
           title: "Import Failed",
           description: "Failed to import banners. Please check the file format.",
@@ -1185,8 +1166,7 @@ export default function HeroBannerCreator() {
       try {
         localStorage.removeItem(key);
       } catch (e) {
-        console.warn('Failed to clean up key:', key);
-      }
+        }
     });
 
     // Optimize current banners
@@ -1384,9 +1364,7 @@ export default function HeroBannerCreator() {
           const maxSize = usagePercentage > 75 ? 50 : usagePercentage > 60 ? 75 : 100;
           try {
             imageUrl = await compressImage(originalImageUrl, maxSize);
-            console.log(`Image compressed: ${(originalImageUrl.length/1024).toFixed(1)}KB → ${(imageUrl.length/1024).toFixed(1)}KB`);
-          } catch (error) {
-            console.warn('Image compression failed, using original:', error);
+            } catch (error) {
             imageUrl = originalImageUrl;
           }
         }
@@ -1658,8 +1636,7 @@ export default function HeroBannerCreator() {
             });
             ctx.drawImage(img, 0, 0, element.width, element.height);
           } catch (error) {
-            console.warn('Could not load image element:', error);
-          }
+            }
         }
 
         ctx.restore();
@@ -1691,18 +1668,9 @@ export default function HeroBannerCreator() {
         loginImage: currentSettings.loginImage
       };
 
-      console.log('🎨 BannerCreator: Applying banner to hero:', {
-        bannerData,
-        heroBannerData: JSON.stringify(bannerData),
-        heroTitle,
-        heroSubtitle,
-        heroButtonText
-      });
-
       updateAppBrandingMutation.mutate(updatedSettings);
 
     } catch (error) {
-      console.error('Error applying banner to hero:', error);
       toast({
         title: "Error",
         description: "Failed to apply banner to hero. Please try again.",

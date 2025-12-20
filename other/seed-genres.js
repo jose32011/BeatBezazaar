@@ -48,11 +48,7 @@ const genres = [
 ];
 
 async function seedGenres() {
-  console.log('🌱 Seeding genres into the database...\n');
-  console.log('='.repeat(50));
-
   // First, login as admin to get authentication
-  console.log('\n1. Logging in as admin...');
   const loginResponse = await fetch(`${BASE_URL}/api/login`, {
     method: 'POST',
     headers: {
@@ -71,10 +67,7 @@ async function seedGenres() {
 
   // Get the session cookie
   const cookies = loginResponse.headers.get('set-cookie');
-  console.log('   ✓ Logged in successfully');
-
   // Create each genre
-  console.log('\n2. Creating genres...');
   let successCount = 0;
   let errorCount = 0;
 
@@ -92,34 +85,21 @@ async function seedGenres() {
 
       if (response.ok) {
         const created = await response.json();
-        console.log(`   ✓ Created genre: ${created.name} (${created.color})`);
         successCount++;
       } else {
         const error = await response.text();
-        console.log(`   ✗ Failed to create ${genre.name}: ${error}`);
         errorCount++;
       }
     } catch (error) {
-      console.log(`   ✗ Error creating ${genre.name}: ${error.message}`);
       errorCount++;
     }
   }
 
-  console.log('\n' + '='.repeat(50));
-  console.log(`\n✅ Seeding complete!`);
-  console.log(`   - Successfully created: ${successCount} genres`);
   if (errorCount > 0) {
-    console.log(`   - Failed: ${errorCount} genres`);
+    }
   }
-  console.log('\nYou can now visit /music to see the genres!\n');
-}
 
 // Run the seeding
 seedGenres().catch(error => {
-  console.error('\n❌ Seeding failed:', error.message);
-  console.error('\nMake sure:');
-  console.error('  1. The server is running (npm run dev)');
-  console.error('  2. Admin user exists with username: admin, password: admin123');
-  console.error('  3. The database is properly configured\n');
   process.exit(1);
 });

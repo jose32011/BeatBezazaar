@@ -27,18 +27,8 @@ async function resetAdminPassword() {
       .returning();
 
     if (result.length > 0) {
-      console.log('✅ Admin password reset successfully!');
-      console.log(`📧 Username: ${result[0].username}`);
-      console.log(`🔑 New Password: ${newPassword}`);
-      console.log('');
-      console.log('You can now login with these credentials.');
-      console.log('⚠️  Remember to change the password after logging in!');
-    } else {
-      console.log('❌ No admin user found in database');
-      
+      } else {
       // Create a new admin user if none exists
-      console.log('Creating new admin user...');
-      
       const newAdmin = await db
         .insert(users)
         .values({
@@ -50,21 +40,12 @@ async function resetAdminPassword() {
         })
         .returning();
 
-      console.log('✅ New admin user created!');
-      console.log(`📧 Username: ${newAdmin[0].username}`);
-      console.log(`🔑 Password: ${newPassword}`);
-      console.log(`📬 Email: ${newAdmin[0].email}`);
-    }
+      }
 
     sqlite.close();
   } catch (error) {
-    console.error('❌ Error resetting admin password:', error);
-    
     if (error.message.includes('no such table')) {
-      console.log('');
-      console.log('🔧 Database tables not found. Please run the setup first:');
-      console.log('   npm run setup');
-    }
+      }
   }
 }
 

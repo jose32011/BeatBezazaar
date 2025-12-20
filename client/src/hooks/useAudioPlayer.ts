@@ -47,7 +47,6 @@ export function useAudioPlayer(): UseAudioPlayer {
 
     // Handle audio error event
     const handleError = (e: Event) => {
-      console.error('Audio playback error:', e);
       const audioElement = e.target as HTMLAudioElement;
       const errorCode = audioElement.error?.code;
       let errorMessage = 'Audio unavailable';
@@ -130,7 +129,6 @@ export function useAudioPlayer(): UseAudioPlayer {
     // If the same beat is playing, resume it
     if (currentlyPlaying === beatId && audioRef.current.paused) {
       audioRef.current.play().catch((error) => {
-        console.error('Failed to resume audio:', error);
         setError('Failed to resume audio');
       });
       return;
@@ -151,7 +149,6 @@ export function useAudioPlayer(): UseAudioPlayer {
     // Set new audio source and play
     audioRef.current.src = audioUrl;
     audioRef.current.play().catch((error) => {
-      console.error('Failed to play audio:', error);
       setError('Failed to play audio');
       setErrorBeatId(beatId);
       setCurrentlyPlaying(null);
@@ -192,14 +189,12 @@ export function useAudioPlayer(): UseAudioPlayer {
   const next = () => {
     // Placeholder for next track functionality
     // This would need to be implemented with a playlist context
-    console.log('Next track');
-  };
+    };
 
   const previous = () => {
     // Placeholder for previous track functionality
     // This would need to be implemented with a playlist context
-    console.log('Previous track');
-  };
+    };
 
   return {
     currentlyPlaying,

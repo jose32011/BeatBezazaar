@@ -55,8 +55,7 @@ app.use((req, res, next) => {
 
     res.status(status).json({ message });
     if (status !== 413) { // Don't log 413 errors as they're expected
-      console.error("Server error:", err);
-    }
+      }
   });
 
   // importantly only setup vite in development and after

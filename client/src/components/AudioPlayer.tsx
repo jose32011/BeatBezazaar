@@ -50,24 +50,15 @@ export default function AudioPlayer({
 
   // Handle audio URL changes - stop all other audio and reset state
   useEffect(() => {
-    console.log('AudioPlayer: audioUrl changed to:', audioUrl);
-    console.log('AudioPlayer: isFullSong:', isFullSong);
-    console.log('AudioPlayer: isPreview:', isPreview);
-    
     // Test if audio file is accessible
     if (audioUrl) {
       fetch(audioUrl, { method: 'HEAD' })
         .then(response => {
-          console.log('AudioPlayer: Audio file accessibility check:', response.status, response.statusText);
-          console.log('AudioPlayer: Content-Type:', response.headers.get('content-type'));
-          console.log('AudioPlayer: Content-Length:', response.headers.get('content-length'));
           if (!response.ok) {
-            console.error('AudioPlayer: Audio file not accessible:', response.status);
-          }
+            }
         })
         .catch(error => {
-          console.error('AudioPlayer: Error checking audio file accessibility:', error);
-        });
+          });
     }
     
     // Stop all other audio elements
@@ -83,25 +74,16 @@ export default function AudioPlayer({
       if (audio) {
         audio.src = audioUrl;
         audio.load(); // Force reload
-        console.log('AudioPlayer: Set audio src to:', audioUrl);
-        console.log('AudioPlayer: Audio element src after setting:', audio.src);
-        
         // Auto-play when audio URL changes (for playlist mode)
         if (isFullSong) {
-          console.log('AudioPlayer: Attempting to auto-play full song');
-          
           // Simple approach - just try to play after a short delay
           const tryPlay = () => {
-            console.log('AudioPlayer: Trying to play - readyState:', audio.readyState, 'duration:', audio.duration);
             if (audio.readyState >= 1) {
               audio.play().then(() => {
-                console.log('AudioPlayer: Successfully started playing');
                 setIsPlaying(true);
               }).catch((error) => {
-                console.error('AudioPlayer: Failed to play audio:', error);
-              });
+                });
             } else {
-              console.log('AudioPlayer: Audio not ready, retrying in 100ms');
               setTimeout(tryPlay, 100);
             }
           };
@@ -115,8 +97,7 @@ export default function AudioPlayer({
       const audio = audioRef.current;
       if (audio) {
         audio.src = '';
-        console.log('AudioPlayer: Cleared audio src');
-      }
+        }
     }
   }, [audioUrl, stopAllAudio, isFullSong, isPreview]);
 
@@ -129,15 +110,9 @@ export default function AudioPlayer({
     registerAudio(audio);
 
     const handleLoadedMetadata = () => {
-      console.log('AudioPlayer: Audio metadata loaded');
-      console.log('AudioPlayer: Audio duration:', audio.duration);
-      console.log('AudioPlayer: isPreview:', isPreview);
-      
       // For preview mode, limit duration to 30 seconds
       const maxDuration = isPreview ? 30 : audio.duration;
       setActualDuration(maxDuration);
-      
-      console.log('AudioPlayer: Setting maxDuration to:', maxDuration);
       
       // Call the time update callback with initial values
       if (onTimeUpdate) {
@@ -148,7 +123,6 @@ export default function AudioPlayer({
     const handleTimeUpdate = () => {
       const current = audio.currentTime;
       const duration = audio.duration;
-      console.log('AudioPlayer: Time update - current:', current, 'duration:', duration, 'isPlaying:', isPlaying);
       setCurrentTime(current);
       
       // Call the time update callback
@@ -174,15 +148,9 @@ export default function AudioPlayer({
     };
 
     const handlePlay = () => {
-      console.log('AudioPlayer: Audio play event fired');
-      console.log('AudioPlayer: Audio element paused:', audio.paused);
-      console.log('AudioPlayer: Audio element currentTime:', audio.currentTime);
-      console.log('AudioPlayer: Audio element duration:', audio.duration);
       setIsPlaying(true);
     };
     const handlePause = () => {
-      console.log('AudioPlayer: Audio pause event fired');
-      console.log('AudioPlayer: Audio element paused:', audio.paused);
       setIsPlaying(false);
     };
 
@@ -204,46 +172,30 @@ export default function AudioPlayer({
 
   // Handle play/pause
   const handlePlayPause = () => {
-    console.log('AudioPlayer: handlePlayPause called');
-    console.log('AudioPlayer: isPlaying:', isPlaying);
-    console.log('AudioPlayer: audioUrl:', audioUrl);
-    console.log('AudioPlayer: isFullSong:', isFullSong);
-    
     const audio = audioRef.current;
     if (!audio) {
-      console.log('AudioPlayer: No audio element in handlePlayPause');
       return;
     }
 
     if (isPlaying) {
-      console.log('AudioPlayer: Pausing audio');
       audio.pause();
     } else {
-      console.log('AudioPlayer: Starting audio playback');
-      console.log('AudioPlayer: Audio element readyState before play:', audio.readyState);
-      console.log('AudioPlayer: Audio element src before play:', audio.src);
-      
       // Stop all other audio before playing this one
       stopAllAudio();
       
       // Ensure audio is ready before playing
       if (audio.readyState >= 2) {
         audio.play().then(() => {
-          console.log('AudioPlayer: Successfully started playing via handlePlayPause');
           setIsPlaying(true);
         }).catch((error) => {
-          console.error('AudioPlayer: Failed to play audio in handlePlayPause:', error);
-        });
+          });
       } else {
-        console.log('AudioPlayer: Audio not ready, waiting for canplay event');
         const handleCanPlay = () => {
           audio.removeEventListener('canplay', handleCanPlay);
           audio.play().then(() => {
-            console.log('AudioPlayer: Successfully started playing via handlePlayPause after canplay');
             setIsPlaying(true);
           }).catch((error) => {
-            console.error('AudioPlayer: Failed to play audio in handlePlayPause after canplay:', error);
-          });
+            });
         };
         audio.addEventListener('canplay', handleCanPlay);
       }

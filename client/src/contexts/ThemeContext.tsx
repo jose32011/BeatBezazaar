@@ -221,7 +221,6 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
           }
         }
       } catch (error) {
-        console.error('Failed to load theme:', error);
         // Fallback to localStorage
         const savedTheme = localStorage.getItem('beatbazaar-theme') as Theme;
         if (savedTheme && themes[savedTheme]) {
@@ -272,11 +271,9 @@ export function ThemeProvider({ children }: { children: ReactNode }) {
       });
       
       if (!response.ok) {
-        console.error('Failed to save theme to database');
-      }
+        }
     } catch (error) {
-      console.error('Error saving theme to database:', error);
-    }
+      }
   };
 
   const getThemeColors = () => themes[theme];

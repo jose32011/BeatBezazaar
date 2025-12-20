@@ -128,7 +128,6 @@ export default function PlanUpgrade({ currentPlan, onPlanUpdated }: PlanUpgradeP
         throw new Error('Failed to update plan');
       }
     } catch (error) {
-      console.error('Failed to update plan:', error);
       toast({
         title: "Error",
         description: "Failed to update your plan. Please try again.",

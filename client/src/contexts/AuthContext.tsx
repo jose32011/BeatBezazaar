@@ -60,7 +60,6 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         setUser(null);
       }
     } catch (error) {
-      console.error("Auth check failed:", error);
       // If there was an error and user was logged in, clear cache
       if (user) {
         queryClient.clear();
@@ -93,8 +92,7 @@ export function AuthProvider({ children }: { children: ReactNode }) {
         credentials: "include",
       });
     } catch (error) {
-      console.error("Logout failed:", error);
-    } finally {
+      } finally {
       setUser(null);
       
       // Clear all cached data when user logs out

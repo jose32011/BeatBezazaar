@@ -94,8 +94,6 @@ export default function PlaylistCard({
               color: '#ffffff'
             }}
             onClick={() => {
-              console.log('PlaylistCard Play button clicked for:', beat.title);
-              console.log('Audio URL:', beat.audioUrl);
               onPlayPause();
             }}
           >
@@ -186,8 +184,6 @@ export default function PlaylistCard({
               borderColor: themeColors.border
             }}
             onClick={() => {
-              console.log('PlaylistCard Play button (bottom) clicked for:', beat.title);
-              console.log('Audio URL:', beat.audioUrl);
               onPlayPause();
             }}
           >

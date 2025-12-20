@@ -39,8 +39,7 @@ export default function Plans() {
         setCurrentPlan(planData);
       }
     } catch (error) {
-      console.error('Failed to fetch current plan:', error);
-    } finally {
+      } finally {
       setIsLoading(false);
     }
   };
@@ -121,5 +120,4 @@ export default function Plans() {
     </div>
   );
 }
-
 

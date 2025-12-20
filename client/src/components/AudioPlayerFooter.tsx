@@ -67,10 +67,7 @@ export default function AudioPlayerFooter() {
   const hasNextTrack = audioPlayer.playlist.length > 0 && audioPlayer.currentIndex < audioPlayer.playlist.length - 1;
   const hasPreviousTrack = audioPlayer.playlist.length > 0 && audioPlayer.currentIndex > 0;
 
-  // Debug logging
-  useEffect(() => {
-    console.log('AudioPlayerFooter render:', { currentBeat, hasCurrentBeat: !!currentBeat });
-  }, [currentBeat]);
+  // Debug logging removed for security
 
   // Hide player if no beat is loaded
   if (!currentBeat) {

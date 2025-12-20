@@ -23,10 +23,4 @@ export default function CartExample() {
   return (
     <Cart
       isOpen={true}
-      onClose={() => console.log('Close cart')}
-      items={sampleItems}
-      onRemoveItem={(id) => console.log('Remove item:', id)}
-      onCheckout={() => console.log('Checkout clicked')}
-    />
-  );
-}
+      onClose={() => }

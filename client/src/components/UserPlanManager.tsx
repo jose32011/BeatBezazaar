@@ -70,7 +70,6 @@ export default function UserPlanManager() {
         setUserPlans(plansData);
       }
     } catch (error) {
-      console.error('Failed to fetch data:', error);
       toast({
         title: "Error",
         description: "Failed to load user data",
@@ -108,7 +107,6 @@ export default function UserPlanManager() {
         throw new Error('Failed to update plan');
       }
     } catch (error) {
-      console.error('Failed to update user plan:', error);
       toast({
         title: "Error",
         description: "Failed to update user plan",

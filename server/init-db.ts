@@ -5,12 +5,9 @@ export async function initializeDatabase(): Promise<void> {
   const connectionString = process.env.DATABASE_URL;
   
   if (!connectionString) {
-    console.log('⚠️  No DATABASE_URL found, skipping database initialization');
     return;
   }
 
-  console.log('🔄 Checking database initialization...');
-  
   const sql = postgres(connectionString);
 
   try {
@@ -25,18 +22,14 @@ export async function initializeDatabase(): Promise<void> {
     `;
 
     if (tablesResult.length === 0) {
-      console.log('📋 Creating database tables...');
       await createAllTables(sql);
       await insertDefaultData(sql);
-      console.log('✅ Database initialized successfully');
-    } else {
-      console.log('✅ Database already initialized');
+      } else {
       // Run migrations for new features
       await runMigrations(sql);
     }
 
   } catch (error) {
-    console.error('❌ Database initialization failed:', error);
     // Don't throw - let the app start anyway
   } finally {
     await sql.end();
@@ -246,8 +239,7 @@ async function insertDefaultData(sql: any): Promise<void> {
     ON CONFLICT (username) DO NOTHING
   `;
 
-  console.log('✅ Default admin user created (admin/admin123)');
-}
+  }
 
 async function runMigrations(sql: any): Promise<void> {
   try {
@@ -259,7 +251,6 @@ async function runMigrations(sql: any): Promise<void> {
     `;
 
     if (appBrandingTable.length === 0) {
-      console.log('🔄 Creating app_branding_settings table...');
       await sql`
         CREATE TABLE app_branding_settings (
           id TEXT PRIMARY KEY DEFAULT gen_random_uuid()::text,
@@ -292,8 +283,7 @@ async function runMigrations(sql: any): Promise<void> {
           'Sign in to your account to continue'
         )
       `;
-      console.log('✅ App branding settings table created with defaults');
-    }
+      }
 
     // Check for other settings tables
     const settingsTables = ['email_settings', 'social_media_settings', 'contact_settings'];
@@ -306,8 +296,6 @@ async function runMigrations(sql: any): Promise<void> {
       `;
 
       if (tableExists.length === 0) {
-        console.log(`🔄 Creating ${tableName} table...`);
-        
         if (tableName === 'email_settings') {
           await sql`
             CREATE TABLE email_settings (
@@ -363,8 +351,7 @@ async function runMigrations(sql: any): Promise<void> {
             )
           `;
         }
-        console.log(`✅ ${tableName} table created`);
-      }
+        }
     }
 
     // Check for exclusive purchase columns
@@ -376,7 +363,6 @@ async function runMigrations(sql: any): Promise<void> {
     `;
 
     if (purchaseColumns.length < 3) {
-      console.log('🔄 Adding exclusive purchase columns...');
       await sql`ALTER TABLE purchases ADD COLUMN IF NOT EXISTS beat_audio_url TEXT`;
       await sql`ALTER TABLE purchases ADD COLUMN IF NOT EXISTS beat_image_url TEXT`;
       await sql`ALTER TABLE purchases ADD COLUMN IF NOT EXISTS notes TEXT`;
@@ -391,7 +377,6 @@ async function runMigrations(sql: any): Promise<void> {
     `;
 
     if (beatColumns.length < 3) {
-      console.log('🔄 Adding exclusive beat columns...');
       await sql`ALTER TABLE beats ADD COLUMN IF NOT EXISTS is_exclusive BOOLEAN DEFAULT false NOT NULL`;
       await sql`ALTER TABLE beats ADD COLUMN IF NOT EXISTS is_hidden BOOLEAN DEFAULT false NOT NULL`;
       await sql`ALTER TABLE beats ADD COLUMN IF NOT EXISTS exclusive_plan TEXT`;
@@ -405,7 +390,6 @@ async function runMigrations(sql: any): Promise<void> {
     `;
 
     if (homeSettingsTable.length === 0) {
-      console.log('🔄 Creating home_settings table...');
       await sql`
         CREATE TABLE home_settings (
           id TEXT PRIMARY KEY DEFAULT 'default',
@@ -442,7 +426,6 @@ async function runMigrations(sql: any): Promise<void> {
     `;
 
     if (genreColumns.length < 4) {
-      console.log('🔄 Adding missing genre columns...');
       await sql`ALTER TABLE genres ADD COLUMN IF NOT EXISTS color TEXT DEFAULT '#3b82f6'`;
       await sql`ALTER TABLE genres ADD COLUMN IF NOT EXISTS image_url TEXT`;
       await sql`ALTER TABLE genres ADD COLUMN IF NOT EXISTS is_active BOOLEAN DEFAULT true`;
@@ -463,7 +446,6 @@ async function runMigrations(sql: any): Promise<void> {
     `;
 
     if (paymentColumns.length < 5) {
-      console.log('🔄 Adding missing payment columns...');
       await sql`ALTER TABLE payments ADD COLUMN IF NOT EXISTS status TEXT DEFAULT 'pending'`;
       await sql`ALTER TABLE payments ADD COLUMN IF NOT EXISTS transaction_id TEXT`;
       await sql`ALTER TABLE payments ADD COLUMN IF NOT EXISTS approved_by TEXT`;
@@ -476,6 +458,5 @@ async function runMigrations(sql: any): Promise<void> {
     }
 
   } catch (error) {
-    console.log('⚠️  Some migrations may have already been applied');
-  }
+    }
 }

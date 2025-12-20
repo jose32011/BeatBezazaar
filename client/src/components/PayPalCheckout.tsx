@@ -48,18 +48,16 @@ export default function PayPalCheckout({
             script.src = `https://www.paypal.com/sdk/js?client-id=${clientId}&currency=USD${sandbox ? '&debug=true' : ''}`;
             script.onload = () => setPaypalLoaded(true);
             script.onerror = () => {
-              console.error('Failed to load PayPal SDK script');
               setPaypalLoaded(false);
             };
             document.head.appendChild(script);
           } else {
-            console.log('PayPal not configured or not enabled');
+            // PayPal not configured or not enabled
             setPaypalConfigured(false);
             setPaypalLoaded(false);
           }
         }
       } catch (error) {
-        console.error('Failed to load PayPal SDK:', error);
         setPaypalConfigured(false);
         setPaypalLoaded(false);
       }

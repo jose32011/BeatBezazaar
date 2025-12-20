@@ -87,7 +87,6 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
     // Handle audio error event
     const handleError = (e: Event) => {
-      console.error('Audio playback error:', e);
       const audioElement = e.target as HTMLAudioElement;
       const errorCode = audioElement.error?.code;
       let errorMessage = 'Audio unavailable';
@@ -171,8 +170,6 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
     // Set ownership status using ref so event handlers can access it
     isOwnedTrackRef.current = isOwned;
-    console.log('Playing beat:', beatId, 'isOwned:', isOwned);
-
     // If a new playlist is provided, update it
     if (newPlaylist) {
       setPlaylistState(newPlaylist);
@@ -195,7 +192,6 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     // If the same beat is playing, resume it
     if (currentlyPlaying === beatId && audioRef.current.paused) {
       audioRef.current.play().catch((error) => {
-        console.error('Failed to resume audio:', error);
         setError('Failed to resume audio');
       });
       return;
@@ -216,7 +212,6 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     // Set new audio source and play
     audioRef.current.src = audioUrl;
     audioRef.current.play().catch((error) => {
-      console.error('Failed to play audio:', error);
       setError('Failed to play audio');
       setErrorBeatId(beatId);
       setCurrentlyPlaying(null);
@@ -271,13 +266,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
   const next = () => {
     if (playlist.length === 0) {
-      console.log('No playlist available');
       return;
     }
 
     const nextIndex = currentIndex + 1;
     if (nextIndex >= playlist.length) {
-      console.log('End of playlist');
       return;
     }
 
@@ -289,13 +282,11 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
 
   const previous = () => {
     if (playlist.length === 0) {
-      console.log('No playlist available');
       return;
     }
 
     const prevIndex = currentIndex - 1;
     if (prevIndex < 0) {
-      console.log('Start of playlist');
       return;
     }
 

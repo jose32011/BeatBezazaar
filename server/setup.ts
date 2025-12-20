@@ -75,7 +75,6 @@ export async function checkDbAndAdmin(): Promise<{ configured: boolean; canConne
     await client.end();
     return { configured: true, canConnect: true, adminExists };
   } catch (error) {
-    console.error('Database connection check failed:', error);
     return { configured: true, canConnect: false, adminExists: false };
   }
 }

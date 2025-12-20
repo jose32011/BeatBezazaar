@@ -161,20 +161,16 @@ export default function PaymentManagement() {
 
   const approvePaymentMutation = useMutation({
     mutationFn: async (paymentId: string) => {
-      console.log("Attempting to approve payment with ID:", paymentId);
       // Get the current admin user ID from the session
       const adminResponse = await apiRequest('GET', '/api/auth/me');
       const adminUser = await adminResponse.json();
-      console.log("Current admin user:", adminUser);
       
       const response = await apiRequest('POST', `/api/payments/${paymentId}/approve`, {
         approvedBy: adminUser.user?.id || 'admin' // Use actual admin user ID
       });
-      console.log("Payment approval response:", response);
       return response;
     },
     onSuccess: (data) => {
-      console.log("Payment approved successfully:", data);
       queryClient.invalidateQueries({ queryKey: ['/api/payments'] });
       queryClient.invalidateQueries({ queryKey: ['/api/payments/status/pending'] });
       queryClient.invalidateQueries({ queryKey: ['/api/payments/status/approved'] });
@@ -186,7 +182,6 @@ export default function PaymentManagement() {
       });
     },
     onError: (error) => {
-      console.error("Payment approval error:", error);
       toast({
         title: "Error",
         description: "Failed to approve payment.",

@@ -29,7 +29,6 @@ import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { Analytics, Purchase, Beat } from "@shared/schema";
 
-
 interface PurchaseWithDetails extends Purchase {
   beatTitle: string | null;
   username?: string;
@@ -47,9 +46,6 @@ function AdminDashboardContent() {
   const [activeTab, setActiveTab] = useState("overview");
   const [isMobileMenuOpen, setIsMobileMenuOpen] = useState(false);
 
-
-
-
   // Navigation menu items
   const menuItems = [
     { id: "overview", label: "Overview", icon: BarChart3, shortLabel: "Overview" },
@@ -64,9 +60,10 @@ function AdminDashboardContent() {
   // Track admin dashboard visit
   useEffect(() => {
     fetch('/api/analytics/visit', { method: 'POST' })
-      .catch(error => console.log('Analytics tracking failed:', error));
+      .catch(() => {
+        // Analytics tracking failed - silently ignore
+      });
   }, []);
-
 
   // Chart data generation functions with actual data
   const COLORS = ['hsl(var(--primary))', 'hsl(var(--secondary))', '#10b981', '#f59e0b', '#ef4444', '#8b5cf6'];
@@ -75,37 +72,25 @@ function AdminDashboardContent() {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const totalVisits = analytics?.siteVisits || 0;
     
-    console.log('🔍 generateSiteVisitsData called:', { 
-      analytics, 
-      totalVisits, 
-      analyticsType: typeof analytics,
-      siteVisitsType: typeof analytics?.siteVisits
-    });
-    
     // Always show zero for each day when totalVisits is 0 or undefined
     if (!totalVisits || totalVisits === 0) {
-      console.log('✅ Showing zero visits for all days');
       const zeroData = days.map(day => ({
         day,
         visits: 0
       }));
-      console.log('📊 Zero data generated:', zeroData);
       return zeroData;
     }
     
     // If we have actual site visits data, distribute it across days
-    console.log('📈 Distributing visits across days:', totalVisits);
     const distributedData = days.map((day, index) => ({
       day,
       visits: Math.floor(totalVisits / 7) + (index % 3) // Distribute visits with slight variation
     }));
-    console.log('📊 Distributed data generated:', distributedData);
     return distributedData;
   };
 
   const generateGenreData = () => {
     if (!Array.isArray(beats) || beats.length === 0) {
-      console.log('No beats data available for genre chart');
       return [{ name: 'No Data', value: 1 }];
     }
     
@@ -116,8 +101,6 @@ function AdminDashboardContent() {
       genreCounts[genreName] = (genreCounts[genreName] || 0) + 1;
     });
     
-    console.log('Genre data:', { beats: beats.length, genreCounts });
-    
     return Object.entries(genreCounts).map(([name, value]) => ({ name, value }));
   };
 
@@ -125,31 +108,20 @@ function AdminDashboardContent() {
     const days = ['Mon', 'Tue', 'Wed', 'Thu', 'Fri', 'Sat', 'Sun'];
     const totalRevenue = purchasesWithDetails?.reduce((sum, p) => sum + parseFloat(String(p.price || 0)), 0) || 0;
     
-    console.log('💰 generateRevenueData called:', { 
-      purchasesWithDetails: purchasesWithDetails?.length, 
-      totalRevenue,
-      purchasesWithDetailsType: typeof purchasesWithDetails,
-      purchasesWithDetailsArray: Array.isArray(purchasesWithDetails)
-    });
-    
     // Always show zero for each day when totalRevenue is 0
     if (totalRevenue === 0) {
-      console.log('✅ Showing zero revenue for all days');
       const zeroData = days.map(day => ({
         day,
         revenue: 0
       }));
-      console.log('📊 Zero revenue data generated:', zeroData);
       return zeroData;
     }
     
     // If we have actual revenue data, distribute it across days
-    console.log('📈 Distributing revenue across days:', totalRevenue);
     const distributedData = days.map((day, index) => ({
       day,
       revenue: Math.floor(totalRevenue / 7) + (index % 2) // Distribute revenue with slight variation
     }));
-    console.log('📊 Distributed revenue data generated:', distributedData);
     return distributedData;
   };
 
@@ -158,35 +130,22 @@ function AdminDashboardContent() {
     const totalCustomers = Array.isArray(customers) ? customers.length : 0;
     const totalPurchases = purchasesWithDetails?.length || 0;
     
-    console.log('👥 generateUserActivityData called:', { 
-      totalCustomers, 
-      totalPurchases,
-      customersType: typeof customers,
-      customersArray: Array.isArray(customers),
-      purchasesWithDetailsType: typeof purchasesWithDetails,
-      purchasesWithDetailsArray: Array.isArray(purchasesWithDetails)
-    });
-    
     // Always show zero for each day when there's no data
     if (totalCustomers === 0 && totalPurchases === 0) {
-      console.log('✅ Showing zero user activity for all days');
       const zeroData = days.map(day => ({
         day,
         newUsers: 0,
         purchases: 0
       }));
-      console.log('📊 Zero user activity data generated:', zeroData);
       return zeroData;
     }
     
     // If we have actual data, distribute it across days
-    console.log('📈 Distributing user activity across days:', { totalCustomers, totalPurchases });
     const distributedData = days.map((day, index) => ({
       day,
       newUsers: Math.floor(totalCustomers / 7) + (index % 2),
       purchases: Math.floor(totalPurchases / 7) + (index % 2)
     }));
-    console.log('📊 Distributed user activity data generated:', distributedData);
     return distributedData;
   };
   
@@ -207,9 +166,7 @@ function AdminDashboardContent() {
 
   // Debug analytics data changes
   useEffect(() => {
-    console.log('Analytics data changed:', analytics);
-  }, [analytics]);
-
+    }, [analytics]);
 
   const { data: purchases } = useQuery<Purchase[]>({
     queryKey: ['/api/purchases'],
@@ -239,9 +196,6 @@ function AdminDashboardContent() {
     queryKey: ['/api/admin/genres'],
     staleTime: 1000 * 60 * 5, // 5 minutes - genres don't change frequently
   });
-
-
-
 
   // Delete beat mutation
   const deleteBeatMutation = useMutation({
@@ -369,10 +323,6 @@ function AdminDashboardContent() {
 
   // Site Pages mutations
 
-
-
-
-
   // Audio player handlers
   const handlePlayPause = (beat: Beat) => {
     if (audioPlayer.isPlaying(beat.id)) {
@@ -410,35 +360,26 @@ function AdminDashboardContent() {
 
   // Debug other data changes
   useEffect(() => {
-    console.log('Purchases data changed:', purchases);
-  }, [purchases]);
+    }, [purchases]);
 
   useEffect(() => {
-    console.log('Beats data changed:', beats);
-  }, [beats]);
+    }, [beats]);
 
   useEffect(() => {
-    console.log('Customers data changed:', customers);
-  }, [customers]);
+    }, [customers]);
 
   useEffect(() => {
-    console.log('PurchasesWithDetails data changed:', purchasesWithDetails);
-  }, [purchasesWithDetails]);
+    }, [purchasesWithDetails]);
 
   // Debug chart data generation
   useEffect(() => {
-    console.log('🔄 Chart data generation triggered by analytics change');
     const siteVisitsData = generateSiteVisitsData();
-    console.log('📊 Site visits chart data:', siteVisitsData);
-  }, [analytics]);
+    }, [analytics]);
 
   useEffect(() => {
-    console.log('🔄 Chart data generation triggered by purchasesWithDetails change');
     const revenueData = generateRevenueData();
     const userActivityData = generateUserActivityData();
-    console.log('📊 Revenue chart data:', revenueData);
-    console.log('📊 User activity chart data:', userActivityData);
-  }, [purchasesWithDetails, customers]);
+    }, [purchasesWithDetails, customers]);
 
   const totalRevenue = purchases?.reduce((sum, p) => sum + parseFloat(String(p.price || '0')), 0) || 0;
 
@@ -948,7 +889,6 @@ function AdminDashboardContent() {
         </div>
 
             {/* Approved Banners Display */}
-            
 
             </div>
           )}
@@ -1056,8 +996,6 @@ function AdminDashboardContent() {
           {activeTab === "payments" && (
             <PaymentManagement />
           )}
-
-
 
           {/* Settings */}
           {activeTab === "settings" && (

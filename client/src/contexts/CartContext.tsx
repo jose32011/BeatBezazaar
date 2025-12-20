@@ -73,7 +73,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       });
     },
     onError: (error) => {
-      console.error("Error adding to cart:", error);
       toast({
         title: "Error",
         description: "Failed to add beat to cart",
@@ -105,7 +104,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       });
     },
     onError: (error) => {
-      console.error("Error removing from cart:", error);
       toast({
         title: "Error",
         description: "Failed to remove beat from cart",
@@ -137,7 +135,6 @@ export function CartProvider({ children }: { children: React.ReactNode }) {
       });
     },
     onError: (error) => {
-      console.error("Error clearing cart:", error);
       toast({
         title: "Error",
         description: "Failed to clear cart",

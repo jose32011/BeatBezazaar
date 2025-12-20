@@ -90,9 +90,6 @@ function AdminUploadContent() {
   });
 
   // Debug: Log form data and genres
-  console.log('Form data genre:', formData.genre);
-  console.log('Genres loaded:', genres.length);
-
   const uploadMutation = useMutation({
     mutationFn: async (data: { formData: any; audioFile: File | null; imageFile: File | null; manualImageFile: File | null }) => {
       const formDataToSend = new FormData();
@@ -183,7 +180,6 @@ function AdminUploadContent() {
       const dataUrl = canvas.toDataURL('image/png');
       setGeneratedAlbumArt(dataUrl);
     } catch (error) {
-      console.error('Error generating album art:', error);
       toast({
         title: "Error",
         description: "Failed to generate album art",
@@ -591,8 +587,7 @@ function AdminUploadContent() {
       // Auto-approve the banner
       approveBanner();
     } catch (error) {
-      console.error('Error generating banner from album art:', error);
-    }
+      }
   };
 
   // Banner Generator Functions
@@ -622,7 +617,6 @@ function AdminUploadContent() {
       const dataUrl = canvas.toDataURL('image/png');
       setGeneratedBanner(dataUrl);
     } catch (error) {
-      console.error('Error generating banner:', error);
       toast({
         title: "Error",
         description: "Failed to generate banner",
@@ -1105,7 +1099,6 @@ function AdminUploadContent() {
           </p>
          
         </div>
-        
 
         {/* Step 1: Song Details */}
         {currentStep === 1 && (

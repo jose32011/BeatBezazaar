@@ -13,7 +13,6 @@ import { useTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 
-
 export default function Home() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
@@ -37,8 +36,6 @@ export default function Home() {
     enabled: isAuthenticated,
   });
 
-
-
   // Fetch home settings
   const { data: homeSettings } = useQuery<any>({
     queryKey: ['/api/home-settings'],
@@ -48,7 +45,9 @@ export default function Home() {
   useEffect(() => {
     // Track site visit
     fetch('/api/analytics/visit', { method: 'POST' })
-      .catch(error => console.log('Analytics tracking failed:', error));
+      .catch(() => {
+        // Analytics tracking failed - silently ignore
+      });
   }, []);
 
   // Fetch user's cart
@@ -56,7 +55,6 @@ export default function Home() {
     queryKey: ['/api/cart'],
     enabled: isAuthenticated,
   });
-
 
   // Add beat to cart mutation
   const addToCartMutation = useMutation({
@@ -101,12 +99,7 @@ export default function Home() {
   });
 
   const handlePlayPause = (beat: Beat) => {
-    console.log('🎵 Home handlePlayPause called for:', beat.title);
-    console.log('🎵 Beat audio URL:', beat.audioUrl);
-    console.log('🎵 User playlist:', userPlaylist.map(b => b.title));
-    
     if (!beat.audioUrl) {
-      console.error('❌ No audio URL for beat:', beat.title);
       toast({
         title: "No Audio Available",
         description: "This beat doesn't have an audio file",
@@ -117,15 +110,11 @@ export default function Home() {
     
     // Check if this beat is in the user's playlist (purchased)
     const isInPlaylist = userPlaylist.some(b => b.id === beat.id);
-    console.log('🎵 Is in playlist:', isInPlaylist);
-    
     if (audioPlayer.isPlaying(beat.id)) {
       // If currently playing this beat, pause it
-      console.log('⏸️ Pausing current beat');
       audioPlayer.pause();
     } else {
       // Play the beat with appropriate playlist
-      console.log('▶️ Playing beat with global audio player');
       const playlist = isInPlaylist ? userPlaylist : beats.slice(0, 4);
       audioPlayer.play(beat.id, beat.audioUrl, {
         id: beat.id,
@@ -138,12 +127,7 @@ export default function Home() {
   };
 
   const handleAddToCart = (beat: Beat) => {
-    console.log('🛒 handleAddToCart called for:', beat.title);
-    console.log('🛒 Is authenticated:', isAuthenticated);
-    console.log('🛒 User cart:', userCart.map(b => b.title));
-    
     if (!isAuthenticated) {
-      console.log('❌ User not authenticated, redirecting to login');
       toast({
         title: "Sign In Required",
         description: "Please sign in to add beats to your cart",
@@ -155,10 +139,7 @@ export default function Home() {
 
     // Check if beat is already in user's playlist (already purchased)
     const isAlreadyOwned = userPlaylist.some(playlistBeat => playlistBeat.id === beat.id);
-    console.log('🛒 Is already owned:', isAlreadyOwned);
-    
     if (isAlreadyOwned) {
-      console.log('❌ Beat already owned');
       toast({
         title: "Already Owned",
         description: "You already own this beat in your playlist",
@@ -169,10 +150,7 @@ export default function Home() {
 
     // Check if already in cart
     const isInCart = userCart.some(cartBeat => cartBeat.id === beat.id);
-    console.log('🛒 Is in cart:', isInCart);
-    
     if (isInCart) {
-      console.log('❌ Beat already in cart');
       toast({
         title: "Already in Cart",
         description: "This beat is already in your cart",
@@ -182,10 +160,8 @@ export default function Home() {
     }
 
     // Use API for authenticated users
-    console.log('✅ Adding beat to cart via API');
     addToCartMutation.mutate(beat.id);
   };
-
 
   const handleDownload = async (beat: Beat) => {
     if (!beat.audioUrl) {
@@ -235,14 +211,15 @@ export default function Home() {
       fetch('/api/analytics/download', { 
         method: 'POST',
         credentials: 'include'
-      }).catch(error => console.log('Download tracking failed:', error));
-
+      }).catch(() => {
+        // Analytics tracking failed - silently ignore
+      });
+      
       toast({
         title: "Download Started",
         description: `Downloading ${beat.title}`,
       });
     } catch (error) {
-      console.error('Download error:', error);
       toast({
         title: "Download Failed",
         description: "Failed to download the file. Please try again.",
@@ -289,14 +266,11 @@ export default function Home() {
           beatId: item.id,
           price: Number(item.price) // Ensure price is a number
         };
-        console.log('Creating purchase with data:', purchaseData);
         const response = await apiRequest('POST', '/api/purchases', purchaseData);
         return response.json(); // Parse the JSON response
       });
 
       const purchases = await Promise.all(purchasePromises);
-      console.log('Purchases created:', purchases);
-
       // Get customer ID - fetch the customer record for this user
       let customerId = user?.id; // Default to user ID
       try {
@@ -304,11 +278,9 @@ export default function Home() {
         const customer = await customerResponse.json();
         if (customer && customer.id) {
           customerId = customer.id;
-          console.log('Found customer ID:', customerId);
-        }
+          }
       } catch (error) {
-        console.log('Could not fetch customer ID, using user ID:', error);
-      }
+        }
       
       // Create payment record
       const totalAmount = displayCartItems.reduce((sum, item) => sum + Number(item.price), 0);
@@ -321,11 +293,8 @@ export default function Home() {
         notes: paymentMethod === 'bank_transfer' ? 'Bank transfer payment' : 'PayPal payment'
       };
 
-      console.log('Creating payment with data:', paymentData);
       const paymentResponse = await apiRequest('POST', '/api/payments', paymentData);
       const payment = await paymentResponse.json();
-      console.log('Payment created:', payment);
-
       if (paymentMethod === 'paypal') {
         toast({
           title: "Payment Successful",
@@ -352,8 +321,6 @@ export default function Home() {
       
       setIsCartOpen(false);
     } catch (error) {
-      console.error('Checkout error:', error);
-      
       // Show more specific error message if available
       let errorMessage = "There was an error processing your payment. Please try again.";
       if (error instanceof Error) {
@@ -462,10 +429,6 @@ export default function Home() {
           </div>
         </section>
       )}
-
-
-
-
 
       <Cart
         isOpen={isCartOpen}

@@ -134,7 +134,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
   // Log audio file requests
   app.use('/uploads/audio', (req, res, next) => {
-    console.log(`Audio file requested: ${req.path}`);
     next();
   });
 
@@ -143,17 +142,13 @@ export async function registerRoutes(app: Express): Promise<Server> {
     setHeaders: (res, path) => {
       if (path.endsWith('.mp3')) {
         res.setHeader('Content-Type', 'audio/mpeg');
-        console.log(`Serving MP3 file: ${path}`);
-      } else if (path.endsWith('.wav')) {
+        } else if (path.endsWith('.wav')) {
         res.setHeader('Content-Type', 'audio/wav');
-        console.log(`Serving WAV file: ${path}`);
-      } else if (path.endsWith('.m4a')) {
+        } else if (path.endsWith('.m4a')) {
         res.setHeader('Content-Type', 'audio/mp4');
-        console.log(`Serving M4A file: ${path}`);
-      } else if (path.endsWith('.ogg')) {
+        } else if (path.endsWith('.ogg')) {
         res.setHeader('Content-Type', 'audio/ogg');
-        console.log(`Serving OGG file: ${path}`);
-      }
+        }
     }
   }));
 
@@ -208,12 +203,10 @@ export async function registerRoutes(app: Express): Promise<Server> {
       fileStream.pipe(res);
 
       fileStream.on('error', (error) => {
-        console.error('Error streaming file:', error);
         res.status(500).json({ error: 'Error downloading file' });
       });
 
     } catch (error) {
-      console.error('Download error:', error);
       res.status(500).json({ error: 'Failed to download file' });
     }
   });
@@ -269,7 +262,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const status = await checkDbAndAdmin();
       res.json(status);
     } catch (error) {
-      console.error('Setup status error:', error);
       res.status(500).json({ error: 'Failed to check setup status' });
     }
   });
@@ -317,7 +309,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
 
       res.json({ success: true, ...result, restartRequired: true });
     } catch (error) {
-      console.error('Setup configure error:', error);
       res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to configure' });
     }
   });
@@ -358,19 +349,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
         return res.status(400).json({ ok: false, error: String(err.message || err) });
       }
     } catch (error) {
-      console.error('Check connection error:', error);
       return res.status(500).json({ error: error instanceof Error ? error.message : 'Failed to test connection' });
     }
   });
 
   // Debug endpoint to check current session
   app.get("/api/debug/session", async (req, res) => {
-    console.log("🔍 Session debug request:");
-    console.log("Session ID:", req.sessionID);
-    console.log("Session:", req.session);
-    console.log("Headers:", req.headers);
-    console.log("Cookies:", req.headers.cookie);
-    
     res.json({
       sessionId: req.sessionID,
       session: req.session,
@@ -383,14 +367,9 @@ export async function registerRoutes(app: Express): Promise<Server> {
     });
   });
 
-
   // Authentication routes
   app.post("/api/auth/login", async (req, res) => {
     const { username, password } = req.body;
-    
-    console.log("🔐 Login attempt:", { username, hasPassword: !!password });
-    console.log("Session before login:", req.session);
-    console.log("Session ID before login:", req.sessionID);
     
     if (!username || !password) {
       return res.status(400).json({ error: "Username and password required" });
@@ -399,18 +378,12 @@ export async function registerRoutes(app: Express): Promise<Server> {
     const user = await storage.verifyPassword(username, password);
     
     if (!user) {
-      console.log("❌ Login failed for user:", username);
       return res.status(401).json({ error: "Invalid credentials" });
     }
-    
-    console.log("✅ Login successful for user:", username, "Role:", user.role);
     
     req.session.userId = user.id;
     req.session.username = user.username;
     req.session.role = user.role;
-    
-    console.log("Session after login:", req.session);
-    console.log("Session ID after login:", req.sessionID);
     
     res.json({ 
       user: { 
@@ -452,10 +425,7 @@ export async function registerRoutes(app: Express): Promise<Server> {
         country: req.body.country || null,
       };
       
-      console.log("Creating customer for user:", user.username, "with data:", customerData);
       const customer = await storage.createCustomer(customerData);
-      console.log("Customer created successfully:", customer.id);
-      
       req.session.userId = user.id;
       req.session.username = user.username;
       req.session.role = user.role;
@@ -469,7 +439,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } 
       });
     } catch (error) {
-      console.error("Registration error:", error);
       res.status(400).json({ error: "Invalid user data" });
     }
   });
@@ -521,31 +490,20 @@ export async function registerRoutes(app: Express): Promise<Server> {
       
       res.json({ message: "Password updated successfully" });
     } catch (error) {
-      console.error("Password change error:", error);
       res.status(500).json({ error: "Failed to change password" });
     }
   });
 
   app.get("/api/auth/me", async (req, res) => {
-    console.log("🔍 /api/auth/me request:");
-    console.log("Session ID:", req.sessionID);
-    console.log("Session:", req.session);
-    console.log("Session userId:", req.session?.userId);
-    console.log("Cookies:", req.headers.cookie);
-    
     if (!req.session.userId) {
-      console.log("❌ No userId in session");
       return res.status(401).json({ error: "Not authenticated" });
     }
     
     try {
       const user = await storage.getUser(req.session.userId);
       if (!user) {
-        console.log("❌ User not found in database:", req.session.userId);
         return res.status(401).json({ error: "User not found" });
       }
-      
-      console.log("✅ User found:", user.username, "Role:", user.role);
       
       res.json({ 
         user: { 
@@ -557,7 +515,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         } 
       });
     } catch (error) {
-      console.error("Get user error:", error);
       res.status(500).json({ error: "Failed to get user" });
     }
   });
@@ -615,7 +572,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
     } catch (error) {
-      console.error("Forgot password error:", error);
       res.status(500).json({ error: "Failed to process password reset request" });
     }
   });
@@ -644,7 +600,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
     } catch (error) {
-      console.error("Verify reset code error:", error);
       res.status(500).json({ error: "Failed to verify code" });
     }
   });
@@ -683,7 +638,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
     } catch (error) {
-      console.error("Reset password error:", error);
       res.status(500).json({ error: "Failed to reset password" });
     }
   });
@@ -771,7 +725,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       });
       
     } catch (error) {
-      console.error("Test email error:", error);
       res.status(500).json({ 
         error: "Failed to send test email",
         details: error instanceof Error ? error.message : 'Unknown error'
@@ -794,7 +747,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         fromEmail: ''
       });
     } catch (error) {
-      console.error("Get email settings error:", error);
       res.status(500).json({ error: "Failed to get email settings" });
     }
   });
@@ -804,7 +756,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const settings = await storage.updateEmailSettings(req.body);
       res.json(settings);
     } catch (error) {
-      console.error("Update email settings error:", error);
       res.status(500).json({ error: "Failed to update email settings" });
     }
   });
@@ -821,7 +772,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         tiktokUrl: ''
       });
     } catch (error) {
-      console.error("Get social media settings error:", error);
       res.status(500).json({ error: "Failed to get social media settings" });
     }
   });
@@ -831,7 +781,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const settings = await storage.updateSocialMediaSettings(req.body);
       res.json(settings);
     } catch (error) {
-      console.error("Update social media settings error:", error);
       res.status(500).json({ error: "Failed to update social media settings" });
     }
   });
@@ -848,7 +797,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
         webhookId: ''
       });
     } catch (error) {
-      console.error("Get PayPal settings error:", error);
       res.status(500).json({ error: "Failed to get PayPal settings" });
     }
   });
@@ -858,7 +806,6 @@ export async function registerRoutes(app: Express): Promise<Server> {
       const settings = await storage.updatePayPalSettings(req.body);
       res.json(settings);
     } catch (error) {
-      console.error("Update PayPal settings error:", error);
       res.status(500).json({ error: "Failed to update PayPal settings" });
     }
   });
@@ -882,7 +829,6 @@ app.get("/api/contact-settings", async (req, res) => {
       messageTemplate: 'You have received a new message from your contact form.'
     });
   } catch (error) {
-    console.error("Get contact settings error:", error);
     res.status(500).json({ error: "Failed to get contact settings" });
   }
 });
@@ -892,7 +838,6 @@ app.put("/api/admin/contact-settings", requireAdmin, async (req, res) => {
     const settings = await storage.updateContactSettings(req.body);
     res.json(settings);
   } catch (error) {
-    console.error("Update contact settings error:", error);
     res.status(500).json({ error: "Failed to update contact settings" });
   }
 });
@@ -914,18 +859,8 @@ app.post("/api/contact", async (req, res) => {
 
     // Here you would typically send an email or save to database
     // For now, we'll just log the contact form submission
-    console.log("Contact form submission:", {
-      name,
-      email,
-      subject,
-      message,
-      timestamp: new Date().toISOString(),
-      settings: contactSettings
-    });
-
     res.json({ message: "Contact form submitted successfully" });
   } catch (error) {
-    console.error("Contact form error:", error);
     res.status(500).json({ error: "Failed to submit contact form" });
   }
 });
@@ -936,7 +871,6 @@ app.get("/api/artist-bios", async (req, res) => {
     const bios = await storage.getArtistBios();
     res.json(bios);
   } catch (error) {
-    console.error("Get artist bios error:", error);
     res.status(500).json({ error: "Failed to get artist bios" });
   }
 });
@@ -952,7 +886,6 @@ app.get("/api/artist-bios/:id", async (req, res) => {
     
     res.json(bio);
   } catch (error) {
-    console.error("Get artist bio error:", error);
     res.status(500).json({ error: "Failed to get artist bio" });
   }
 });
@@ -962,7 +895,6 @@ app.post("/api/admin/artist-bios", requireAdmin, async (req, res) => {
     const bio = await storage.createArtistBio(req.body);
     res.json(bio);
   } catch (error) {
-    console.error("Create artist bio error:", error);
     res.status(500).json({ error: "Failed to create artist bio" });
   }
 });
@@ -973,7 +905,6 @@ app.put("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
     const bio = await storage.updateArtistBio(id, req.body);
     res.json(bio);
   } catch (error) {
-    console.error("Update artist bio error:", error);
     res.status(500).json({ error: "Failed to update artist bio" });
   }
 });
@@ -984,7 +915,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
     await storage.deleteArtistBio(id);
     res.json({ message: "Artist bio deleted successfully" });
   } catch (error) {
-    console.error("Delete artist bio error:", error);
     res.status(500).json({ error: "Failed to delete artist bio" });
   }
 });
@@ -1012,7 +942,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       
       res.json({ message: "Theme updated successfully", theme });
     } catch (error) {
-      console.error("Theme update error:", error);
       res.status(500).json({ error: "Failed to update theme" });
     }
   });
@@ -1035,7 +964,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
 
       res.json({ message: "Password changed successfully" });
     } catch (error) {
-      console.error("Change password error:", error);
       res.status(500).json({ error: "Failed to change password" });
     }
   });
@@ -1055,7 +983,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
         res.json(beats);
       }
     } catch (error) {
-      console.error("Get beats error:", error);
       res.status(500).json({ error: "Failed to fetch beats" });
     }
   });
@@ -1080,7 +1007,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       const exclusiveBeats = await storage.getExclusiveBeats();
       res.json(exclusiveBeats);
     } catch (error) {
-      console.error("Get exclusive beats error:", error);
       res.status(500).json({ error: "Failed to fetch exclusive beats" });
     }
   });
@@ -1097,7 +1023,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       // This could be stored in a user_plans table or as part of the user record
       res.json({ plan: "basic" }); // Default to basic plan
     } catch (error) {
-      console.error("Get user plan error:", error);
       res.status(500).json({ error: "Failed to fetch user plan" });
     }
   });
@@ -1122,7 +1047,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
 
       res.json(purchase);
     } catch (error) {
-      console.error("Create exclusive purchase error:", error);
       res.status(500).json({ error: "Failed to create exclusive purchase" });
     }
   });
@@ -1153,7 +1077,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       const beat = await storage.createBeat(validatedBeat);
       res.status(201).json(beat);
     } catch (error) {
-      console.error('Beat creation error:', error);
       res.status(400).json({ error: "Invalid beat data" });
     }
   });
@@ -1179,15 +1102,12 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
         updateData.imageUrl = req.body.imageUrl.trim();
       }
       
-      console.log('Updating beat with data:', updateData);
-      
       const beat = await storage.updateBeat(req.params.id, updateData);
       if (!beat) {
         return res.status(404).json({ error: "Beat not found" });
       }
       res.json(beat);
     } catch (error) {
-      console.error('Beat update error:', error);
       res.status(400).json({ error: "Invalid beat data" });
     }
   });
@@ -1220,9 +1140,7 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
   app.get("/api/purchases/my", requireAuth, async (req, res) => {
     const uid = ensureUserId(req, res);
     if (!uid) return;
-    console.log('GET /api/purchases/my - Session userId:', uid);
     const purchases = await storage.getPurchasesByUser(uid);
-    console.log('GET /api/purchases/my - Found purchases:', purchases.length);
     res.json(purchases);
   });
 
@@ -1231,12 +1149,9 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
     try {
       const uid = ensureUserId(req, res);
       if (!uid) return;
-      console.log('GET /api/playlist - Session userId:', uid);
       const playlist = await storage.getUserPlaylist(uid);
-      console.log('GET /api/playlist - Found playlist items:', playlist.length);
       res.json(playlist);
     } catch (error) {
-      console.error("Get playlist error:", error);
       res.status(500).json({ error: "Failed to fetch playlist" });
     }
   });
@@ -1265,8 +1180,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
 
       res.status(201).json(purchase);
     } catch (error) {
-      console.error("Create purchase error:", error);
-      console.error("Error details:", error instanceof Error ? error.message : error);
       res.status(400).json({ 
         error: "Invalid purchase data",
         details: error instanceof Error ? error.message : "Unknown error"
@@ -1280,7 +1193,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       const pendingPurchases = await storage.getPendingExclusivePurchases();
       res.json(pendingPurchases);
     } catch (error) {
-      console.error("Get pending exclusive purchases error:", error);
       res.status(500).json({ error: "Failed to fetch pending exclusive purchases" });
     }
   });
@@ -1294,7 +1206,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       await storage.approveExclusivePurchase(purchaseId, adminId);
       res.json({ message: "Exclusive purchase approved. Beat has been removed from the system." });
     } catch (error) {
-      console.error("Approve exclusive purchase error:", error);
       res.status(500).json({ error: error instanceof Error ? error.message : "Failed to approve exclusive purchase" });
     }
   });
@@ -1307,7 +1218,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       await storage.rejectExclusivePurchase(purchaseId, notes);
       res.json({ message: "Exclusive purchase rejected. Beat is now visible again." });
     } catch (error) {
-      console.error("Reject exclusive purchase error:", error);
       res.status(500).json({ error: error instanceof Error ? error.message : "Failed to reject exclusive purchase" });
     }
   });
@@ -1315,13 +1225,11 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
   // Analytics routes
   app.get("/api/analytics", requireAdmin, async (req, res) => {
     const analytics = await storage.getAnalytics();
-    console.log('Analytics API returning:', analytics);
     res.json(analytics);
   });
 
   app.post("/api/analytics/visit", async (req, res) => {
     await storage.incrementSiteVisits();
-    console.log('Site visit incremented');
     res.status(204).send();
   });
 
@@ -1334,31 +1242,22 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
   app.get("/api/customers", requireAdmin, async (req, res) => {
     try {
       const allCustomers = await storage.getAllCustomers();
-      console.log("All customers found:", allCustomers.length, allCustomers);
-      
       // Filter out admin users - only show client users as customers
       const clientCustomers = await storage.getCustomersByRole('client');
-      console.log("Client customers found:", clientCustomers.length, clientCustomers);
-      
       res.json(clientCustomers);
     } catch (error) {
-      console.error("Get customers error:", error);
       res.status(500).json({ error: "Failed to fetch customers" });
     }
   });
 
   app.get("/api/customers/by-user/:userId", requireAuth, async (req, res) => {
     try {
-      console.log("Looking up customer for user ID:", req.params.userId);
       const customer = await storage.getCustomerByUserId(req.params.userId);
-      console.log("Customer found:", customer);
       if (!customer) {
-        console.log("No customer found for user ID:", req.params.userId);
         return res.status(404).json({ error: "Customer not found" });
       }
       res.json(customer);
     } catch (error) {
-      console.error("Get customer by user ID error:", error);
       res.status(500).json({ error: "Failed to fetch customer" });
     }
   });
@@ -1371,7 +1270,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       }
       res.json(customer);
     } catch (error) {
-      console.error("Get customer error:", error);
       res.status(500).json({ error: "Failed to fetch customer" });
     }
   });
@@ -1381,7 +1279,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       const purchases = await storage.getPurchasesByUser(req.params.id);
       res.json(purchases);
     } catch (error) {
-      console.error("Get customer purchases error:", error);
       res.status(500).json({ error: "Failed to fetch customer purchases" });
     }
   });
@@ -1394,7 +1291,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       const adminUsers = allUsers.filter(user => user.role === 'admin');
       res.json(adminUsers);
     } catch (error) {
-      console.error("Get users error:", error);
       res.status(500).json({ error: "Failed to fetch users" });
     }
   });
@@ -1436,7 +1332,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       
       res.status(201).json(user);
     } catch (error) {
-      console.error("Create user error:", error);
       res.status(400).json({ error: "Failed to create user" });
     }
   });
@@ -1465,7 +1360,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       
       res.json(updatedUser);
     } catch (error) {
-      console.error("Update user error:", error);
       res.status(400).json({ error: "Failed to update user" });
     }
   });
@@ -1491,7 +1385,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       
       res.json({ message: "User deleted successfully" });
     } catch (error) {
-      console.error("Delete user error:", error);
       res.status(400).json({ error: "Failed to delete user" });
     }
   });
@@ -1502,7 +1395,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       const counts = await storage.getDatabaseCounts();
       res.json(counts);
     } catch (error: any) {
-      console.error("Database check error:", error);
       res.status(500).json({ 
         error: "Failed to check database", 
         details: error?.message || String(error)
@@ -1527,13 +1419,9 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
         });
       }
       
-      console.log("Admin initiated database reset");
       await storage.resetDatabase();
-      console.log("Database reset completed successfully");
       res.json({ message: "Database reset successfully. All data and uploaded files have been cleared." });
     } catch (error: any) {
-      console.error("Database reset error:", error);
-      console.error("Error stack:", error?.stack);
       res.status(500).json({ 
         error: "Failed to reset database", 
         details: error?.message || String(error)
@@ -1544,21 +1432,13 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
   // Migration endpoint to create customer records for users without them
   app.post("/api/admin/migrate-customers", requireAdmin, async (req, res) => {
     try {
-      console.log("Starting customer migration...");
-      
       // Get all users
       const allUsers = await storage.getAllUsers();
-      console.log("All users found:", allUsers.length);
-      
       // Get all existing customers
       const existingCustomers = await storage.getAllCustomers();
-      console.log("Existing customers:", existingCustomers.length);
-      
       const usersWithoutCustomers = allUsers.filter(user => 
         !existingCustomers.some(customer => customer.userId === user.id)
       );
-      
-      console.log("Users without customers:", usersWithoutCustomers.length);
       
       let createdCount = 0;
       for (const user of usersWithoutCustomers) {
@@ -1578,13 +1458,10 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
           
           await storage.createCustomer(customerData);
           createdCount++;
-          console.log(`Created customer for user: ${user.username}`);
-        } catch (error) {
-          console.error(`Failed to create customer for user ${user.username}:`, error);
-        }
+          } catch (error) {
+          }
       }
       
-      console.log(`Migration completed. Created ${createdCount} customer records.`);
       res.json({ 
         message: `Migration completed successfully. Created ${createdCount} customer records.`,
         createdCount,
@@ -1592,7 +1469,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
         existingCustomers: existingCustomers.length
       });
     } catch (error) {
-      console.error("Customer migration error:", error);
       res.status(500).json({ error: "Failed to migrate customers" });
     }
   });
@@ -1602,12 +1478,9 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
     try {
       const uid = ensureUserId(req, res);
       if (!uid) return;
-      console.log("GET /api/cart - userId:", uid);
       const cart = await storage.getUserCart(uid);
-      console.log("GET /api/cart - returning:", cart.length, "items");
       res.json(cart);
     } catch (error) {
-      console.error('Error fetching cart:', error);
       res.status(500).json({ error: "Failed to fetch cart" });
     }
   });
@@ -1617,7 +1490,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       const { beatId } = req.body;
       const uid = ensureUserId(req, res);
       if (!uid) return;
-      console.log("POST /api/cart/add - userId:", uid, "beatId:", beatId);
       if (!beatId) {
         return res.status(400).json({ error: "Beat ID is required" });
       }
@@ -1629,10 +1501,8 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       }
       
       const cart = await storage.addToCart(uid, beatId);
-      console.log("POST /api/cart/add - returning:", cart.length, "items");
       res.json(cart);
     } catch (error) {
-      console.error('Error adding to cart:', error);
       res.status(500).json({ error: "Failed to add to cart" });
     }
   });
@@ -1645,7 +1515,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       const cart = await storage.removeFromCart(uid, beatId);
       res.json(cart);
     } catch (error) {
-      console.error('Error removing from cart:', error);
       res.status(500).json({ error: "Failed to remove from cart" });
     }
   });
@@ -1657,7 +1526,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       await storage.clearCart(uid);
       res.json({ message: "Cart cleared successfully" });
     } catch (error) {
-      console.error('Error clearing cart:', error);
       res.status(500).json({ error: "Failed to clear cart" });
     }
   });
@@ -1725,7 +1593,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
 
       res.json({ clientSecret: stripePaymentIntent.client_secret, paymentIntentId: stripePaymentIntent.id });
     } catch (error) {
-      console.error('Create payment intent error:', error);
       res.status(500).json({ error: 'Failed to create payment intent' });
     }
   });
@@ -1745,7 +1612,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
 
         const tx = await storage.getStripeTransactionByPaymentIntent(paymentIntentId);
         if (!tx) {
-          console.warn('Stripe transaction not found for payment intent:', paymentIntentId);
           return res.json({ received: true });
         }
 
@@ -1755,12 +1621,10 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
         // update payment status to completed
         await storage.updatePaymentStatus(tx.paymentId, 'completed');
 
-        console.log('Payment intent succeeded, marked payment completed for paymentId:', tx.paymentId);
-      }
+        }
 
       res.json({ received: true });
     } catch (error) {
-      console.error('Stripe webhook error:', error);
       res.status(400).send(`Webhook error: ${error instanceof Error ? error.message : String(error)}`);
     }
   });
@@ -1859,7 +1723,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
         approvalUrl: paypalOrder.links?.find((link: any) => link.rel === 'approve')?.href
       });
     } catch (error) {
-      console.error('Create PayPal order error:', error);
       res.status(500).json({ error: 'Failed to create PayPal order' });
     }
   });
@@ -1887,7 +1750,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
         captureID: captureResult.purchase_units?.[0]?.payments?.captures?.[0]?.id
       });
     } catch (error) {
-      console.error('Capture PayPal order error:', error);
       res.status(500).json({ error: 'Failed to capture PayPal order' });
     }
   });
@@ -1953,7 +1815,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
         approvalUrl: paypalOrder.links?.find((link: any) => link.rel === 'approve')?.href
       });
     } catch (error) {
-      console.error('Create PayPal plan order error:', error);
       res.status(500).json({ error: 'Failed to create PayPal plan order' });
     }
   });
@@ -1981,7 +1842,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
         captureID: captureResult.purchase_units?.[0]?.payments?.captures?.[0]?.id
       });
     } catch (error) {
-      console.error('Capture PayPal plan order error:', error);
       res.status(500).json({ error: 'Failed to capture PayPal plan order' });
     }
   });
@@ -1995,7 +1855,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
         enabled: settings?.enabled || false
       });
     } catch (error) {
-      console.error('Get Stripe config error:', error);
       res.status(500).json({ error: 'Failed to get Stripe configuration' });
     }
   });
@@ -2009,7 +1868,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
         sandbox: settings?.sandbox || true
       });
     } catch (error) {
-      console.error('Get PayPal config error:', error);
       res.status(500).json({ error: 'Failed to get PayPal configuration' });
     }
   });
@@ -2109,7 +1967,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
 
       res.json({ clientSecret: stripePaymentIntent.client_secret, paymentIntentId: stripePaymentIntent.id });
     } catch (error) {
-      console.error('Create bulk payment intent error:', error);
       res.status(500).json({ error: 'Failed to create payment intent' });
     }
   });
@@ -2119,7 +1976,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       const payments = await storage.getPaymentsWithDetails();
       res.json(payments);
     } catch (error) {
-      console.error("Get payments error:", error);
       res.status(500).json({ error: "Failed to fetch payments" });
     }
   });
@@ -2129,29 +1985,20 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       const payments = await storage.getPaymentsByStatus(req.params.status);
       res.json(payments);
     } catch (error) {
-      console.error("Get payments by status error:", error);
       res.status(500).json({ error: "Failed to fetch payments" });
     }
   });
 
   app.post("/api/payments/:id/approve", requireAdmin, async (req, res) => {
     try {
-      console.log("Payment approval request - ID:", req.params.id, "Body:", req.body);
       const { approvedBy } = req.body;
-      console.log("Approved by:", approvedBy);
-      
       const payment = await storage.updatePaymentStatus(req.params.id, "approved", approvedBy);
-      console.log("Update payment status result:", payment);
-      
       if (!payment) {
-        console.log("Payment not found for ID:", req.params.id);
         return res.status(404).json({ error: "Payment not found" });
       }
       
-      console.log("Payment approved successfully:", payment);
       res.json(payment);
     } catch (error) {
-      console.error("Approve payment error:", error);
       res.status(500).json({ error: "Failed to approve payment" });
     }
   });
@@ -2165,7 +2012,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       }
       res.json(payment);
     } catch (error) {
-      console.error("Reject payment error:", error);
       res.status(500).json({ error: "Failed to reject payment" });
     }
   });
@@ -2177,17 +2023,11 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       const uid = ensureUserId(req, res);
       if (!uid) return;
 
-      console.log("Creating payment:", { purchaseId, customerId, amount, paymentMethod, bankReference, notes });
-      
       // Check if customer exists, if not create one
       let finalCustomerId = customerId;
       if (customerId) {
         const customer = await storage.getCustomer(customerId);
-        console.log("Customer verification - customerId:", customerId, "customer found:", customer);
-        
         if (!customer) {
-          console.log("Customer not found, creating new customer for user ID:", uid);
-          
           // Get user data to populate customer info
           const user = await storage.getUser(uid);
           const userEmail = user?.email || `user-${uid}@beatbazaar.com`;
@@ -2207,8 +2047,7 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
           };
           const newCustomer = await storage.createCustomer(customerData);
           finalCustomerId = newCustomer.id;
-          console.log("Created new customer with ID:", finalCustomerId);
-        }
+          }
       }
       
       const paymentData = {
@@ -2221,14 +2060,9 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
         status: paymentMethod === 'bank_transfer' ? 'pending' : 'completed'
       };
 
-      console.log("Payment data:", paymentData);
-
       const payment = await storage.createPayment(paymentData);
-      console.log("Payment created:", payment);
       res.status(201).json(payment);
     } catch (error) {
-      console.error("Create payment error:", error);
-      console.error("Error details:", error instanceof Error ? error.message : error);
       res.status(500).json({ 
         error: "Failed to create payment",
         details: error instanceof Error ? error.message : "Unknown error"
@@ -2249,7 +2083,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       const beats = await storage.getBeatsByGenre(genreId, limit);
       res.json(beats);
     } catch (error) {
-      console.error("Get beats by genre error:", error);
       res.status(500).json({ error: "Failed to fetch beats" });
     }
   });
@@ -2264,7 +2097,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       }
       res.json(genre);
     } catch (error) {
-      console.error("Get genre error:", error);
       res.status(500).json({ error: "Failed to fetch genre" });
     }
   });
@@ -2276,7 +2108,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       const genresWithBeats = await storage.getActiveGenresWithBeats(limit);
       res.json(genresWithBeats);
     } catch (error) {
-      console.error("Get genres with beats error:", error);
       res.status(500).json({ error: "Failed to fetch genres with beats" });
     }
   });
@@ -2286,7 +2117,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       const genres = await storage.getActiveGenres();
       res.json(genres);
     } catch (error) {
-      console.error("Get genres error:", error);
       res.status(500).json({ error: "Failed to fetch genres" });
     }
   });
@@ -2296,7 +2126,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       const genres = await storage.getAllGenres();
       res.json(genres);
     } catch (error) {
-      console.error("Get all genres error:", error);
       res.status(500).json({ error: "Failed to fetch genres" });
     }
   });
@@ -2314,7 +2143,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       const genre = await storage.createGenre(genreData);
       res.status(201).json(genre);
     } catch (error) {
-      console.error('Genre creation error:', error);
       res.status(400).json({ error: "Invalid genre data" });
     }
   });
@@ -2337,7 +2165,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       }
       res.json(genre);
     } catch (error) {
-      console.error('Genre update error:', error);
       res.status(400).json({ error: "Invalid genre data" });
     }
   });
@@ -2350,7 +2177,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       }
       res.status(204).send();
     } catch (error) {
-      console.error('Genre deletion error:', error);
       res.status(500).json({ error: "Failed to delete genre" });
     }
   });
@@ -2359,10 +2185,7 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
   app.get("/api/plans-settings", async (req, res) => {
     try {
       const settings = await storage.getPlansSettings();
-      console.log('📋 Plans settings from DB:', settings);
-      
       if (!settings) {
-        console.log('⚠️ No plans settings found in database, returning defaults');
         // Return default settings if none exist
         return res.json({
           pageTitle: "Beat Licensing Plans",
@@ -2398,7 +2221,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       
       res.json(settings);
     } catch (error) {
-      console.error("Get plans settings error:", error);
       res.status(500).json({ error: "Failed to get plans settings" });
     }
   });
@@ -2408,7 +2230,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       const settings = await storage.updatePlansSettings(req.body);
       res.json(settings);
     } catch (error) {
-      console.error("Update plans settings error:", error);
       res.status(500).json({ error: "Failed to update plans settings" });
     }
   });
@@ -2417,32 +2238,17 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
   app.get("/api/app-branding-settings", async (req, res) => {
     try {
       const settings = await storage.getAppBrandingSettings();
-      console.log('🎨 Server: Getting app branding settings:', {
-        hasHeroBannerData: !!settings?.heroBannerData,
-        heroBannerDataLength: settings?.heroBannerData?.length || 0
-      });
       res.json(settings);
     } catch (error) {
-      console.error("Get app branding settings error:", error);
       res.status(500).json({ error: "Failed to get app branding settings" });
     }
   });
 
   app.put("/api/admin/app-branding-settings", requireAdmin, async (req, res) => {
     try {
-      console.log('🎨 Server: Updating app branding settings:', {
-        hasHeroBannerData: !!req.body.heroBannerData,
-        heroBannerDataLength: req.body.heroBannerData?.length || 0,
-        heroBannerDataPreview: req.body.heroBannerData ? req.body.heroBannerData.substring(0, 100) + '...' : 'empty'
-      });
       const settings = await storage.updateAppBrandingSettings(req.body);
-      console.log('🎨 Server: Updated settings:', {
-        hasHeroBannerData: !!settings?.heroBannerData,
-        heroBannerDataLength: settings?.heroBannerData?.length || 0
-      });
       res.json(settings);
     } catch (error) {
-      console.error("Update app branding settings error:", error);
       res.status(500).json({ error: "Failed to update app branding settings" });
     }
   });
@@ -2453,7 +2259,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       const pendingPurchases = await storage.getPendingExclusivePurchases();
       res.json(pendingPurchases);
     } catch (error) {
-      console.error("Get pending exclusive purchases error:", error);
       res.status(500).json({ error: "Failed to get pending exclusive purchases" });
     }
   });
@@ -2470,7 +2275,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       await storage.approveExclusivePurchase(purchaseId, adminId);
       res.json({ message: "Exclusive purchase approved and beat removed from store" });
     } catch (error) {
-      console.error("Approve exclusive purchase error:", error);
       res.status(500).json({ error: "Failed to approve exclusive purchase" });
     }
   });
@@ -2482,7 +2286,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       await storage.rejectExclusivePurchase(purchaseId);
       res.json({ message: "Exclusive purchase rejected and beat restored to store" });
     } catch (error) {
-      console.error("Reject exclusive purchase error:", error);
       res.status(500).json({ error: "Failed to reject exclusive purchase" });
     }
   });
@@ -2493,7 +2296,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       const settings = await storage.getHomeSettings();
       res.json(settings);
     } catch (error) {
-      console.error("Get home settings error:", error);
       res.status(500).json({ error: "Failed to fetch home settings" });
     }
   });
@@ -2511,7 +2313,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       });
       res.json(settings);
     } catch (error) {
-      console.error("Update home settings error:", error);
       res.status(500).json({ error: "Failed to update home settings" });
     }
   });
@@ -2522,7 +2323,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       const stats = await storage.getBackupStats();
       res.json(stats);
     } catch (error) {
-      console.error("Get backup stats error:", error);
       res.status(500).json({ error: "Failed to get backup statistics" });
     }
   });
@@ -2542,7 +2342,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       (req.session as any).backupPath = backupResult;
       res.end();
     } catch (error) {
-      console.error("Create backup error:", error);
       // Check if headers have already been sent
       if (!res.headersSent) {
         res.status(500).json({ error: "Failed to create backup" });
@@ -2603,7 +2402,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       
       res.status(400).json({ error: "Invalid backup format" });
     } catch (error) {
-      console.error("Download backup error:", error);
       res.status(500).json({ error: "Failed to download backup" });
     }
   });
@@ -2635,7 +2433,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       fileStream.pipe(res);
       
     } catch (error) {
-      console.error("Download backup part error:", error);
       res.status(500).json({ error: "Failed to download backup part" });
     }
   });
@@ -2662,7 +2459,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       
       res.end();
     } catch (error) {
-      console.error("Restore backup error:", error);
       // Check if headers have already been sent
       if (!res.headersSent) {
         res.status(500).json({ error: "Failed to restore backup" });
@@ -2795,7 +2591,6 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       }
       
     } catch (error) {
-      console.error("Multi-part restore backup error:", error);
       // Check if headers have already been sent
       if (!res.headersSent) {
         res.status(500).json({ error: "Failed to restore multi-part backup" });

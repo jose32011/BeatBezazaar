@@ -98,13 +98,10 @@ if (postgresConfigured) {
   try {
     pgClient = postgres(postgresUri!);
     db = drizzlePg(pgClient);
-    console.log(`✓ Using PostgreSQL database`);
-  } catch (err) {
-    console.error('Failed to create PostgreSQL client:', err);
+    } catch (err) {
     // Fall back to a safe inert stub so the server can start
     const notConfiguredError = new Error('Database initialization failed. See server logs.');
     const noopAsync = async (..._args: any[]) => {
-      console.warn('Attempted DB operation while DB init failed:', notConfiguredError.message);
       return null;
     };
     db = new Proxy({}, {
@@ -112,10 +109,8 @@ if (postgresConfigured) {
     });
   }
 } else {
-  console.warn('PostgreSQL is not configured. Please set DATABASE_URL or POSTGRES_* environment variables.');
   const notConfiguredError = new Error('PostgreSQL is not configured.');
   const noopAsync = async (..._args: any[]) => {
-    console.warn('DB operation attempted while PostgreSQL is not configured.');
     return null;
   };
   db = new Proxy({}, {
@@ -250,7 +245,6 @@ export interface IStorage {
   getStripeTransactionsByPaymentId(paymentId: string): Promise<StripeTransaction[]>;
 }
 
-
 export class DatabaseStorage implements IStorage {
   constructor() {
     this.initializeDatabase();
@@ -267,38 +261,28 @@ export class DatabaseStorage implements IStorage {
           const id = randomUUID();
           // default password; caller should set a real password via setup
           await this.createUser({ id, username: 'admin', password: 'admin123', role: 'admin', email: 'admin@beatbazaar.com' } as any);
-          console.log('✅ Default admin created during reinitialization');
-        }
+          }
       } catch (e) {
-        console.error('Error ensuring admin user during reinitialization:', e);
-      }
+        }
     } catch (e) {
-      console.error('onDatabaseReady error:', e);
-    }
+      }
   }
 
   private async initializeDatabase() {
     try {
       if (!postgresConfigured) {
-        console.log('PostgreSQL is not configured — skipping database initialization. Use /api/setup to configure the DB.');
         return;
       }
-      console.log("🚀 Starting database initialization...");
-      
       // Tables are created via drizzle-kit push for PostgreSQL
       // No need for manual column checks - schema is managed by Drizzle
 
       // Check if admin user exists, if not create one
-      console.log("🔍 Checking for admin user...");
       const adminUser = await this.getUserByUsername("admin");
       
       if (!adminUser) {
-        console.log("👤 Admin user not found, creating...");
         try {
           const hashedPassword = await bcrypt.hash("admin123", 10);
           const adminId = randomUUID();
-          
-          console.log(`📝 Creating admin user with ID: ${adminId}`);
           
           // Create admin user using Drizzle ORM insert
           await db.insert(users).values({
@@ -315,60 +299,42 @@ export class DatabaseStorage implements IStorage {
             updatedAt: new Date()
           } as any);
           
-          console.log("✅ Default admin user created: admin/admin123");
-          
           // Verify the user was created
           const verifyUser = await this.getUserByUsername("admin");
           if (verifyUser) {
-            console.log("✅ Admin user verification successful");
-          } else {
-            console.error("❌ Admin user creation failed - user not found after creation");
-          }
+            } else {
+            }
         } catch (createError) {
-          console.error("❌ Failed to create admin user:", createError);
-        }
+          }
       } else {
-        console.log("👤 Admin user found, verifying password...");
         // Admin user exists, but let's verify/update the password to ensure it's correct
         const testPassword = "admin123";
         const isValidPassword = await bcrypt.compare(testPassword, adminUser.password);
         
         if (!isValidPassword) {
-          console.log("⚠️ Admin password is incorrect, updating...");
           try {
             const newHashedPassword = await bcrypt.hash(testPassword, 10);
             await db.update(users).set({ password: newHashedPassword, updatedAt: new Date() }).where(eq(users.username, 'admin'));
-            console.log("✅ Admin password updated: admin/admin123");
-          } catch (updateError) {
-            console.error("❌ Failed to update admin password:", updateError);
-          }
+            } catch (updateError) {
+            }
         } else {
-          console.log("✅ Admin user exists with correct password");
-        }
+          }
       }
 
       // PostgreSQL schema is managed by Drizzle - no need for manual column checks
-      console.log("✓ Database schema managed by Drizzle");
-
-      console.log("Database initialized");
-    } catch (error) {
-      console.error("Database initialization error:", error);
-    }
+      } catch (error) {
+      }
   }
 
   private async createTables() {
     try {
-      console.log("🏗️ PostgreSQL tables managed by Drizzle");
-      console.log("✅ Database tables created/verified via drizzle-kit push");
-    } catch (error) {
-      console.error("❌ Error creating tables:", error);
+      } catch (error) {
       throw error;
     }
   }
 
   private async createPostgreSQLTables() {
     try {
-      console.log("📋 Creating users table...");
       // Create users table
       await db.run(sql`
         CREATE TABLE IF NOT EXISTS users (
@@ -383,10 +349,7 @@ export class DatabaseStorage implements IStorage {
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `);
-      console.log("✅ Users table created");
-
       // Create beats table
-      console.log("📋 Creating beats table...");
       await db.run(sql`
         CREATE TABLE IF NOT EXISTS beats (
           id TEXT PRIMARY KEY,
@@ -400,10 +363,7 @@ export class DatabaseStorage implements IStorage {
           created_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `);
-      console.log("✅ Beats table created");
-
       // Create purchases table
-      console.log("📋 Creating purchases table...");
       await db.run(sql`
         CREATE TABLE IF NOT EXISTS purchases (
           id TEXT PRIMARY KEY,
@@ -415,10 +375,7 @@ export class DatabaseStorage implements IStorage {
           FOREIGN KEY (beat_id) REFERENCES beats(id)
         )
       `);
-      console.log("✅ Purchases table created");
-
       // Create analytics table
-      console.log("📋 Creating analytics table...");
       await db.run(sql`
         CREATE TABLE IF NOT EXISTS analytics (
           id TEXT PRIMARY KEY,
@@ -427,10 +384,7 @@ export class DatabaseStorage implements IStorage {
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `);
-      console.log("✅ Analytics table created");
-
       // Create customers table
-      console.log("📋 Creating customers table...");
       await db.run(sql`
         CREATE TABLE IF NOT EXISTS customers (
           id TEXT PRIMARY KEY,
@@ -449,10 +403,7 @@ export class DatabaseStorage implements IStorage {
           FOREIGN KEY (user_id) REFERENCES users(id)
         )
       `);
-      console.log("✅ Customers table created");
-
       // Create cart table
-      console.log("📋 Creating cart table...");
       await db.run(sql`
         CREATE TABLE IF NOT EXISTS cart (
           id TEXT PRIMARY KEY,
@@ -463,10 +414,7 @@ export class DatabaseStorage implements IStorage {
           FOREIGN KEY (beat_id) REFERENCES beats(id)
         )
       `);
-      console.log("✅ Cart table created");
-
       // Create payments table
-      console.log("📋 Creating payments table...");
       await db.run(sql`
         CREATE TABLE IF NOT EXISTS payments (
           id TEXT PRIMARY KEY,
@@ -487,10 +435,7 @@ export class DatabaseStorage implements IStorage {
           FOREIGN KEY (approved_by) REFERENCES users(id)
         )
       `);
-      console.log("✅ Payments table created");
-
       // Create genres table
-      console.log("📋 Creating genres table...");
       await db.run(sql`
         CREATE TABLE IF NOT EXISTS genres (
           id TEXT PRIMARY KEY,
@@ -503,10 +448,7 @@ export class DatabaseStorage implements IStorage {
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `);
-      console.log("✅ Genres table created");
-
       // Create verification codes table
-      console.log("📋 Creating verification codes table...");
       await db.run(sql`
         CREATE TABLE IF NOT EXISTS verification_codes (
           id TEXT PRIMARY KEY,
@@ -519,10 +461,7 @@ export class DatabaseStorage implements IStorage {
           FOREIGN KEY (user_id) REFERENCES users(id)
         )
       `);
-      console.log("✅ Verification codes table created");
-
       // Create email settings table
-      console.log("📋 Creating email settings table...");
       await db.run(sql`
         CREATE TABLE IF NOT EXISTS email_settings (
           id TEXT PRIMARY KEY,
@@ -538,10 +477,7 @@ export class DatabaseStorage implements IStorage {
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `);
-      console.log("✅ Email settings table created");
-
       // Create social media settings table
-      console.log("📋 Creating social media settings table...");
       await db.run(sql`
         CREATE TABLE IF NOT EXISTS social_media_settings (
           id TEXT PRIMARY KEY,
@@ -554,10 +490,7 @@ export class DatabaseStorage implements IStorage {
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `);
-      console.log("✅ Social media settings table created");
-
       // Create contact settings table
-      console.log("📋 Creating contact settings table...");
       await db.run(sql`
         CREATE TABLE IF NOT EXISTS contact_settings (
           id TEXT PRIMARY KEY,
@@ -582,10 +515,7 @@ export class DatabaseStorage implements IStorage {
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `);
-      console.log("✅ Contact settings table created");
-
       // Create artist bios table
-      console.log("📋 Creating artist bios table...");
       await db.run(sql`
         CREATE TABLE IF NOT EXISTS artist_bios (
           id TEXT PRIMARY KEY,
@@ -600,10 +530,7 @@ export class DatabaseStorage implements IStorage {
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `);
-      console.log("✅ Artist bios table created");
-
       // Create plans settings table
-      console.log("📋 Creating plans settings table...");
       await db.run(sql`
         CREATE TABLE IF NOT EXISTS plans_settings (
           id TEXT PRIMARY KEY,
@@ -620,10 +547,7 @@ export class DatabaseStorage implements IStorage {
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `);
-      console.log("✅ Plans settings table created");
-
       // Create app branding settings table
-      console.log("🎨 Creating app branding settings table...");
       await db.run(sql`
         CREATE TABLE IF NOT EXISTS app_branding_settings (
           id TEXT PRIMARY KEY,
@@ -641,9 +565,7 @@ export class DatabaseStorage implements IStorage {
           updated_at TIMESTAMP DEFAULT CURRENT_TIMESTAMP
         )
       `);
-      console.log("✅ App branding settings table created");
-    } catch (error) {
-      console.error("❌ Error creating PostgreSQL tables:", error);
+      } catch (error) {
       throw error;
     }
   }
@@ -651,10 +573,7 @@ export class DatabaseStorage implements IStorage {
   private async createPostgresTables() {
     // PostgreSQL tables are created via drizzle-kit push
     // No need for manual table creation
-    console.log("✓ Tables managed by Drizzle ORM");
-  }
-
-
+    }
 
   private async initializeDefaultGenres() {
     try {
@@ -686,16 +605,12 @@ export class DatabaseStorage implements IStorage {
               updatedAt: new Date(),
             } as any);
           } catch (e) {
-            console.error('Failed to insert default genre', genre.name, e);
-          }
+            }
         }
-        console.log("✓ Default genres created");
-      } else {
-        console.log("✓ Genres already exist");
-      }
+        } else {
+        }
     } catch (error) {
-      console.error("Error initializing default genres:", error);
-    }
+      }
   }
 
   // User operations
@@ -707,10 +622,8 @@ export class DatabaseStorage implements IStorage {
   async getUserByUsername(username: string): Promise<User | undefined> {
     try {
       const result = await db.select().from(users).where(eq(users.username, username)).limit(1);
-      console.log(`Looking for user '${username}':`, result.length > 0 ? 'Found' : 'Not found');
       return result[0];
     } catch (error) {
-      console.error(`Error getting user by username '${username}':`, error);
       return undefined;
     }
   }
@@ -719,7 +632,6 @@ export class DatabaseStorage implements IStorage {
     try {
       return await db.select().from(users).orderBy(desc(users.createdAt));
     } catch (error) {
-      console.error("Get all users error:", error);
       return [];
     }
   }
@@ -760,7 +672,6 @@ export class DatabaseStorage implements IStorage {
       const updated = await db.select().from(users).where(eq(users.id, id)).limit(1);
       return updated[0];
     } catch (error) {
-      console.error("Update user error:", error);
       return undefined;
     }
   }
@@ -774,7 +685,6 @@ export class DatabaseStorage implements IStorage {
       await db.delete(users).where(eq(users.id, id));
       return true;
     } catch (error) {
-      console.error("Delete user error:", error);
       return false;
     }
   }
@@ -793,28 +703,21 @@ export class DatabaseStorage implements IStorage {
       // Note: Payments are linked to purchases, so they'll be cleaned up automatically
       // when purchases are deleted due to foreign key constraints
       
-      console.log(`Cleaned up data for user: ${userId}`);
-    } catch (error) {
-      console.error("Error cleaning up user data:", error);
+      } catch (error) {
       // Don't throw error here as we still want to delete the user
     }
   }
 
   async verifyPassword(username: string, password: string): Promise<User | undefined> {
     try {
-      console.log(`Verifying password for user: ${username}`);
       const user = await this.getUserByUsername(username);
       if (!user) {
-        console.log(`User '${username}' not found`);
         return undefined;
       }
       
-      console.log(`User '${username}' found, checking password...`);
       const isValid = await bcrypt.compare(password, user.password);
-      console.log(`Password for '${username}':`, isValid ? 'Valid' : 'Invalid');
       return isValid ? user : undefined;
     } catch (error) {
-      console.error(`Error verifying password for '${username}':`, error);
       return undefined;
     }
   }
@@ -840,7 +743,6 @@ export class DatabaseStorage implements IStorage {
       
       return true;
     } catch (error) {
-      console.error("Update user theme error:", error);
       return false;
     }
   }
@@ -982,7 +884,6 @@ export class DatabaseStorage implements IStorage {
       
       return undefined;
     } catch (error) {
-      console.error("Update beat error:", error);
       return undefined;
     }
   }
@@ -1002,7 +903,6 @@ export class DatabaseStorage implements IStorage {
       await this.deleteBeatFiles(beat);
       return true;
     } catch (error) {
-      console.error("Delete beat error:", error);
       return false;
     }
   }
@@ -1014,8 +914,7 @@ export class DatabaseStorage implements IStorage {
         const audioPath = path.join(process.cwd(), beat.audioUrl);
         if (fs.existsSync(audioPath)) {
           fs.unlinkSync(audioPath);
-          console.log(`Deleted audio file: ${audioPath}`);
-        }
+          }
       }
 
       // Delete image file (only if it's not a placeholder)
@@ -1025,11 +924,9 @@ export class DatabaseStorage implements IStorage {
         const imagePath = path.join(process.cwd(), beat.imageUrl);
         if (fs.existsSync(imagePath)) {
           fs.unlinkSync(imagePath);
-          console.log(`Deleted image file: ${imagePath}`);
-        }
+          }
       }
     } catch (error) {
-      console.error("Error deleting beat files:", error);
       // Don't throw error here as the database deletion was successful
     }
   }
@@ -1044,8 +941,7 @@ export class DatabaseStorage implements IStorage {
         const oldAudioPath = path.join(process.cwd(), currentBeat.audioUrl);
         if (fs.existsSync(oldAudioPath)) {
           fs.unlinkSync(oldAudioPath);
-          console.log(`Cleaned up old audio file: ${oldAudioPath}`);
-        }
+          }
       }
 
       // Check if image file was changed
@@ -1057,11 +953,9 @@ export class DatabaseStorage implements IStorage {
         const oldImagePath = path.join(process.cwd(), currentBeat.imageUrl);
         if (fs.existsSync(oldImagePath)) {
           fs.unlinkSync(oldImagePath);
-          console.log(`Cleaned up old image file: ${oldImagePath}`);
-        }
+          }
       }
     } catch (error) {
-      console.error("Error cleaning up old beat files:", error);
       // Don't throw error here as the update was successful
     }
   }
@@ -1133,8 +1027,7 @@ export class DatabaseStorage implements IStorage {
         .set({ isHidden: true })
         .where(eq(beats.id, insertPurchase.beatId));
       
-      console.log(`🔒 Exclusive beat ${beat.title} hidden - pending admin approval`);
-    }
+      }
     
     const inserted = await db.select().from(purchases).where(eq(purchases.id, id)).limit(1);
     return inserted[0];
@@ -1188,22 +1081,19 @@ export class DatabaseStorage implements IStorage {
       const audioPath = path.join(process.cwd(), beat.audioUrl);
       if (fs.existsSync(audioPath)) {
         fs.unlinkSync(audioPath);
-        console.log(`Deleted audio file: ${audioPath}`);
-      }
+        }
     }
     
     if (beat?.imageUrl && beat.imageUrl.startsWith('/uploads')) {
       const imagePath = path.join(process.cwd(), beat.imageUrl);
       if (fs.existsSync(imagePath)) {
         fs.unlinkSync(imagePath);
-        console.log(`Deleted image file: ${imagePath}`);
-      }
+        }
     }
     
     // Delete the beat from database
     await db.delete(beats).where(eq(beats.id, beatId));
-    console.log(`Deleted exclusive beat: ${beatId}`);
-  }
+    }
 
   async rejectExclusivePurchase(purchaseId: string, notes?: string): Promise<void> {
     // Get purchase details
@@ -1231,8 +1121,7 @@ export class DatabaseStorage implements IStorage {
       .set({ isHidden: false })
       .where(eq(beats.id, beatId));
     
-    console.log(`Rejected exclusive purchase: ${purchaseId}`);
-  }
+    }
 
   async getPurchaseByUserAndBeat(userId: string, beatId: string): Promise<Purchase | undefined> {
     const result = await db.select()
@@ -1284,7 +1173,6 @@ export class DatabaseStorage implements IStorage {
 
       return (result && result.length > 0);
     } catch (error) {
-      console.error('Error checking ownership for user:', userId, 'beat:', beatId, error);
       return false;
     }
   }
@@ -1360,7 +1248,6 @@ export class DatabaseStorage implements IStorage {
       const result = await db.select().from(customers).where(eq(customers.id, id)).limit(1);
       return result[0];
     } catch (error) {
-      console.error("Get customer error:", error);
       return undefined;
     }
   }
@@ -1370,7 +1257,6 @@ export class DatabaseStorage implements IStorage {
       const result = await db.select().from(customers).where(eq(customers.userId, userId)).limit(1);
       return result[0];
     } catch (error) {
-      console.error("Get customer by user ID error:", error);
       return undefined;
     }
   }
@@ -1379,7 +1265,6 @@ export class DatabaseStorage implements IStorage {
     try {
       return await db.select().from(customers).orderBy(desc(customers.createdAt));
     } catch (error) {
-      console.error("Get all customers error:", error);
       return [];
     }
   }
@@ -1408,7 +1293,6 @@ export class DatabaseStorage implements IStorage {
         .where(eq(users.role, role))
         .orderBy(desc(customers.createdAt));
     } catch (error) {
-      console.error("Get customers by role error:", error);
       return [];
     }
   }
@@ -1423,7 +1307,6 @@ export class DatabaseStorage implements IStorage {
       const inserted = await db.select().from(customers).where(eq(customers.id, id)).limit(1);
       return inserted[0];
     } catch (error) {
-      console.error("Create customer error:", error);
       throw error;
     }
   }
@@ -1438,7 +1321,6 @@ export class DatabaseStorage implements IStorage {
       const updated = await db.select().from(customers).where(eq(customers.id, id)).limit(1);
       return updated[0];
     } catch (error) {
-      console.error("Update customer error:", error);
       return undefined;
     }
   }
@@ -1449,7 +1331,6 @@ export class DatabaseStorage implements IStorage {
       const result = await db.select().from(payments).where(eq(payments.id, id)).limit(1);
       return result[0];
     } catch (error) {
-      console.error("Get payment error:", error);
       return undefined;
     }
   }
@@ -1458,7 +1339,6 @@ export class DatabaseStorage implements IStorage {
     try {
       return await db.select().from(payments).orderBy(desc(payments.createdAt));
     } catch (error) {
-      console.error("Get all payments error:", error);
       return [];
     }
   }
@@ -1467,7 +1347,6 @@ export class DatabaseStorage implements IStorage {
     try {
       return await db.select().from(payments).where(eq(payments.status, status)).orderBy(desc(payments.createdAt));
     } catch (error) {
-      console.error("Get payments by status error:", error);
       return [];
     }
   }
@@ -1482,15 +1361,12 @@ export class DatabaseStorage implements IStorage {
       const inserted = await db.select().from(payments).where(eq(payments.id, id)).limit(1);
       return inserted[0];
     } catch (error) {
-      console.error("Create payment error:", error);
       throw error;
     }
   }
 
   async updatePaymentStatus(id: string, status: string, approvedBy?: string): Promise<Payment | undefined> {
     try {
-      console.log("Updating payment status - ID:", id, "Status:", status, "ApprovedBy:", approvedBy);
-      
       const updateData: any = { 
         status, 
         updatedAt: new Date() 
@@ -1504,33 +1380,22 @@ export class DatabaseStorage implements IStorage {
         updateData.approvedAt = new Date();
       }
       
-      console.log("Update data:", updateData);
-      
       const result = await db.update(payments)
         .set(updateData)
         .where(eq(payments.id, id));
       
-      console.log("Update result:", result);
-      
       // Fetch the updated payment
       const updatedPayment = await db.select().from(payments).where(eq(payments.id, id)).limit(1);
-      console.log("Updated payment:", updatedPayment);
-      
       return updatedPayment[0];
     } catch (error) {
-      console.error("Update payment status error:", error);
       return undefined;
     }
   }
 
   async getPaymentsWithDetails(): Promise<any[]> {
     try {
-      console.log("Getting payments with details...");
-      
       // First, let's check what's in the payments table
       const allPayments = await db.select().from(payments);
-      console.log("All payments in database:", allPayments);
-      
       const result = await db
         .select({
           payment: payments,
@@ -1546,10 +1411,8 @@ export class DatabaseStorage implements IStorage {
         .leftJoin(users, eq(customers.userId, users.id))
         .orderBy(desc(payments.createdAt));
         
-      console.log("Payments with details found:", result.length, result);
       return result;
     } catch (error) {
-      console.error("Get payments with details error:", error);
       return [];
     }
   }
@@ -1557,12 +1420,8 @@ export class DatabaseStorage implements IStorage {
   // Cart operations
   async getUserCart(userId: string): Promise<Beat[]> {
     try {
-      console.log("Getting cart for user:", userId);
-      
       // First, let's check what's in the cart table
       const allCartItems = await db.select().from(cart);
-      console.log("All cart items in database:", allCartItems);
-      
       const cartItems = await db
         .select({
           id: beats.id,
@@ -1580,18 +1439,14 @@ export class DatabaseStorage implements IStorage {
         .where(eq(cart.userId, userId))
         .orderBy(desc(cart.addedAt));
       
-      console.log("Cart items found for user:", cartItems.length, cartItems);
       return cartItems;
     } catch (error) {
-      console.error("Get user cart error:", error);
       return [];
     }
   }
 
   async addToCart(userId: string, beatId: string): Promise<Beat[]> {
     try {
-      console.log("Adding to cart - userId:", userId, "beatId:", beatId);
-      
       // Check if item already exists in cart
       const existingItem = await db
         .select()
@@ -1599,24 +1454,18 @@ export class DatabaseStorage implements IStorage {
         .where(and(eq(cart.userId, userId), eq(cart.beatId, beatId)))
         .limit(1);
 
-      console.log("Existing cart items:", existingItem.length);
-
       if (existingItem.length === 0) {
         // Add to cart if not already present
-        console.log("Inserting new cart item");
         await db.insert(cart).values({
           userId,
           beatId,
         });
-        console.log("Cart item inserted successfully");
-      } else {
-        console.log("Item already in cart, skipping");
-      }
+        } else {
+        }
 
       // Return updated cart
       return await this.getUserCart(userId);
     } catch (error) {
-      console.error("Add to cart error:", error);
       throw error;
     }
   }
@@ -1630,7 +1479,6 @@ export class DatabaseStorage implements IStorage {
       // Return updated cart
       return await this.getUserCart(userId);
     } catch (error) {
-      console.error("Remove from cart error:", error);
       return [];
     }
   }
@@ -1641,7 +1489,6 @@ export class DatabaseStorage implements IStorage {
         .delete(cart)
         .where(eq(cart.userId, userId));
     } catch (error) {
-      console.error("Clear cart error:", error);
       throw error;
     }
   }
@@ -1669,7 +1516,6 @@ export class DatabaseStorage implements IStorage {
       
       return result as Beat[];
     } catch (error) {
-      console.error("Get user playlist error:", error);
       throw error;
     }
   }
@@ -1684,7 +1530,6 @@ export class DatabaseStorage implements IStorage {
         .limit(1);
       return result[0];
     } catch (error) {
-      console.error("Get genre error:", error);
       throw error;
     }
   }
@@ -1696,7 +1541,6 @@ export class DatabaseStorage implements IStorage {
         .from(genres)
         .orderBy(desc(genres.createdAt));
     } catch (error) {
-      console.error("Get all genres error:", error);
       throw error;
     }
   }
@@ -1709,7 +1553,6 @@ export class DatabaseStorage implements IStorage {
         .where(eq(genres.isActive, true))
         .orderBy(genres.name);
     } catch (error) {
-      console.error("Get active genres error:", error);
       throw error;
     }
   }
@@ -1740,7 +1583,6 @@ export class DatabaseStorage implements IStorage {
       // Filter out genres with no beats
       return genresWithBeats.filter(item => item.totalBeats > 0);
     } catch (error) {
-      console.error("Get active genres with beats error:", error);
       throw error;
     }
   }
@@ -1755,7 +1597,6 @@ export class DatabaseStorage implements IStorage {
       const inserted = await db.select().from(genres).where(eq(genres.id, id)).limit(1);
       return inserted[0];
     } catch (error) {
-      console.error("Create genre error:", error);
       throw error;
     }
   }
@@ -1771,7 +1612,6 @@ export class DatabaseStorage implements IStorage {
       const updated = await db.select().from(genres).where(eq(genres.id, id)).limit(1);
       return updated[0];
     } catch (error) {
-      console.error("Update genre error:", error);
       throw error;
     }
   }
@@ -1796,7 +1636,6 @@ export class DatabaseStorage implements IStorage {
       
       return false;
     } catch (error) {
-      console.error("Delete genre error:", error);
       throw error;
     }
   }
@@ -1810,11 +1649,9 @@ export class DatabaseStorage implements IStorage {
         const imagePath = path.join(process.cwd(), genre.imageUrl);
         if (fs.existsSync(imagePath)) {
           fs.unlinkSync(imagePath);
-          console.log(`Deleted genre image file: ${imagePath}`);
-        }
+          }
       }
     } catch (error) {
-      console.error("Error deleting genre image file:", error);
       // Don't throw error here as the database deletion was successful
     }
   }
@@ -1850,120 +1687,83 @@ export class DatabaseStorage implements IStorage {
         analytics: Number(analyticsCount.count),
       };
     } catch (error) {
-      console.error("Error getting database counts:", error);
       throw error;
     }
   }
 
   async resetDatabase(): Promise<void> {
     try {
-      console.log("Starting database reset...");
-      
       // Clear uploads folders first
       try {
         const audioDir = path.join(process.cwd(), 'uploads', 'audio');
         const imagesDir = path.join(process.cwd(), 'uploads', 'images');
         
-        console.log(`Audio directory: ${audioDir}`);
-        console.log(`Images directory: ${imagesDir}`);
-        
         // Clear audio folder
         if (fs.existsSync(audioDir)) {
           const audioFiles = fs.readdirSync(audioDir);
-          console.log(`Found ${audioFiles.length} audio files to delete`);
           for (const file of audioFiles) {
             const filePath = path.join(audioDir, file);
             fs.unlinkSync(filePath);
-            console.log(`Deleted: ${filePath}`);
+            }
+          } else {
           }
-          console.log(`✓ Cleared ${audioFiles.length} audio files`);
-        } else {
-          console.log(`Audio directory does not exist: ${audioDir}`);
-        }
         
         // Clear images folder
         if (fs.existsSync(imagesDir)) {
           const imageFiles = fs.readdirSync(imagesDir);
-          console.log(`Found ${imageFiles.length} image files to delete`);
           for (const file of imageFiles) {
             const filePath = path.join(imagesDir, file);
             fs.unlinkSync(filePath);
-            console.log(`Deleted: ${filePath}`);
+            }
+          } else {
           }
-          console.log(`✓ Cleared ${imageFiles.length} image files`);
-        } else {
-          console.log(`Images directory does not exist: ${imagesDir}`);
-        }
       } catch (error) {
-        console.error("⚠️ Error clearing upload folders:", error);
         // Don't throw, continue with database reset
       }
       
       // PostgreSQL handles foreign key constraints automatically
-      console.log("✓ Foreign key constraints managed by PostgreSQL");
-      console.log("Disabled foreign key constraints");
-      
       // Clear all tables (order doesn't matter with foreign keys disabled)
       try {
         await db.delete(cart);
-        console.log("✓ Cleared cart table");
-      } catch (error) {
-        console.log("⚠️ Cart table clear failed (may be empty):", error);
-      }
+        } catch (error) {
+        }
       
       try {
         await db.delete(payments);
-        console.log("✓ Cleared payments table");
-      } catch (error) {
-        console.log("⚠️ Payments table clear failed (may be empty):", error);
-      }
+        } catch (error) {
+        }
       
       try {
         await db.delete(purchases);
-        console.log("✓ Cleared purchases table");
-      } catch (error) {
-        console.log("⚠️ Purchases table clear failed (may be empty):", error);
-      }
+        } catch (error) {
+        }
       
       try {
         await db.delete(beats);
-        console.log("✓ Cleared beats table");
-      } catch (error) {
-        console.log("⚠️ Beats table clear failed (may be empty):", error);
-      }
+        } catch (error) {
+        }
       
       try {
         await db.delete(customers);
-        console.log("✓ Cleared customers table");
-      } catch (error) {
-        console.log("⚠️ Customers table clear failed (may be empty):", error);
-      }
+        } catch (error) {
+        }
       
       try {
         await db.delete(analytics);
-        console.log("✓ Cleared analytics table");
-      } catch (error) {
-        console.log("⚠️ Analytics table clear failed (may be empty):", error);
-      }
+        } catch (error) {
+        }
       
       try {
         await db.delete(genres);
-        console.log("✓ Cleared genres table");
-      } catch (error) {
-        console.log("⚠️ Genres table clear failed (may be empty):", error);
-      }
+        } catch (error) {
+        }
       
       try {
         await db.delete(users);
-        console.log("✓ Cleared users table");
-      } catch (error) {
-        console.log("⚠️ Users table clear failed (may be empty):", error);
-      }
+        } catch (error) {
+        }
       
       // PostgreSQL foreign key constraints are always enabled
-      console.log("✓ Foreign key constraints active");
-      console.log("✓ Re-enabled foreign key constraints");
-      
       // Create default admin user after clearing all users
       try {
         const hashedPassword = await bcrypt.hash('admin123', 10);
@@ -1979,10 +1779,8 @@ export class DatabaseStorage implements IStorage {
           createdAt: new Date(),
           updatedAt: new Date(),
         });
-        console.log("✓ Created default admin user: admin/admin123");
-      } catch (error) {
-        console.log("⚠️ Failed to create default admin user:", error);
-      }
+        } catch (error) {
+        }
       
       // Initialize analytics with some sample data
       try {
@@ -1993,16 +1791,11 @@ export class DatabaseStorage implements IStorage {
           totalDownloads: 0,
           updatedAt: new Date(),
         });
-        console.log("✓ Initialized analytics");
-      } catch (error) {
-        console.log("⚠️ Failed to initialize analytics:", error);
-      }
+        } catch (error) {
+        }
       
-      console.log("✅ Database reset completed successfully");
-    } catch (error) {
-      console.error("❌ Database reset error:", error);
+      } catch (error) {
       // PostgreSQL foreign key constraints are always enabled
-      console.log("✓ Foreign key constraints remain active");
       throw error;
     }
   }
@@ -2017,7 +1810,6 @@ export class DatabaseStorage implements IStorage {
       
       return result[0];
     } catch (error) {
-      console.error("Create verification code error:", error);
       throw error;
     }
   }
@@ -2040,7 +1832,6 @@ export class DatabaseStorage implements IStorage {
       
       return result[0];
     } catch (error) {
-      console.error("Get verification code error:", error);
       return undefined;
     }
   }
@@ -2054,7 +1845,6 @@ export class DatabaseStorage implements IStorage {
       
       return result.changes > 0;
     } catch (error) {
-      console.error("Mark verification code as used error:", error);
       return false;
     }
   }
@@ -2065,10 +1855,8 @@ export class DatabaseStorage implements IStorage {
         .delete(verificationCodes)
         .where(sql`${verificationCodes.expiresAt} <= ${Date.now()}`);
       
-      console.log("✓ Cleaned up expired verification codes");
-    } catch (error) {
-      console.error("Cleanup expired verification codes error:", error);
-    }
+      } catch (error) {
+      }
   }
 
   // Email settings operations
@@ -2098,7 +1886,6 @@ export class DatabaseStorage implements IStorage {
 
       return result[0];
     } catch (error) {
-      console.error("Get email settings error:", error);
       return undefined;
     }
   }
@@ -2141,7 +1928,6 @@ export class DatabaseStorage implements IStorage {
         return created[0];
       }
     } catch (error) {
-      console.error("Update email settings error:", error);
       throw error;
     }
   }
@@ -2169,7 +1955,6 @@ export class DatabaseStorage implements IStorage {
 
       return result[0];
     } catch (error) {
-      console.error("Get social media settings error:", error);
       return undefined;
     }
   }
@@ -2212,7 +1997,6 @@ export class DatabaseStorage implements IStorage {
         return created[0];
       }
     } catch (error) {
-      console.error("Update social media settings error:", error);
       throw error;
     }
   }
@@ -2252,7 +2036,6 @@ export class DatabaseStorage implements IStorage {
 
       return result[0];
     } catch (error) {
-      console.error("Get contact settings error:", error);
       return undefined;
     }
   }
@@ -2295,7 +2078,6 @@ export class DatabaseStorage implements IStorage {
         return created[0];
       }
     } catch (error) {
-      console.error("Update contact settings error:", error);
       throw error;
     }
   }
@@ -2328,7 +2110,6 @@ export class DatabaseStorage implements IStorage {
 
       return result[0];
     } catch (error) {
-      console.error("Get plans settings error:", error);
       return undefined;
     }
   }
@@ -2364,11 +2145,9 @@ export class DatabaseStorage implements IStorage {
         return result[0];
       }
     } catch (error) {
-      console.error("Update plans settings error:", error);
       throw error;
     }
   }
-  
 
   // Artist bio operations
   async getArtistBios(): Promise<ArtistBio[]> {
@@ -2381,7 +2160,6 @@ export class DatabaseStorage implements IStorage {
       
       return result;
     } catch (error) {
-      console.error("Get artist bios error:", error);
       return [];
     }
   }
@@ -2396,7 +2174,6 @@ export class DatabaseStorage implements IStorage {
       
       return result[0];
     } catch (error) {
-      console.error("Get artist bio error:", error);
       return undefined;
     }
   }
@@ -2414,7 +2191,6 @@ export class DatabaseStorage implements IStorage {
       
       return result[0];
     } catch (error) {
-      console.error("Create artist bio error:", error);
       throw error;
     }
   }
@@ -2436,7 +2212,6 @@ export class DatabaseStorage implements IStorage {
       
       return result[0];
     } catch (error) {
-      console.error("Update artist bio error:", error);
       throw error;
     }
   }
@@ -2447,7 +2222,6 @@ export class DatabaseStorage implements IStorage {
         .delete(artistBios)
         .where(eq(artistBios.id, id));
     } catch (error) {
-      console.error("Delete artist bio error:", error);
       throw error;
     }
   }
@@ -2483,7 +2257,6 @@ export class DatabaseStorage implements IStorage {
 
       return result[0] || defaultSettings;
     } catch (error) {
-      console.error("Get app branding settings error:", error);
       throw error;
     }
   }
@@ -2529,18 +2302,12 @@ export class DatabaseStorage implements IStorage {
         return created[0];
       }
     } catch (error) {
-      console.error("Update app branding settings error:", error);
       throw error;
     }
   }
-  
-  
 
-  
 private async deleteAllUploadedFiles(): Promise<void> {
     try {
-      console.log("🗑️ Deleting all uploaded files...");
-      
       // Delete all audio files
       const audioDir = path.join(process.cwd(), 'uploads', 'audio');
       if (fs.existsSync(audioDir)) {
@@ -2549,8 +2316,7 @@ private async deleteAllUploadedFiles(): Promise<void> {
           const filePath = path.join(audioDir, file);
           if (fs.statSync(filePath).isFile()) {
             fs.unlinkSync(filePath);
-            console.log(`Deleted audio file: ${file}`);
-          }
+            }
         }
       }
       
@@ -2562,22 +2328,17 @@ private async deleteAllUploadedFiles(): Promise<void> {
           const filePath = path.join(imageDir, file);
           if (fs.statSync(filePath).isFile()) {
             fs.unlinkSync(filePath);
-            console.log(`Deleted image file: ${file}`);
-          }
+            }
         }
       }
       
-      console.log("✅ All uploaded files deleted");
-    } catch (error) {
-      console.error("❌ Error deleting uploaded files:", error);
+      } catch (error) {
       throw error;
     }
   }
 
   private async clearAllTables(): Promise<void> {
     try {
-      console.log("🧹 Clearing all database tables...");
-      
       // Clear all tables in the correct order (respecting foreign key constraints)
       await db.run(sql`DELETE FROM purchases`);
       await db.run(sql`DELETE FROM cart`);
@@ -2595,9 +2356,7 @@ private async deleteAllUploadedFiles(): Promise<void> {
       await db.run(sql`DELETE FROM analytics`);
       await db.run(sql`DELETE FROM users WHERE username != 'admin'`);
       
-      console.log("✅ All tables cleared");
-    } catch (error) {
-      console.error("❌ Error clearing tables:", error);
+      } catch (error) {
       throw error;
     }
   }
@@ -2622,7 +2381,6 @@ private async deleteAllUploadedFiles(): Promise<void> {
       const result = await db.select().from(stripeSettings).limit(1);
       return result[0];
     } catch (error) {
-      console.error("Error getting Stripe settings:", error);
       return undefined;
     }
   }
@@ -2656,7 +2414,6 @@ private async deleteAllUploadedFiles(): Promise<void> {
         return created[0];
       }
     } catch (error) {
-      console.error("Error updating Stripe settings:", error);
       throw error;
     }
   }
@@ -2680,7 +2437,6 @@ private async deleteAllUploadedFiles(): Promise<void> {
       const result = await db.select().from(paypalSettings).limit(1);
       return result[0];
     } catch (error) {
-      console.error("Error getting PayPal settings:", error);
       return undefined;
     }
   }
@@ -2713,7 +2469,6 @@ private async deleteAllUploadedFiles(): Promise<void> {
         return created[0];
       }
     } catch (error) {
-      console.error("Error updating PayPal settings:", error);
       throw error;
     }
   }
@@ -2731,7 +2486,6 @@ private async deleteAllUploadedFiles(): Promise<void> {
       const result = await db.insert(stripeTransactions).values(newTransaction).returning();
       return result[0];
     } catch (error) {
-      console.error("Error creating Stripe transaction:", error);
       throw error;
     }
   }
@@ -2745,7 +2499,6 @@ private async deleteAllUploadedFiles(): Promise<void> {
         .limit(1);
       return result[0];
     } catch (error) {
-      console.error("Error getting Stripe transaction:", error);
       return undefined;
     }
   }
@@ -2759,7 +2512,6 @@ private async deleteAllUploadedFiles(): Promise<void> {
         .limit(1);
       return result[0];
     } catch (error) {
-      console.error("Error getting Stripe transaction by payment intent:", error);
       return undefined;
     }
   }
@@ -2777,7 +2529,6 @@ private async deleteAllUploadedFiles(): Promise<void> {
         .returning();
       return updated[0];
     } catch (error) {
-      console.error("Error updating Stripe transaction:", error);
       return undefined;
     }
   }
@@ -2789,7 +2540,6 @@ private async deleteAllUploadedFiles(): Promise<void> {
         .from(stripeTransactions)
         .where(eq(stripeTransactions.paymentId, paymentId));
     } catch (error) {
-      console.error("Error getting Stripe transactions by payment ID:", error);
       return [];
     }
   }
@@ -2819,7 +2569,6 @@ private async deleteAllUploadedFiles(): Promise<void> {
         updatedAt: new Date(),
       };
     } catch (error) {
-      console.error("Get home settings error:", error);
       // Return defaults on error
       return {
         id: "default",
@@ -2857,7 +2606,6 @@ private async deleteAllUploadedFiles(): Promise<void> {
         return created[0];
       }
     } catch (error) {
-      console.error("Update home settings error:", error);
       throw error;
     }
   }
@@ -2917,7 +2665,6 @@ private async deleteAllUploadedFiles(): Promise<void> {
         lastBackup: null, // TODO: Track last backup time
       };
     } catch (error) {
-      console.error("Error getting backup stats:", error);
       throw error;
     }
   }
@@ -2970,9 +2717,7 @@ private async deleteAllUploadedFiles(): Promise<void> {
         for (const { name, table } of tables) {
           try {
             dbData[name] = await db.select().from(table);
-            console.log(`✓ Exported ${name}: ${dbData[name].length} records`);
-          } catch (error) {
-            console.log(`⚠️ Table ${name} not found or error exporting:`, error);
+            } catch (error) {
             dbData[name] = []; // Set empty array for missing tables
           }
         }
@@ -3047,7 +2792,6 @@ private async deleteAllUploadedFiles(): Promise<void> {
       }
       
     } catch (error) {
-      console.error("Create backup error:", error);
       throw error;
     }
   }
@@ -3182,9 +2926,7 @@ private async deleteAllUploadedFiles(): Promise<void> {
           if (data?.length) {
             try {
               await db.insert(table).values(data).onConflictDoNothing();
-              console.log(`✓ Restored ${name}: ${data.length} records`);
-            } catch (error) {
-              console.log(`⚠️ Failed to restore ${name}:`, error);
+              } catch (error) {
               // Continue with other tables even if one fails
             }
           }
@@ -3218,7 +2960,6 @@ private async deleteAllUploadedFiles(): Promise<void> {
       }
       
     } catch (error) {
-      console.error("Restore backup error:", error);
       throw error;
     }
   }
@@ -3361,9 +3102,6 @@ private async deleteAllUploadedFiles(): Promise<void> {
       .orderBy(desc(userPlans.createdAt));
   }
 }
-
-
-
 
 export const storage = new DatabaseStorage();
 

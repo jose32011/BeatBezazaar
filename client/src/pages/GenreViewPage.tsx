@@ -135,7 +135,6 @@ export default function GenreViewPage() {
       });
     },
     onError: (error) => {
-      console.error("Error adding to cart:", error);
       toast({
         title: "Error",
         description: "Failed to add beat to cart",

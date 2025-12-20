@@ -8,8 +8,4 @@ export default function GenreCardExample() {
         name="Hip-Hop"
         beatCount={156}
         imageUrl={hipHopArtwork}
-        onClick={() => console.log('Genre clicked')}
-      />
-    </div>
-  );
-}
+        onClick={() => }

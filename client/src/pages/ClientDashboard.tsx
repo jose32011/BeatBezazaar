@@ -24,9 +24,6 @@ function ClientDashboardContent() {
   const themeColors = getThemeColors();
   
   // Debug logging
-  console.log('ClientDashboard - User:', user);
-  console.log('ClientDashboard - User ID:', user?.id);
-  
   const { data: purchases } = useQuery<Purchase[]>({
     queryKey: ['/api/purchases/my'],
     enabled: !!user?.id,
@@ -52,7 +49,9 @@ function ClientDashboardContent() {
     
     // Track site visit
     fetch('/api/analytics/visit', { method: 'POST' })
-      .catch(error => console.log('Analytics tracking failed:', error));
+      .catch(() => {
+        // Analytics tracking failed - silently ignore
+      });
   }, [purchases, allBeats]);
 
   const totalSpent = purchases?.reduce((sum, p) => sum + parseFloat(String(p.price || '0')), 0) || 0;
@@ -105,14 +104,15 @@ function ClientDashboardContent() {
       fetch('/api/analytics/download', { 
         method: 'POST',
         credentials: 'include'
-      }).catch(error => console.log('Download tracking failed:', error));
-
+      }).catch(() => {
+        // Analytics tracking failed - silently ignore
+      });
+      
       toast({
         title: "Download Started",
         description: `Downloading ${beat.title}`,
       });
     } catch (error) {
-      console.error('Download error:', error);
       toast({
         title: "Download Failed",
         description: "Failed to download the file. Please try again.",

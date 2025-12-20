@@ -19,14 +19,11 @@ const defaultTransporter = nodemailer.createTransport(defaultConfig);
 if (defaultConfig.auth && defaultConfig.auth.user && defaultConfig.auth.pass) {
   defaultTransporter.verify((error: any, success: any) => {
     if (error) {
-      console.log('❌ Email configuration error:', error);
-    } else {
-      console.log('✅ Email server is ready to send messages');
-    }
+      } else {
+      }
   });
 } else {
-  console.log('ℹ️ Email credentials not provided; skipping SMTP verification. Configure SMTP in Admin > Email or set SMTP_* env vars.');
-}
+  }
 
 export interface EmailOptions {
   to: string;
@@ -62,10 +59,8 @@ export async function sendEmail(options: EmailOptions, customConfig?: EmailConfi
     };
 
     const info = await transporter.sendMail(mailOptions);
-    console.log('✅ Email sent successfully:', info.messageId);
     return true;
   } catch (error) {
-    console.error('❌ Failed to send email:', error);
     return false;
   }
 }

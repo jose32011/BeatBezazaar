@@ -10,7 +10,6 @@ export async function getPayPalClient(): Promise<any | null> {
   const settings = await storage.getPayPalSettings();
   
   if (!settings || !settings.enabled || !settings.clientId || !settings.clientSecret) {
-    console.log("PayPal is not configured or disabled");
     return null;
   }
 
@@ -29,7 +28,6 @@ export async function getPayPalClient(): Promise<any | null> {
         environment,
       });
     } catch (e) {
-      console.error("Failed to import or initialize PayPal SDK. Is the '@paypal/paypal-server-sdk' package installed?", e);
       return null;
     }
   }
@@ -82,7 +80,6 @@ export async function createPayPalOrder(
     const response = await ordersController.ordersCreate(orderRequest);
     return response.result;
   } catch (error) {
-    console.error("Error creating PayPal order:", error);
     throw error;
   }
 }
@@ -102,7 +99,6 @@ export async function capturePayPalOrder(orderId: string): Promise<any | null> {
 
     return response.result;
   } catch (error) {
-    console.error("Error capturing PayPal order:", error);
     throw error;
   }
 }
@@ -118,7 +114,6 @@ export async function getPayPalOrder(orderId: string): Promise<any | null> {
     const response = await ordersController.ordersGet({ id: orderId });
     return response.result;
   } catch (error) {
-    console.error("Error getting PayPal order:", error);
     throw error;
   }
 }

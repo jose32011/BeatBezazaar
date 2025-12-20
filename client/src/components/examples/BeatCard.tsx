@@ -18,9 +18,4 @@ export default function BeatCardExample() {
     <div className="w-80">
       <BeatCard 
         beat={sampleBeat}
-        onPlayPause={() => console.log('Play/pause clicked')}
-        onAddToCart={() => console.log('Added to cart')}
-      />
-    </div>
-  );
-}
+        onPlayPause={() => }

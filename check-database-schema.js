@@ -19,11 +19,8 @@ dotenv.config({ path: join(__dirname, '.env') });
 const connectionString = process.env.DATABASE_URL;
 
 if (!connectionString) {
-  console.error('❌ DATABASE_URL not found in environment variables');
   process.exit(1);
 }
-
-console.log('🔍 Checking BeatBazaar database schema...\n');
 
 const sql = postgres(connectionString);
 
@@ -43,15 +40,10 @@ const expectedSchema = {
 
 async function checkSchema() {
   try {
-    console.log('🔌 Testing database connection...');
     await sql`SELECT 1 as test`;
-    console.log('✅ Database connection successful!\n');
-
     let allGood = true;
 
     for (const [tableName, expectedColumns] of Object.entries(expectedSchema)) {
-      console.log(`📋 Checking table: ${tableName}`);
-      
       // Check if table exists
       const tableExists = await sql`
         SELECT table_name 
@@ -60,7 +52,6 @@ async function checkSchema() {
       `;
 
       if (tableExists.length === 0) {
-        console.log(`❌ Table ${tableName} does not exist`);
         allGood = false;
         continue;
       }
@@ -80,40 +71,30 @@ async function checkSchema() {
       const extraColumns = actualColumnNames.filter(col => !expectedColumns.includes(col));
 
       if (missingColumns.length > 0) {
-        console.log(`❌ Missing columns in ${tableName}:`, missingColumns.join(', '));
         allGood = false;
       }
 
       if (extraColumns.length > 0) {
-        console.log(`⚠️  Extra columns in ${tableName}:`, extraColumns.join(', '));
-      }
+        }
 
       if (missingColumns.length === 0 && extraColumns.length === 0) {
-        console.log(`✅ ${tableName} schema is correct`);
+        }
+
       }
 
-      console.log(`   Columns (${actualColumns.length}): ${actualColumnNames.join(', ')}\n`);
-    }
-
     if (allGood) {
-      console.log('🎉 All database schemas are correct!');
-    } else {
-      console.log('⚠️  Some schema issues found. Run migrations to fix them.');
-    }
+      } else {
+      }
 
     // Show table counts
-    console.log('\n📊 Table record counts:');
     for (const tableName of Object.keys(expectedSchema)) {
       try {
         const count = await sql`SELECT COUNT(*) as count FROM ${sql(tableName)}`;
-        console.log(`   ${tableName}: ${count[0].count} records`);
-      } catch (error) {
-        console.log(`   ${tableName}: Table not found`);
-      }
+        } catch (error) {
+        }
     }
 
   } catch (error) {
-    console.error('\n❌ Schema check failed:', error.message);
     process.exit(1);
   } finally {
     await sql.end();

@@ -132,8 +132,7 @@ export default function Checkout() {
       });
 
       if (!clearResponse.ok) {
-        console.warn("Failed to clear cart, but payment was successful");
-      }
+        }
 
       // Force refresh the cart data
       queryClient.invalidateQueries({ queryKey: ["/api/cart"] });
@@ -148,7 +147,6 @@ export default function Checkout() {
         setLocation("/library");
       }, 1000);
     } catch (error) {
-      console.error("Post-payment cleanup error:", error);
       // Still redirect even if cleanup fails
       setTimeout(() => {
         setLocation("/library");

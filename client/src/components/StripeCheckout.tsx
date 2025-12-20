@@ -45,8 +45,7 @@ export default function StripeCheckout({
           }
         }
       } catch (error) {
-        console.error('Failed to initialize Stripe:', error);
-      }
+        }
     };
 
     initializeStripe();

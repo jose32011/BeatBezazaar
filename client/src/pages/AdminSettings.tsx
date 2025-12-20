@@ -468,8 +468,7 @@ function AdminSettingsContent() {
         }
       })
       .catch(error => {
-        console.error('Failed to load email settings:', error);
-      });
+        });
 
     // Load PayPal settings from API
     fetch('/api/admin/paypal-settings', {
@@ -491,8 +490,7 @@ function AdminSettingsContent() {
         }
       })
       .catch(error => {
-        console.error('Failed to load PayPal settings:', error);
-      });
+        });
 
     // Load contact settings from API (including social media)
     fetch('/api/contact-settings', {
@@ -524,8 +522,7 @@ function AdminSettingsContent() {
         }
       })
       .catch(error => {
-        console.error('Failed to load contact settings:', error);
-      });
+        });
 
     // Load plans settings from API
     fetch('/api/plans-settings', {
@@ -648,8 +645,7 @@ function AdminSettingsContent() {
         }
       })
       .catch(error => {
-        console.error('Failed to load plans settings:', error);
-      });
+        });
 
     // Load app branding settings from API
     fetch('/api/app-branding-settings', {
@@ -673,8 +669,7 @@ function AdminSettingsContent() {
         }
       })
       .catch(error => {
-        console.error('Failed to load app branding settings:', error);
-      });
+        });
 
     // Load artist bios from API
     fetch('/api/artist-bios', {
@@ -687,8 +682,7 @@ function AdminSettingsContent() {
         }
       })
       .catch(error => {
-        console.error('Failed to load artist bios:', error);
-      });
+        });
 
     // Load home settings from API
     fetch('/api/home-settings', {
@@ -708,8 +702,7 @@ function AdminSettingsContent() {
         }
       })
       .catch(error => {
-        console.error('Failed to load home settings:', error);
-      });
+        });
   }, []);
 
   const saveSettingsMutation = useMutation({
@@ -790,7 +783,6 @@ function AdminSettingsContent() {
 
   const saveContactSettingsMutation = useMutation({
     mutationFn: async (contactSettingsData: typeof contactSettings) => {
-      console.log('Saving contact settings:', contactSettingsData);
       const response = await fetch('/api/admin/contact-settings', {
         method: 'PUT',
         headers: { 'Content-Type': 'application/json' },
@@ -800,7 +792,6 @@ function AdminSettingsContent() {
       
       if (!response.ok) {
         const errorText = await response.text();
-        console.error('Contact settings save failed:', response.status, errorText);
         throw new Error(`Failed to save contact settings: ${response.status} ${errorText}`);
       }
       
@@ -815,7 +806,6 @@ function AdminSettingsContent() {
       });
     },
     onError: (error: any) => {
-      console.error("Contact settings save error:", error);
       toast({
         title: "Error",
         description: error.message || "Failed to save contact settings",
@@ -931,7 +921,6 @@ function AdminSettingsContent() {
       });
     },
   });
-
 
   const createArtistBioMutation = useMutation({
     mutationFn: async (bioData: typeof bioFormData) => {
@@ -1063,7 +1052,6 @@ function AdminSettingsContent() {
       return response.json();
     },
   });
-
 
   const migrateCustomersMutation = useMutation({
     mutationFn: async () => {
@@ -4032,8 +4020,6 @@ function AdminSettingsContent() {
               </CardContent>
             </Card>
           )}
-
-
 
           {/* Theme Selection */}
           {activeTab === "themes" && (

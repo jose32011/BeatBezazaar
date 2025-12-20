@@ -21,7 +21,6 @@ export async function getStripeInstance(): Promise<any | null> {
   const settings = await storage.getStripeSettings();
   
   if (!settings || !settings.enabled || !settings.secretKey) {
-    console.log("Stripe is not configured or disabled");
     return null;
   }
 
@@ -33,7 +32,6 @@ export async function getStripeInstance(): Promise<any | null> {
         apiVersion: "2024-06-20",
       });
     } catch (e) {
-      console.error("Failed to import or initialize Stripe. Is the 'stripe' package installed?", e);
       return null;
     }
   }
@@ -68,7 +66,6 @@ export async function createPaymentIntent(
 
     return paymentIntent;
   } catch (error) {
-    console.error("Error creating payment intent:", error);
     throw error;
   }
 }
@@ -82,7 +79,6 @@ export async function retrievePaymentIntent(
   try {
     return await stripe.paymentIntents.retrieve(paymentIntentId);
   } catch (error) {
-    console.error("Error retrieving payment intent:", error);
     throw error;
   }
 }
@@ -96,7 +92,6 @@ export async function cancelPaymentIntent(
   try {
     return await stripe.paymentIntents.cancel(paymentIntentId);
   } catch (error) {
-    console.error("Error canceling payment intent:", error);
     throw error;
   }
 }
@@ -110,14 +105,12 @@ export async function constructWebhookEvent(
 
   const settings = await storage.getStripeSettings();
   if (!settings || !settings.webhookSecret) {
-    console.error("Stripe webhook secret is not configured");
     return null;
   }
 
   try {
     return stripe.webhooks.constructEvent(payload, signature, settings.webhookSecret);
   } catch (error) {
-    console.error("Error constructing webhook event:", error);
     throw error;
   }
 }

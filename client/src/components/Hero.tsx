@@ -36,22 +36,10 @@ export default function Hero() {
   try {
     if (heroBannerData && heroBannerData.trim()) {
       bannerData = JSON.parse(heroBannerData);
-      console.log('🎨 Hero: Banner data parsed successfully:', bannerData);
-    } else {
-      console.log('🎨 Hero: No banner data found, using default hero');
     }
   } catch (error) {
-    console.warn('🎨 Hero: Failed to parse hero banner data:', error);
+    // Failed to parse hero banner data, use default
   }
-
-  // Debug logging
-  console.log('🎨 Hero: Current state:', {
-    heroBannerData: heroBannerData ? 'present' : 'empty',
-    bannerData: bannerData ? 'parsed' : 'null',
-    heroTitle,
-    heroSubtitle,
-    isLoading: brandingLoading
-  });
 
   // Show loading state while theme or branding is loading
   if (themeLoading || brandingLoading) {
