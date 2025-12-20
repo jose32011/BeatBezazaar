@@ -5,10 +5,10 @@ import Header from "@/components/Header";
 import Hero from "@/components/Hero";
 import type { Beat } from "@shared/schema";
 import BeatCarousel from "@/components/BeatCarousel";
-import AudioPlayer from "@/components/AudioPlayer";
 import Cart, { type CartItem } from "@/components/Cart";
 
 import { useAuth } from "@/contexts/AuthContext";
+import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -17,16 +17,10 @@ import { apiRequest } from "@/lib/queryClient";
 export default function Home() {
   const [isCartOpen, setIsCartOpen] = useState(false);
   const [cartItems, setCartItems] = useState<CartItem[]>([]);
-  const [currentlyPlaying, setCurrentlyPlaying] = useState<string | null>(null);
-  const [playerBeat, setPlayerBeat] = useState<Beat | null>(null);
-  const [playlist, setPlaylist] = useState<Beat[]>([]);
-  const [currentPlaylistIndex, setCurrentPlaylistIndex] = useState<number>(0);
-  const [isPlaylistMode, setIsPlaylistMode] = useState(false);
-  const [playerCurrentTime, setPlayerCurrentTime] = useState<number>(0);
-  const [playerDuration, setPlayerDuration] = useState<number>(0);
   const [, setLocation] = useLocation();
   const { user, isAuthenticated } = useAuth();
   const { getThemeColors } = useTheme();
+  const audioPlayer = useAudioPlayer();
   const { toast } = useToast();
   const queryClient = useQueryClient();
   
@@ -50,16 +44,12 @@ export default function Home() {
     queryKey: ['/api/home-settings'],
   });
 
-  // Update playlist state when userPlaylist changes
+  // Track site visit and analytics
   useEffect(() => {
-    if (userPlaylist.length > 0) {
-      setPlaylist(userPlaylist);
-    }
-    
     // Track site visit
     fetch('/api/analytics/visit', { method: 'POST' })
       .catch(error => console.log('Analytics tracking failed:', error));
-  }, [userPlaylist]);
+  }, []);
 
   // Fetch user's cart
   const { data: userCart = [] } = useQuery<Beat[]>({
@@ -114,7 +104,6 @@ export default function Home() {
     console.log('🎵 Home handlePlayPause called for:', beat.title);
     console.log('🎵 Beat audio URL:', beat.audioUrl);
     console.log('🎵 User playlist:', userPlaylist.map(b => b.title));
-    console.log('🎵 Currently playing:', currentlyPlaying);
     
     if (!beat.audioUrl) {
       console.error('❌ No audio URL for beat:', beat.title);
@@ -130,71 +119,23 @@ export default function Home() {
     const isInPlaylist = userPlaylist.some(b => b.id === beat.id);
     console.log('🎵 Is in playlist:', isInPlaylist);
     
-    if (currentlyPlaying === beat.id) {
+    if (audioPlayer.isPlaying(beat.id)) {
       // If currently playing this beat, pause it
       console.log('⏸️ Pausing current beat');
-      setCurrentlyPlaying(null);
-      setPlayerBeat(null);
-      setIsPlaylistMode(false);
+      audioPlayer.pause();
     } else {
-      // If this is a purchased song, play it in playlist mode
-      if (isInPlaylist) {
-        console.log('▶️ Playing purchased song in playlist mode');
-        const playlistIndex = userPlaylist.findIndex(b => b.id === beat.id);
-        setPlaylist(userPlaylist);
-        setCurrentPlaylistIndex(playlistIndex);
-        setIsPlaylistMode(true);
-        setCurrentlyPlaying(beat.id);
-        setPlayerBeat(beat);
-      } else {
-        // Regular preview mode for non-purchased songs
-        console.log('▶️ Playing non-purchased song in preview mode');
-        setIsPlaylistMode(false);
-        setCurrentlyPlaying(beat.id);
-        setPlayerBeat(beat);
-      }
+      // Play the beat with appropriate playlist
+      console.log('▶️ Playing beat with global audio player');
+      const playlist = isInPlaylist ? userPlaylist : beats.slice(0, 4);
+      audioPlayer.play(beat.id, beat.audioUrl, {
+        id: beat.id,
+        title: beat.title,
+        producer: beat.producer,
+        imageUrl: beat.imageUrl,
+        audioUrl: beat.audioUrl
+      }, isInPlaylist, playlist);
     }
   };
-
-  const handleNextSong = () => {
-    if (!isPlaylistMode || playlist.length === 0) return;
-    
-    const nextIndex = (currentPlaylistIndex + 1) % playlist.length;
-    const nextBeat = playlist[nextIndex];
-    
-    setCurrentPlaylistIndex(nextIndex);
-    setCurrentlyPlaying(nextBeat.id);
-    setPlayerBeat(nextBeat);
-  };
-
-  const handlePreviousSong = () => {
-    if (!isPlaylistMode || playlist.length === 0) return;
-    
-    const prevIndex = currentPlaylistIndex === 0 ? playlist.length - 1 : currentPlaylistIndex - 1;
-    const prevBeat = playlist[prevIndex];
-    
-    setCurrentPlaylistIndex(prevIndex);
-    setCurrentlyPlaying(prevBeat.id);
-    setPlayerBeat(prevBeat);
-  };
-
-  const handleSongEnd = () => {
-    if (isPlaylistMode) {
-      // Auto-play next song in playlist
-      handleNextSong();
-    } else {
-      // Stop playback for preview mode
-      setCurrentlyPlaying(null);
-      setPlayerBeat(null);
-    }
-  };
-
-  const handlePlayerTimeUpdate = (currentTime: number, duration: number) => {
-    setPlayerCurrentTime(currentTime);
-    setPlayerDuration(duration);
-  };
-
-
 
   const handleAddToCart = (beat: Beat) => {
     console.log('🛒 handleAddToCart called for:', beat.title);
@@ -442,7 +383,7 @@ export default function Home() {
       className="min-h-screen pb-24"
       style={{ background: themeColors.background }}
     >
-      <Header cartCount={cartCount} onCartClick={() => setIsCartOpen(true)} />
+      <Header />
       
       <Hero />
 
@@ -525,24 +466,6 @@ export default function Home() {
 
 
 
-
-      {playerBeat && (
-        <AudioPlayer
-          beatTitle={playerBeat.title}
-          producer={playerBeat.producer}
-          imageUrl={playerBeat.imageUrl}
-          audioUrl={playerBeat.audioUrl || undefined}
-          duration={30}
-          isFullSong={isPlaylistMode}
-          onNext={handleNextSong}
-          onPrevious={handlePreviousSong}
-          onSongEnd={handleSongEnd}
-          onTimeUpdate={handlePlayerTimeUpdate}
-          showPlaylistControls={isPlaylistMode}
-          currentIndex={currentPlaylistIndex}
-          totalSongs={playlist.length}
-        />
-      )}
 
       <Cart
         isOpen={isCartOpen}

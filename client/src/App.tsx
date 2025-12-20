@@ -6,7 +6,7 @@ import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
 import { AuthProvider, useAuth } from "@/contexts/AuthContext";
 import { CartProvider, useCart } from "@/contexts/CartContext";
-import { ThemeProvider } from "@/contexts/ThemeContext";
+import { ThemeProvider, useTheme } from "@/contexts/ThemeContext";
 import { AudioProvider } from "@/contexts/AudioContext";
 import { AudioPlayerProvider } from "@/contexts/AudioPlayerContext";
 import { useAppBranding } from "@/hooks/useAppBranding";
@@ -34,6 +34,26 @@ import Setup from "@/pages/Setup";
 const MusicPage = lazy(() => import("@/pages/MusicPage"));
 const GenreViewPage = lazy(() => import("@/pages/GenreViewPage"));
 const Library = lazy(() => import("@/pages/Library"));
+
+// Component to apply theme background to body
+function BodyThemeApplier() {
+  const { getThemeColors } = useTheme();
+  const themeColors = getThemeColors();
+
+  useEffect(() => {
+    // Apply theme background to body
+    document.body.style.background = themeColors.background;
+    document.body.style.minHeight = '100vh';
+    
+    // Cleanup function to reset when component unmounts
+    return () => {
+      document.body.style.background = '';
+      document.body.style.minHeight = '';
+    };
+  }, [themeColors.background]);
+
+  return null; // This component doesn't render anything
+}
 
 function Router() {
   return (
@@ -93,6 +113,7 @@ function AppContent() {
 
   return (
     <>
+      <BodyThemeApplier />
       <Router />
       <PasswordChangeModal
         isOpen={showPasswordChangeModal}

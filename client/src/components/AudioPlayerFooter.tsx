@@ -1,8 +1,60 @@
 import { useAudioPlayer } from "@/contexts/AudioPlayerContext";
 import { useTheme } from "@/contexts/ThemeContext";
-import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX } from "lucide-react";
-import { Slider } from "@/components/ui/slider";
+import { Play, Pause, SkipBack, SkipForward, Volume2, VolumeX, X } from "lucide-react";
 import { useState, useEffect } from "react";
+
+// Custom slider component for audio player that respects theme colors
+interface AudioSliderProps {
+  value: number[];
+  max: number;
+  step: number;
+  onValueChange: (value: number[]) => void;
+  className?: string;
+}
+
+function AudioSlider({ value, max, step, onValueChange, className = "" }: AudioSliderProps) {
+  const { getThemeColors } = useTheme();
+  const themeColors = getThemeColors();
+  
+  const handleClick = (e: React.MouseEvent<HTMLDivElement>) => {
+    const rect = e.currentTarget.getBoundingClientRect();
+    const percent = (e.clientX - rect.left) / rect.width;
+    const newValue = Math.max(0, Math.min(max, percent * max));
+    onValueChange([newValue]);
+  };
+
+  const progress = max > 0 ? (value[0] / max) * 100 : 0;
+
+  return (
+    <div 
+      className={`relative h-2 w-full cursor-pointer ${className}`}
+      onClick={handleClick}
+    >
+      {/* Track */}
+      <div 
+        className="absolute inset-0 rounded-full"
+        style={{ backgroundColor: themeColors.surface }}
+      />
+      {/* Progress */}
+      <div 
+        className="absolute inset-y-0 left-0 rounded-full"
+        style={{ 
+          backgroundColor: themeColors.primary,
+          width: `${progress}%`
+        }}
+      />
+      {/* Thumb */}
+      <div 
+        className="absolute top-1/2 w-4 h-4 rounded-full border-2 transform -translate-y-1/2 -translate-x-1/2"
+        style={{ 
+          backgroundColor: themeColors.cardBackground,
+          borderColor: themeColors.primary,
+          left: `${progress}%`
+        }}
+      />
+    </div>
+  );
+}
 
 export default function AudioPlayerFooter() {
   const audioPlayer = useAudioPlayer();
@@ -44,6 +96,12 @@ export default function AudioPlayerFooter() {
     }
   };
 
+  // Helper function to extract HSL values from theme colors
+  const extractHSLValues = (hslString: string) => {
+    // Extract values from "hsl(210, 90%, 55%)" format to "210 90% 55%"
+    return hslString.replace('hsl(', '').replace(')', '').replace(/,/g, '');
+  };
+
   const formatTime = (seconds: number) => {
     const mins = Math.floor(seconds / 60);
     const secs = Math.floor(seconds % 60);
@@ -62,6 +120,20 @@ export default function AudioPlayerFooter() {
       {/* Mobile Layout */}
       <div className="block sm:hidden">
         <div className="flex items-center p-3 gap-3">
+          {/* Close Button on Far Left */}
+          <button
+            onClick={() => audioPlayer.stop()}
+            className="p-1 rounded-full transition-colors flex-shrink-0"
+            style={{ 
+              color: themeColors.textSecondary,
+            }}
+            onMouseEnter={(e) => e.currentTarget.style.backgroundColor = themeColors.hover}
+            onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+            title="Close player"
+          >
+            <X className="w-4 h-4" />
+          </button>
+
           {/* Square Album Art on Left */}
           {currentBeat.imageUrl && (
             <img
@@ -93,17 +165,12 @@ export default function AudioPlayerFooter() {
               >
                 {formatTime(audioPlayer.currentTime)}
               </span>
-              <Slider
+              <AudioSlider
                 value={[audioPlayer.currentTime]}
                 max={audioPlayer.isCurrentTrackOwned ? audioPlayer.duration : Math.min(30, audioPlayer.duration || 30)}
                 step={0.1}
                 onValueChange={(value) => audioPlayer.seek(value[0])}
                 className="flex-1"
-                style={{
-                  '--slider-track': themeColors.inputBackground,
-                  '--slider-range': themeColors.primary,
-                  '--slider-thumb': themeColors.primary
-                } as React.CSSProperties & { [key: string]: string }}
               />
               <span
                 className="text-xs tabular-nums"
@@ -216,17 +283,12 @@ export default function AudioPlayerFooter() {
                 >
                   {formatTime(audioPlayer.currentTime)}
                 </span>
-                <Slider
+                <AudioSlider
                   value={[audioPlayer.currentTime]}
                   max={audioPlayer.isCurrentTrackOwned ? audioPlayer.duration : Math.min(30, audioPlayer.duration || 30)}
                   step={0.1}
                   onValueChange={(value) => audioPlayer.seek(value[0])}
                   className="flex-1"
-                  style={{
-                    '--slider-track': themeColors.inputBackground,
-                    '--slider-range': themeColors.primary,
-                    '--slider-thumb': themeColors.primary
-                  } as React.CSSProperties & { [key: string]: string }}
                 />
                 <span
                   className="text-xs tabular-nums"
@@ -254,18 +316,29 @@ export default function AudioPlayerFooter() {
                   <Volume2 className="w-5 h-5" />
                 )}
               </button>
-              <Slider
+              <AudioSlider
                 value={[isMuted ? 0 : volume]}
                 max={100}
                 step={1}
                 onValueChange={handleVolumeChange}
                 className="w-24"
-                style={{
-                  '--slider-track': themeColors.inputBackground,
-                  '--slider-range': themeColors.primary,
-                  '--slider-thumb': themeColors.primary
-                } as React.CSSProperties & { [key: string]: string }}
               />
+            </div>
+
+            {/* Close Button */}
+            <div className="flex-shrink-0">
+              <button
+                onClick={() => audioPlayer.stop()}
+                className="p-2 rounded-full transition-colors"
+                style={{ 
+                  color: themeColors.textSecondary,
+                }}
+                onMouseEnter={(e) => e.currentTarget.style.backgroundColor = themeColors.hover}
+                onMouseLeave={(e) => e.currentTarget.style.backgroundColor = 'transparent'}
+                title="Close player"
+              >
+                <X className="w-5 h-5" />
+              </button>
             </div>
           </div>
         </div>

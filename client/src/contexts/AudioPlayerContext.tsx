@@ -20,6 +20,7 @@ interface AudioPlayerContextType {
   currentIndex: number;
   play: (beatId: string, audioUrl: string, beatInfo?: Beat, isOwned?: boolean, playlist?: Beat[]) => void;
   pause: () => void;
+  stop: () => void;
   isPlaying: (beatId: string) => boolean;
   hasError: (beatId: string) => boolean;
   seek: (time: number) => void;
@@ -233,6 +234,22 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     setIsLoading(false);
   };
 
+  const stop = () => {
+    if (!audioRef.current) return;
+
+    audioRef.current.pause();
+    audioRef.current.currentTime = 0;
+    setCurrentlyPlaying(null);
+    setCurrentBeat(null);
+    setCurrentTime(0);
+    setDuration(0);
+    setIsLoading(false);
+    setError(null);
+    setErrorBeatId(null);
+    setPlaylistState([]);
+    setCurrentIndex(-1);
+  };
+
   const isPlaying = (beatId: string): boolean => {
     return currentlyPlaying === beatId;
   };
@@ -305,6 +322,7 @@ export function AudioPlayerProvider({ children }: { children: ReactNode }) {
     currentIndex,
     play,
     pause,
+    stop,
     isPlaying,
     hasError,
     seek,
