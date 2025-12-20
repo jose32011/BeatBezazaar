@@ -40,18 +40,73 @@ export interface EmailConfig {
     user: string;
     pass: string;
   };
+  fromName?: string;
+  fromEmail?: string;
 }
 
-export async function sendEmail(options: EmailOptions, customConfig?: EmailConfig): Promise<boolean> {
+// Get email configuration with priority: Database > Environment Variables
+export async function getEmailConfig(storage?: any): Promise<EmailConfig | null> {
   try {
-    const transporter = customConfig 
-      ? nodemailer.createTransport(customConfig)
-      : defaultTransporter;
+    // Try to get database settings first
+    if (storage) {
+      const dbSettings = await storage.getEmailSettings();
+      if (dbSettings && dbSettings.enabled && dbSettings.smtpHost && dbSettings.smtpUser && dbSettings.smtpPass) {
+        return {
+          host: dbSettings.smtpHost,
+          port: dbSettings.smtpPort,
+          secure: dbSettings.smtpSecure,
+          auth: {
+            user: dbSettings.smtpUser,
+            pass: dbSettings.smtpPass
+          },
+          fromName: dbSettings.fromName || 'BeatBazaar',
+          fromEmail: dbSettings.fromEmail || dbSettings.smtpUser
+        };
+      }
+    }
+
+    // Fallback to environment variables
+    const envConfig = getDefaultEmailConfig();
+    if (envConfig.auth.user && envConfig.auth.pass) {
+      return {
+        ...envConfig,
+        fromName: process.env.SMTP_FROM_NAME || 'BeatBazaar',
+        fromEmail: process.env.SMTP_FROM_EMAIL || envConfig.auth.user
+      };
+    }
+
+    return null;
+  } catch (error) {
+    console.error('Error getting email configuration:', error);
+    return null;
+  }
+}
+
+export async function sendEmail(options: EmailOptions, customConfig?: EmailConfig, storage?: any): Promise<boolean> {
+  try {
+    let config = customConfig;
+    
+    // If no custom config provided, get the best available configuration
+    if (!config) {
+      config = await getEmailConfig(storage);
+      if (!config) {
+        console.error('No email configuration available');
+        return false;
+      }
+    }
+
+    const transporter = nodemailer.createTransport({
+      host: config.host,
+      port: config.port,
+      secure: config.secure,
+      auth: config.auth
+    });
+
+    const fromName = config.fromName || 'BeatBazaar';
+    const fromEmail = config.fromEmail || config.auth.user;
 
     const mailOptions = {
-      from: customConfig 
-        ? `"BeatBazaar" <${customConfig.auth.user}>`
-        : `"BeatBazaar" <${getDefaultEmailConfig().auth.user}>`,
+      from: `"${fromName}" <${fromEmail}>`,
       to: options.to,
       subject: options.subject,
       html: options.html,
@@ -59,8 +114,10 @@ export async function sendEmail(options: EmailOptions, customConfig?: EmailConfi
     };
 
     const info = await transporter.sendMail(mailOptions);
+    console.log('Email sent successfully:', info.messageId);
     return true;
   } catch (error) {
+    console.error('Failed to send email:', error);
     return false;
   }
 }

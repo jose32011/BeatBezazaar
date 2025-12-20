@@ -24,6 +24,7 @@ import CustomerManagement from "@/components/CustomerManagement";
 import PaymentManagement from "@/components/PaymentManagement";
 import ExclusivePurchaseManager from "@/components/ExclusivePurchaseManager";
 import GenreManagement from "@/components/GenreManagement";
+import LogsTestingManager from "@/components/LogsTestingManager";
 import AdminSettings from "@/pages/AdminSettings";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
@@ -54,6 +55,7 @@ function AdminDashboardContent() {
     { id: "payments", label: "Payments", icon: PaymentIcon, shortLabel: "Payments" },
     { id: "beats", label: "Beat Management", icon: BeatIcon, shortLabel: "Beats" },
     { id: "genres", label: "Genre Management", icon: Music, shortLabel: "Genres" },
+    { id: "testing", label: "System Testing", icon: Settings, shortLabel: "Testing" },
     { id: "settings", label: "Settings", icon: Settings, shortLabel: "Settings" }
   ];
 
@@ -995,6 +997,11 @@ function AdminDashboardContent() {
           {/* Payments */}
           {activeTab === "payments" && (
             <PaymentManagement />
+          )}
+
+          {/* System Testing */}
+          {activeTab === "testing" && (
+            <LogsTestingManager />
           )}
 
           {/* Settings */}
