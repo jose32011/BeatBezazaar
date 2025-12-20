@@ -353,6 +353,104 @@ export async function registerRoutes(app: Express): Promise<Server> {
     }
   });
 
+  // Test endpoints for system testing
+  app.get("/api/test/database", async (req, res) => {
+    try {
+      // Test database connection by getting beats count
+      const beats = await storage.getAllBeats();
+      res.json({ 
+        status: 'success', 
+        message: 'Database connection successful',
+        beatsCount: beats.length
+      });
+    } catch (error) {
+      res.status(500).json({ 
+        status: 'error', 
+        message: 'Database connection failed',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  app.get("/api/test/paypal", async (req, res) => {
+    try {
+      // Test PayPal configuration
+      const paypalMod = await import('./paypal');
+      const { getPayPalClient } = paypalMod as any;
+      const paypalClient = await getPayPalClient();
+      
+      if (paypalClient) {
+        res.json({ 
+          status: 'success', 
+          message: 'PayPal configuration is valid'
+        });
+      } else {
+        res.status(400).json({ 
+          status: 'error', 
+          message: 'PayPal is not configured or disabled'
+        });
+      }
+    } catch (error) {
+      res.status(500).json({ 
+        status: 'error', 
+        message: 'PayPal configuration test failed',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  app.get("/api/test/stripe", async (req, res) => {
+    try {
+      // Test Stripe configuration
+      const stripeMod = await import('./stripe');
+      const { getStripeClient } = stripeMod as any;
+      const stripeClient = await getStripeClient();
+      
+      if (stripeClient) {
+        res.json({ 
+          status: 'success', 
+          message: 'Stripe configuration is valid'
+        });
+      } else {
+        res.status(400).json({ 
+          status: 'error', 
+          message: 'Stripe is not configured or disabled'
+        });
+      }
+    } catch (error) {
+      res.status(500).json({ 
+        status: 'error', 
+        message: 'Stripe configuration test failed',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
+  app.get("/api/test/email", async (req, res) => {
+    try {
+      // Test email configuration by checking if SMTP settings exist
+      const hasEmailConfig = process.env.SMTP_HOST && process.env.SMTP_USER && process.env.SMTP_PASS;
+      
+      if (hasEmailConfig) {
+        res.json({ 
+          status: 'success', 
+          message: 'Email configuration is valid'
+        });
+      } else {
+        res.status(400).json({ 
+          status: 'error', 
+          message: 'Email is not configured'
+        });
+      }
+    } catch (error) {
+      res.status(500).json({ 
+        status: 'error', 
+        message: 'Email configuration test failed',
+        error: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Debug endpoint to check current session
   app.get("/api/debug/session", async (req, res) => {
     res.json({

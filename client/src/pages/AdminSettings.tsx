@@ -11,10 +11,13 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Table, TableBody, TableCell, TableHead, TableHeader, TableRow } from "@/components/ui/table";
 import { Badge } from "@/components/ui/badge";
+import { ScrollArea } from "@/components/ui/scroll-area";
+import { Separator } from "@/components/ui/separator";
 import { useToast } from "@/hooks/use-toast";
 import { useAuth } from "@/contexts/AuthContext";
 import { useTheme } from "@/contexts/ThemeContext";
 import { ProtectedRoute } from "@/components/ProtectedRoute";
+import LogsTestingManager from "@/components/LogsTestingManager";
 import { useLocation } from "wouter";
 import { 
   CreditCard, 
@@ -437,7 +440,8 @@ function AdminSettingsContent() {
     { id: "users", label: "Admin Users", icon: Users, shortLabel: "Users" },
     { id: "themes", label: "Themes", icon: Palette, shortLabel: "Themes" },
     { id: "backup", label: "Backup & Restore", icon: Database, shortLabel: "Backup" },
-    { id: "database", label: "Database", icon: Database, shortLabel: "DB" }
+    { id: "database", label: "Database", icon: Database, shortLabel: "DB" },
+    { id: "logs-testing", label: "Logs & Testing", icon: Settings, shortLabel: "Testing" }
   ];
 
   // Load settings on component mount
@@ -4027,6 +4031,11 @@ function AdminSettingsContent() {
             <ThemeSelector />
             <ThemePreview />
             </div>
+          )}
+
+          {/* Logs & Testing */}
+          {activeTab === "logs-testing" && (
+            <LogsTestingManager />
           )}
         </div>
 
