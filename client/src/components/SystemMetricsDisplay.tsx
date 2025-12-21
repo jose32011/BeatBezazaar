@@ -38,6 +38,8 @@ interface SystemMetrics {
   nodeVersion: string;
   architecture: string;
   hostname: string;
+  environment?: string;
+  isRender?: boolean;
 }
 
 const formatBytes = (bytes: number): string => {
@@ -64,19 +66,55 @@ const formatUptime = (seconds: number): string => {
 
 export default function SystemMetricsDisplay() {
   const { toast } = useToast();
+  const [lastUpdate, setLastUpdate] = useState<Date>(new Date());
   
-  const { data: metrics, refetch, isLoading, error } = useQuery<SystemMetrics>({
+  const { data: metrics, refetch, isLoading, error, isError } = useQuery<SystemMetrics>({
     queryKey: ['/api/system/metrics'],
-    refetchInterval: 30000, // Refetch every 30 seconds
-    staleTime: 10000, // Consider data stale after 10 seconds
-    gcTime: 60000, // Keep in cache for 1 minute
+    refetchInterval: 15000, // Refetch every 15 seconds (more frequent)
+    staleTime: 5000, // Consider data stale after 5 seconds
+    gcTime: 30000, // Keep in cache for 30 seconds
     refetchOnMount: true,
     refetchOnWindowFocus: true,
+    refetchIntervalInBackground: true, // Continue refetching when tab is not active
+    retry: (failureCount, error: any) => {
+      // Don't retry on authentication errors
+      if (error?.status === 401 || error?.status === 403) {
+        return false;
+      }
+      // Retry up to 3 times for other errors
+      return failureCount < 3;
+    },
+    retryDelay: (attemptIndex) => Math.min(1000 * 2 ** attemptIndex, 30000),
+    onSuccess: () => {
+      setLastUpdate(new Date());
+    },
+    onError: (error: any) => {
+      console.error('System metrics error:', error);
+      if (error?.status === 401 || error?.status === 403) {
+        toast({
+          title: "Authentication Error",
+          description: "Please log in again to view system metrics.",
+          variant: "destructive",
+        });
+      }
+    }
   });
+
+  // Auto-refresh every 15 seconds with visual indicator
+  useEffect(() => {
+    const interval = setInterval(() => {
+      if (!isLoading && !isError) {
+        refetch();
+      }
+    }, 15000);
+
+    return () => clearInterval(interval);
+  }, [refetch, isLoading, isError]);
 
   const handleRefresh = async () => {
     try {
       await refetch();
+      setLastUpdate(new Date());
       toast({
         title: "Metrics refreshed",
         description: "System metrics have been updated.",
@@ -90,10 +128,18 @@ export default function SystemMetricsDisplay() {
     }
   };
 
-  if (error) {
+  if (isError || error) {
+    const errorMessage = error as any;
     return (
       <div className="text-center py-8">
-        <p className="text-muted-foreground mb-4">Failed to load system metrics</p>
+        <p className="text-muted-foreground mb-2">Failed to load system metrics</p>
+        {errorMessage?.status === 401 || errorMessage?.status === 403 ? (
+          <p className="text-sm text-red-500 mb-4">Authentication required. Please log in again.</p>
+        ) : (
+          <p className="text-sm text-muted-foreground mb-4">
+            {errorMessage?.message || 'Network error or server unavailable'}
+          </p>
+        )}
         <Button onClick={handleRefresh} variant="outline">
           <RefreshCw className="h-4 w-4 mr-2" />
           Retry
@@ -130,9 +176,14 @@ export default function SystemMetricsDisplay() {
       {/* Header with refresh button */}
       <div className="flex items-center justify-between">
         <div className="flex items-center gap-2 text-sm text-muted-foreground">
-          <span>Last updated: {new Date().toLocaleTimeString()}</span>
+          <span>Last updated: {lastUpdate.toLocaleTimeString()}</span>
           <span>•</span>
           <span>Uptime: {formatUptime(metrics.uptime)}</span>
+          <span>•</span>
+          <span className={`inline-flex items-center gap-1 ${isLoading ? 'text-blue-500' : 'text-green-500'}`}>
+            <div className={`w-2 h-2 rounded-full ${isLoading ? 'bg-blue-500 animate-pulse' : 'bg-green-500'}`} />
+            {isLoading ? 'Updating...' : 'Live'}
+          </span>
         </div>
         <Button onClick={handleRefresh} variant="outline" size="sm" disabled={isLoading}>
           <RefreshCw className={`h-4 w-4 mr-2 ${isLoading ? 'animate-spin' : ''}`} />
@@ -263,6 +314,11 @@ export default function SystemMetricsDisplay() {
           <div className="flex items-center gap-2">
             <Settings className="h-4 w-4 text-gray-500" />
             <span className="font-medium">System Info</span>
+            {metrics.isRender && (
+              <span className="inline-flex items-center px-2 py-1 rounded-full text-xs bg-blue-100 text-blue-800 dark:bg-blue-900 dark:text-blue-200">
+                Render
+              </span>
+            )}
           </div>
           <div className="space-y-1 text-sm">
             <div className="flex justify-between">
@@ -280,6 +336,10 @@ export default function SystemMetricsDisplay() {
             <div className="flex justify-between">
               <span className="text-muted-foreground">Node.js:</span>
               <span>{metrics.nodeVersion}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Environment:</span>
+              <span className="capitalize">{metrics.environment || 'unknown'}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Hostname:</span>

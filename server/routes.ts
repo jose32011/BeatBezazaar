@@ -1717,7 +1717,7 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       const os = await import('os');
       const path = await import('path');
 
-      // Get disk usage
+      // Get disk usage with better error handling for cloud environments
       const getDiskUsage = () => {
         try {
           const uploadsPath = path.join(process.cwd(), 'uploads');
@@ -1725,7 +1725,7 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
           
           let uploadsSize = 0;
           let dbSize = 0;
-          let totalDisk = 1024 * 1024 * 1024; // 1GB fallback
+          let totalDisk = 512 * 1024 * 1024; // 512MB default for Render free tier
           let freeDisk = 0;
           
           // Calculate uploads directory size
@@ -1736,15 +1736,20 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
                 const files = fs.readdirSync(dirPath);
                 for (const file of files) {
                   const filePath = path.join(dirPath, file);
-                  const stat = fs.statSync(filePath);
-                  if (stat.isDirectory()) {
-                    size += calculateDirSize(filePath);
-                  } else {
-                    size += stat.size;
+                  try {
+                    const stat = fs.statSync(filePath);
+                    if (stat.isDirectory()) {
+                      size += calculateDirSize(filePath);
+                    } else {
+                      size += stat.size;
+                    }
+                  } catch (fileError) {
+                    // Skip files that can't be accessed
+                    continue;
                   }
                 }
-              } catch (err) {
-                // Ignore errors for individual files
+              } catch (dirError) {
+                // Skip directories that can't be accessed
               }
               return size;
             };
@@ -1752,34 +1757,52 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
           }
           
           // Get database size
-          if (fs.existsSync(dbPath)) {
-            dbSize = fs.statSync(dbPath).size;
+          try {
+            if (fs.existsSync(dbPath)) {
+              dbSize = fs.statSync(dbPath).size;
+            }
+          } catch (dbError) {
+            // Database file might not be accessible
+            dbSize = 0;
           }
 
-          // Try to get real disk usage using df command
+          // Try to get real disk usage using df command (with better error handling)
           try {
             const { execSync } = require('child_process');
-            const dfOutput = execSync('df -B1 .', { encoding: 'utf8', timeout: 5000 });
+            const dfOutput = execSync('df -B1 .', { 
+              encoding: 'utf8', 
+              timeout: 3000,
+              stdio: ['ignore', 'pipe', 'ignore'] // Ignore stderr to prevent noise
+            });
             const lines = dfOutput.trim().split('\n');
             if (lines.length >= 2) {
               const diskInfo = lines[1].split(/\s+/);
               if (diskInfo.length >= 4) {
-                totalDisk = parseInt(diskInfo[1]) || totalDisk; // Total size in bytes
-                const availableDisk = parseInt(diskInfo[3]) || 0; // Available size in bytes
-                freeDisk = availableDisk;
+                const totalFromDf = parseInt(diskInfo[1]);
+                const availableFromDf = parseInt(diskInfo[3]);
+                if (totalFromDf && availableFromDf) {
+                  totalDisk = totalFromDf;
+                  freeDisk = availableFromDf;
+                }
               }
             }
           } catch (dfError) {
-            // Fallback: try to get filesystem stats
-            try {
-              const stats = fs.statSync('.');
-              // Use a reasonable estimate for container environments
-              totalDisk = 10 * 1024 * 1024 * 1024; // 10GB estimate for containers
-              freeDisk = totalDisk - uploadsSize - dbSize;
-            } catch (statError) {
-              // Use fallback values
-              freeDisk = Math.max(0, totalDisk - uploadsSize - dbSize);
+            // df command failed, use estimates based on environment
+            const isRender = process.env.RENDER || process.env.RENDER_SERVICE_ID;
+            const isProduction = process.env.NODE_ENV === 'production';
+            
+            if (isRender) {
+              // Render.com typical disk allocations
+              totalDisk = 1024 * 1024 * 1024; // 1GB for starter plans
+            } else if (isProduction) {
+              // Other production environments
+              totalDisk = 10 * 1024 * 1024 * 1024; // 10GB estimate
+            } else {
+              // Development environment
+              totalDisk = 100 * 1024 * 1024 * 1024; // 100GB estimate
             }
+            
+            freeDisk = Math.max(0, totalDisk - uploadsSize - dbSize);
           }
           
           const usedDisk = totalDisk - freeDisk;
@@ -1792,50 +1815,74 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
             dbSize
           };
         } catch (error) {
+          // Complete fallback
           return {
-            total: 1024 * 1024 * 1024, // 1GB fallback
-            used: 0,
-            free: 1024 * 1024 * 1024,
+            total: 512 * 1024 * 1024, // 512MB fallback
+            used: 50 * 1024 * 1024, // 50MB estimated usage
+            free: 462 * 1024 * 1024,
             uploadsSize: 0,
             dbSize: 0
           };
         }
       };
 
-      // Get memory usage
-      const memoryUsage = process.memoryUsage();
-      const totalMemory = os.totalmem();
-      const freeMemory = os.freemem();
-      const usedMemory = totalMemory - freeMemory;
-
-      // Get real CPU usage
-      const getCpuUsage = async (): Promise<number> => {
+      // Get real CPU usage with better error handling
+      const getCpuUsage = (): number => {
         try {
-          // Method 1: Try to read /proc/loadavg for more accurate CPU usage
+          // Method 1: Try to read /proc/loadavg for Linux systems
           if (fs.existsSync('/proc/loadavg')) {
-            const loadavg = fs.readFileSync('/proc/loadavg', 'utf8').trim();
-            const load1min = parseFloat(loadavg.split(' ')[0]);
-            const cpuCount = os.cpus().length;
-            // Convert load average to percentage (load average / CPU count * 100)
-            return Math.min(100, Math.max(0, Math.round((load1min / cpuCount) * 100)));
+            try {
+              const loadavg = fs.readFileSync('/proc/loadavg', 'utf8').trim();
+              const load1min = parseFloat(loadavg.split(' ')[0]);
+              const cpuCount = os.cpus().length || 1;
+              // Convert load average to percentage (load average / CPU count * 100)
+              return Math.min(100, Math.max(0, Math.round((load1min / cpuCount) * 100)));
+            } catch (procError) {
+              // Fall through to method 2
+            }
           }
           
           // Method 2: Use Node.js os.loadavg()
-          const loadAvg = os.loadavg()[0]; // 1-minute load average
-          const cpuCount = os.cpus().length;
+          const loadAvg = os.loadavg()[0] || 0;
+          const cpuCount = os.cpus().length || 1;
           return Math.min(100, Math.max(0, Math.round((loadAvg / cpuCount) * 100)));
         } catch (error) {
-          // Fallback: use load average as rough estimate
-          const loadAvg = os.loadavg()[0];
-          return Math.min(100, Math.max(0, Math.round(loadAvg * 20))); // Rough conversion
+          // Fallback: return a reasonable default
+          return 25; // 25% as a safe default
         }
       };
 
-      // Get disk usage
+      // Get memory usage (this should work reliably)
+      const memoryUsage = process.memoryUsage();
+      const totalMemory = os.totalmem() || 1024 * 1024 * 1024; // 1GB fallback
+      const freeMemory = os.freemem() || 512 * 1024 * 1024; // 512MB fallback
+      const usedMemory = totalMemory - freeMemory;
+
+      // Get system info with fallbacks
+      const getSystemInfo = () => {
+        try {
+          return {
+            platform: os.platform() || 'unknown',
+            architecture: os.arch() || 'unknown',
+            hostname: os.hostname() || 'unknown',
+            cpuCount: os.cpus().length || 1,
+            loadAverage: os.loadavg() || [0, 0, 0]
+          };
+        } catch (error) {
+          return {
+            platform: 'unknown',
+            architecture: 'unknown', 
+            hostname: 'unknown',
+            cpuCount: 1,
+            loadAverage: [0, 0, 0]
+          };
+        }
+      };
+
+      // Get all data
       const diskUsage = getDiskUsage();
-      
-      // Get CPU usage
-      const cpuUsage = await getCpuUsage();
+      const cpuUsage = getCpuUsage();
+      const systemInfo = getSystemInfo();
 
       const metrics = {
         disk: {
@@ -1854,29 +1901,38 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
           free: freeMemory,
           usagePercentage: Math.round((usedMemory / totalMemory) * 100),
           process: {
-            rss: memoryUsage.rss,
-            heapTotal: memoryUsage.heapTotal,
-            heapUsed: memoryUsage.heapUsed,
-            external: memoryUsage.external
+            rss: memoryUsage.rss || 0,
+            heapTotal: memoryUsage.heapTotal || 0,
+            heapUsed: memoryUsage.heapUsed || 0,
+            external: memoryUsage.external || 0
           }
         },
         cpu: {
           usage: cpuUsage,
-          loadAverage: os.loadavg(),
-          cpuCount: os.cpus().length
+          loadAverage: systemInfo.loadAverage,
+          cpuCount: systemInfo.cpuCount
         },
-        uptime: process.uptime(),
-        platform: os.platform(),
-        nodeVersion: process.version,
-        architecture: os.arch(),
-        hostname: os.hostname()
+        uptime: process.uptime() || 0,
+        platform: systemInfo.platform,
+        nodeVersion: process.version || 'unknown',
+        architecture: systemInfo.architecture,
+        hostname: systemInfo.hostname,
+        environment: process.env.NODE_ENV || 'development',
+        isRender: !!(process.env.RENDER || process.env.RENDER_SERVICE_ID)
       };
 
+      // Add cache headers to prevent caching
+      res.setHeader('Cache-Control', 'no-cache, no-store, must-revalidate');
+      res.setHeader('Pragma', 'no-cache');
+      res.setHeader('Expires', '0');
+      
       res.json(metrics);
     } catch (error) {
+      console.error('System metrics error:', error);
       res.status(500).json({ 
         error: 'Failed to get system metrics',
-        details: error instanceof Error ? error.message : 'Unknown error'
+        details: error instanceof Error ? error.message : 'Unknown error',
+        timestamp: new Date().toISOString()
       });
     }
   });
