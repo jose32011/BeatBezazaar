@@ -1720,12 +1720,13 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       // Get disk usage
       const getDiskUsage = () => {
         try {
-          const stats = fs.statSync('.');
           const uploadsPath = path.join(process.cwd(), 'uploads');
           const dbPath = path.join(process.cwd(), 'beatbazaar.db');
           
           let uploadsSize = 0;
           let dbSize = 0;
+          let totalDisk = 1024 * 1024 * 1024; // 1GB fallback
+          let freeDisk = 0;
           
           // Calculate uploads directory size
           if (fs.existsSync(uploadsPath)) {
@@ -1754,12 +1755,34 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
           if (fs.existsSync(dbPath)) {
             dbSize = fs.statSync(dbPath).size;
           }
+
+          // Try to get real disk usage using df command
+          try {
+            const { execSync } = require('child_process');
+            const dfOutput = execSync('df -B1 .', { encoding: 'utf8', timeout: 5000 });
+            const lines = dfOutput.trim().split('\n');
+            if (lines.length >= 2) {
+              const diskInfo = lines[1].split(/\s+/);
+              if (diskInfo.length >= 4) {
+                totalDisk = parseInt(diskInfo[1]) || totalDisk; // Total size in bytes
+                const availableDisk = parseInt(diskInfo[3]) || 0; // Available size in bytes
+                freeDisk = availableDisk;
+              }
+            }
+          } catch (dfError) {
+            // Fallback: try to get filesystem stats
+            try {
+              const stats = fs.statSync('.');
+              // Use a reasonable estimate for container environments
+              totalDisk = 10 * 1024 * 1024 * 1024; // 10GB estimate for containers
+              freeDisk = totalDisk - uploadsSize - dbSize;
+            } catch (statError) {
+              // Use fallback values
+              freeDisk = Math.max(0, totalDisk - uploadsSize - dbSize);
+            }
+          }
           
-          // For Render, we typically have limited disk space (512MB - 10GB depending on plan)
-          // We'll estimate based on common Render plans
-          const totalDisk = 1024 * 1024 * 1024; // 1GB default estimate
-          const usedDisk = uploadsSize + dbSize;
-          const freeDisk = Math.max(0, totalDisk - usedDisk);
+          const usedDisk = totalDisk - freeDisk;
           
           return {
             total: totalDisk,
@@ -1785,11 +1808,34 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
       const freeMemory = os.freemem();
       const usedMemory = totalMemory - freeMemory;
 
-      // Get CPU usage (simplified)
-      const cpuUsage = os.loadavg()[0] * 10; // Rough estimate as percentage
+      // Get real CPU usage
+      const getCpuUsage = async (): Promise<number> => {
+        try {
+          // Method 1: Try to read /proc/loadavg for more accurate CPU usage
+          if (fs.existsSync('/proc/loadavg')) {
+            const loadavg = fs.readFileSync('/proc/loadavg', 'utf8').trim();
+            const load1min = parseFloat(loadavg.split(' ')[0]);
+            const cpuCount = os.cpus().length;
+            // Convert load average to percentage (load average / CPU count * 100)
+            return Math.min(100, Math.max(0, Math.round((load1min / cpuCount) * 100)));
+          }
+          
+          // Method 2: Use Node.js os.loadavg()
+          const loadAvg = os.loadavg()[0]; // 1-minute load average
+          const cpuCount = os.cpus().length;
+          return Math.min(100, Math.max(0, Math.round((loadAvg / cpuCount) * 100)));
+        } catch (error) {
+          // Fallback: use load average as rough estimate
+          const loadAvg = os.loadavg()[0];
+          return Math.min(100, Math.max(0, Math.round(loadAvg * 20))); // Rough conversion
+        }
+      };
 
       // Get disk usage
       const diskUsage = getDiskUsage();
+      
+      // Get CPU usage
+      const cpuUsage = await getCpuUsage();
 
       const metrics = {
         disk: {
@@ -1815,12 +1861,15 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
           }
         },
         cpu: {
-          usage: Math.min(100, Math.max(0, Math.round(cpuUsage))),
-          loadAverage: os.loadavg()
+          usage: cpuUsage,
+          loadAverage: os.loadavg(),
+          cpuCount: os.cpus().length
         },
         uptime: process.uptime(),
         platform: os.platform(),
-        nodeVersion: process.version
+        nodeVersion: process.version,
+        architecture: os.arch(),
+        hostname: os.hostname()
       };
 
       res.json(metrics);

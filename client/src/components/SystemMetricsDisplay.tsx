@@ -31,10 +31,13 @@ interface SystemMetrics {
   cpu: {
     usage: number;
     loadAverage: number[];
+    cpuCount: number;
   };
   uptime: number;
   platform: string;
   nodeVersion: string;
+  architecture: string;
+  hostname: string;
 }
 
 const formatBytes = (bytes: number): string => {
@@ -248,6 +251,10 @@ export default function SystemMetricsDisplay() {
               <span className="text-muted-foreground">Load Avg:</span>
               <span>{metrics.cpu.loadAverage[0].toFixed(2)}</span>
             </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">CPU Cores:</span>
+              <span>{metrics.cpu.cpuCount}</span>
+            </div>
           </div>
         </div>
 
@@ -263,8 +270,20 @@ export default function SystemMetricsDisplay() {
               <span className="capitalize">{metrics.platform}</span>
             </div>
             <div className="flex justify-between">
+              <span className="text-muted-foreground">Architecture:</span>
+              <span>{metrics.architecture}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">CPUs:</span>
+              <span>{metrics.cpu.cpuCount} cores</span>
+            </div>
+            <div className="flex justify-between">
               <span className="text-muted-foreground">Node.js:</span>
               <span>{metrics.nodeVersion}</span>
+            </div>
+            <div className="flex justify-between">
+              <span className="text-muted-foreground">Hostname:</span>
+              <span className="truncate max-w-24" title={metrics.hostname}>{metrics.hostname}</span>
             </div>
             <div className="flex justify-between">
               <span className="text-muted-foreground">Uptime:</span>
