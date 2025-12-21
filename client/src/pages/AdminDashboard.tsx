@@ -26,6 +26,7 @@ import ExclusivePurchaseManager from "@/components/ExclusivePurchaseManager";
 import GenreManagement from "@/components/GenreManagement";
 import LogsTestingManager from "@/components/LogsTestingManager";
 import AdminSettings from "@/pages/AdminSettings";
+import SystemMetricsDisplay from "@/components/SystemMetricsDisplay";
 import { useToast } from "@/hooks/use-toast";
 import { apiRequest } from "@/lib/queryClient";
 import type { Analytics, Purchase, Beat } from "@shared/schema";
@@ -723,6 +724,22 @@ function AdminDashboardContent() {
                 </div>
               </div>
             )}
+          </CardContent>
+        </Card>
+
+        {/* System Metrics Section */}
+        <Card>
+          <CardHeader>
+            <CardTitle className="flex items-center gap-2">
+              <Settings className="h-5 w-5" />
+              System Metrics
+            </CardTitle>
+            <CardDescription>
+              Server resource usage and performance metrics
+            </CardDescription>
+          </CardHeader>
+          <CardContent>
+            <SystemMetricsDisplay />
           </CardContent>
         </Card>
 

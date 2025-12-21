@@ -1710,6 +1710,128 @@ app.delete("/api/admin/artist-bios/:id", requireAdmin, async (req, res) => {
     res.status(204).send();
   });
 
+  // System metrics endpoint for admin dashboard
+  app.get("/api/system/metrics", requireAdmin, async (req, res) => {
+    try {
+      const fs = await import('fs');
+      const os = await import('os');
+      const path = await import('path');
+
+      // Get disk usage
+      const getDiskUsage = () => {
+        try {
+          const stats = fs.statSync('.');
+          const uploadsPath = path.join(process.cwd(), 'uploads');
+          const dbPath = path.join(process.cwd(), 'beatbazaar.db');
+          
+          let uploadsSize = 0;
+          let dbSize = 0;
+          
+          // Calculate uploads directory size
+          if (fs.existsSync(uploadsPath)) {
+            const calculateDirSize = (dirPath: string): number => {
+              let size = 0;
+              try {
+                const files = fs.readdirSync(dirPath);
+                for (const file of files) {
+                  const filePath = path.join(dirPath, file);
+                  const stat = fs.statSync(filePath);
+                  if (stat.isDirectory()) {
+                    size += calculateDirSize(filePath);
+                  } else {
+                    size += stat.size;
+                  }
+                }
+              } catch (err) {
+                // Ignore errors for individual files
+              }
+              return size;
+            };
+            uploadsSize = calculateDirSize(uploadsPath);
+          }
+          
+          // Get database size
+          if (fs.existsSync(dbPath)) {
+            dbSize = fs.statSync(dbPath).size;
+          }
+          
+          // For Render, we typically have limited disk space (512MB - 10GB depending on plan)
+          // We'll estimate based on common Render plans
+          const totalDisk = 1024 * 1024 * 1024; // 1GB default estimate
+          const usedDisk = uploadsSize + dbSize;
+          const freeDisk = Math.max(0, totalDisk - usedDisk);
+          
+          return {
+            total: totalDisk,
+            used: usedDisk,
+            free: freeDisk,
+            uploadsSize,
+            dbSize
+          };
+        } catch (error) {
+          return {
+            total: 1024 * 1024 * 1024, // 1GB fallback
+            used: 0,
+            free: 1024 * 1024 * 1024,
+            uploadsSize: 0,
+            dbSize: 0
+          };
+        }
+      };
+
+      // Get memory usage
+      const memoryUsage = process.memoryUsage();
+      const totalMemory = os.totalmem();
+      const freeMemory = os.freemem();
+      const usedMemory = totalMemory - freeMemory;
+
+      // Get CPU usage (simplified)
+      const cpuUsage = os.loadavg()[0] * 10; // Rough estimate as percentage
+
+      // Get disk usage
+      const diskUsage = getDiskUsage();
+
+      const metrics = {
+        disk: {
+          total: diskUsage.total,
+          used: diskUsage.used,
+          free: diskUsage.free,
+          usagePercentage: Math.round((diskUsage.used / diskUsage.total) * 100),
+          breakdown: {
+            uploads: diskUsage.uploadsSize,
+            database: diskUsage.dbSize
+          }
+        },
+        memory: {
+          total: totalMemory,
+          used: usedMemory,
+          free: freeMemory,
+          usagePercentage: Math.round((usedMemory / totalMemory) * 100),
+          process: {
+            rss: memoryUsage.rss,
+            heapTotal: memoryUsage.heapTotal,
+            heapUsed: memoryUsage.heapUsed,
+            external: memoryUsage.external
+          }
+        },
+        cpu: {
+          usage: Math.min(100, Math.max(0, Math.round(cpuUsage))),
+          loadAverage: os.loadavg()
+        },
+        uptime: process.uptime(),
+        platform: os.platform(),
+        nodeVersion: process.version
+      };
+
+      res.json(metrics);
+    } catch (error) {
+      res.status(500).json({ 
+        error: 'Failed to get system metrics',
+        details: error instanceof Error ? error.message : 'Unknown error'
+      });
+    }
+  });
+
   // Customer routes
   app.get("/api/customers", requireAdmin, async (req, res) => {
     try {
